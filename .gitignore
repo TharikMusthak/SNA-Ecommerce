@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+admin/node_modules/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+backend/.env
+frontend/.env
+admin/.env
+
+# Generated output
+dist/
+frontend/dist/
+admin/dist/
+coverage/
+
+# Runtime data
+backend/uploads/
+backend/tmp/
+*.log
+
+# Tool and OS files
+.wrangler/
+.DS_Store
+Thumbs.db
