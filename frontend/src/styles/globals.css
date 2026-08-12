@@ -1,0 +1,142 @@
+@import "tailwindcss";
+@import "./theme.css";
+*{
+      font-family: "Segoe UI Variable", "Segoe UI",-apple-system, BlinkMacSystemFont, sans-serif;
+
+}
+
+
+div {
+  user-select: none;
+}
+/* ==========================================================
+   ABOUT SECTION - ENTRANCE ANIMATIONS
+========================================================== */
+
+@keyframes aboutGarlicIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-130%) rotate(-8deg);
+  }
+
+  /* 65% {
+    opacity: 1;
+    transform: translateX(5%) rotate(0);
+  }
+
+  82% {
+    transform: translateX(-2%) rotate(0);
+  } */
+
+  100% {
+    opacity: 1;
+    transform: translateX(0) rotate(0);
+  }
+}
+
+@keyframes aboutPaddyIn {
+  0% {
+    opacity: 0;
+    transform: translateX(130%) rotate(8deg);
+  }
+
+  65% {
+    opacity: 1;
+    transform: translateX(-4%) rotate(-2deg);
+  }
+
+  82% {
+    transform: translateX(2%) rotate(1deg);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateX(0) rotate(0);
+  }
+}
+
+
+/* ==========================================================
+   ABOUT CONTENT
+========================================================== */
+
+@keyframes aboutContentIn {
+  0% {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+/* ==========================================================
+   NATURAL PADDY WIND
+========================================================== */
+
+@keyframes paddyWind {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  20% {
+    transform: rotate(-1.2deg);
+  }
+
+  40% {
+    transform: rotate(0.8deg);
+  }
+
+  60% {
+    transform: rotate(-0.7deg);
+  }
+
+  80% {
+    transform: rotate(0.45deg);
+  }
+
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+
+/* ==========================================================
+   ANIMATION CLASSES
+========================================================== */
+
+.animate-about-garlic-in {
+  animation: aboutGarlicIn 1.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-about-paddy-in {
+  animation: aboutPaddyIn 1.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-about-content-in {
+  animation: aboutContentIn 0.9s ease-out 0.35s forwards;
+}
+
+.animate-paddy-wind {
+  animation: paddyWind 4.5s ease-in-out 1.6s infinite;
+  transform-origin: bottom right;
+}
+
+
+/* ==========================================================
+   REDUCED MOTION
+========================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-about-garlic-in,
+  .animate-about-paddy-in,
+  .animate-about-content-in,
+  .animate-paddy-wind {
+    animation: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+}
