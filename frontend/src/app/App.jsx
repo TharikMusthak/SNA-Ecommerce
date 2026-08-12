@@ -4,10 +4,12 @@ import { router } from "./routes";
 import Providers from "./providers";
 
 function App() {
+
+
 return (
 
 <Providers>
-    <RouterProvider router={router} />;
+     <RouterProvider router={router} />;
 </Providers>
 )
 }
