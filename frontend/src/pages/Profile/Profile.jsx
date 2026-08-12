@@ -243,7 +243,7 @@ const Profile = () => {
           </form>
           </Modal>
           )}
-          {user?.referral_code && (
+          {/* {user?.referral_code && (
             <div className="mt-6 rounded-xl bg-emerald-50 p-4">
               <p className="text-xs font-semibold uppercase text-emerald-700">
                 Your referral code
@@ -252,7 +252,7 @@ const Profile = () => {
                 {user.referral_code}
               </p>
             </div>
-          )}
+          )} */}
         </section>
 
         <section className="rounded-[1.75rem] border border-gray-100 bg-white p-6 shadow-sm sm:p-8">

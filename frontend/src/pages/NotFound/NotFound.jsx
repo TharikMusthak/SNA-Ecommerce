@@ -5,8 +5,8 @@ const NotFound = () => {
   const navigate = useNavigate();
 
   return (
-    <main className="grid min-h-[70vh] place-items-center overflow-hidden bg-[#f7faf8] px-5 py-12">
-      <section className="relative w-full max-w-2xl overflow-hidden rounded-[2rem] border border-emerald-100 bg-white px-6 py-12 text-center shadow-xl shadow-emerald-950/5 sm:px-12 sm:py-16">
+    <main className="grid min-h-[100vh] min-w-[100vw] place-items-center   bg-white] px-5 py-12">
+      <section className="relative w-full  overflow-hidden rounded-[2rem] border border-emerald-100 bg-white px-6 py-12 text-center shadow-xl shadow-emerald-950/5 sm:px-12 sm:py-16">
         <div className="absolute -left-20 -top-20 h-52 w-52 rounded-full bg-emerald-100/70" />
         <div className="absolute -bottom-24 -right-16 h-64 w-64 rounded-full border-[32px] border-emerald-50" />
         <div className="relative">
@@ -22,9 +22,7 @@ const NotFound = () => {
           <h1 className="mt-4 text-2xl font-semibold text-gray-900 sm:text-3xl">
             We couldn’t find this wellness page.
           </h1>
-          <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-gray-500 sm:text-base">
-            The product or page may have moved. Explore our natural, nourishing products and find something good for your everyday wellness.
-          </p>
+          
 
           <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
             <Link

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Heart, Minus, Plus, ShoppingBag } from "lucide-react";
+import { Heart, Minus, Plus, ShoppingBag, Star } from "lucide-react";
 import {
   useLocation,
   useNavigate,
@@ -7,6 +7,7 @@ import {
   useSearchParams,
 } from "react-router-dom";
 import toast from "react-hot-toast";
+import Tinyleaf from "@assets/images/tinyleaf.svg";
 
 import fallbackImage from "@assets/images/product1.png";
 import { apiErrorMessage } from "@api/axios";
@@ -20,6 +21,7 @@ import {
   useRelatedProducts,
 } from "@hooks/useProducts";
 import { useWishlist } from "@hooks/useWishlist";
+import { useProductReviews, useSubmitReview } from "@hooks/useReviews";
 import formatCurrency from "@utils/formatCurrency";
 import { assetUrl, effectivePrice } from "@utils/helpers";
 
@@ -57,11 +59,30 @@ const ProductList = () => {
     <section className="mx-auto min-h-[70vh] w-full max-w-[1380px] px-5 py-12 sm:px-8 lg:px-14">
       <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
         <div>
-          <p className="font-semibold uppercase tracking-[0.18em] text-[#079447]">
-            SNA catalogue
-          </p>
+     <div className="mb-2 flex items-center gap-1">
+            <span
+              className="
+                  pointer-events-none
+
+                text-[clamp(22px,1.8vw,27px)]
+                font-bold
+                leading-none
+                text-[#3d3d3d]
+              "
+            >
+             SNA catalogue
+            </span>
+
+            <img
+              className="h-auto w-[17px]"
+            alt="Tiny leaf"
+              aria-hidden="true"
+              src={Tinyleaf}
+            />
+              
+          </div>
           <h1 className="mt-2 text-4xl font-semibold text-gray-900">
-            {params.q ? `Results for “${params.q}”` : "Our products"}
+            {params.q ? `Results for “${params.q}”` : "Our Products"}
           </h1>
           <p className="mt-2 text-gray-500">
             {data?.pagination?.total ?? 0} products available
@@ -143,6 +164,12 @@ const ProductDetail = ({ identifier }) => {
   const wishlist = useWishlist();
   const [quantity, setQuantity] = useState(1);
   const [variantId, setVariantId] = useState(null);
+  const [rating, setRating] = useState(0);
+  const [hoveredRating, setHoveredRating] = useState(0);
+  const [reviewTitle, setReviewTitle] = useState("");
+  const [reviewText, setReviewText] = useState("");
+  const { data: reviewsData, isLoading: reviewsLoading } = useProductReviews(product?.id);
+  const submitReview = useSubmitReview(product?.id);
 
   if (isLoading)
     return (
@@ -170,6 +197,20 @@ const ProductDetail = ({ identifier }) => {
   const stock = selectedVariant?.stock ?? product.stock;
   const favorite = wishlist.items.some(
     (item) => Number(item.id) === Number(product.id),
+  );
+  const reviews = reviewsData?.items || [];
+  const reviewCount = Number(
+    product.review_count ??
+      product.reviews_count ??
+      reviewsData?.pagination?.total ??
+      reviews.length,
+  );
+  const fetchedRating = reviews.length
+    ? reviews.reduce((total, review) => total + Number(review.rating || 0), 0) /
+      reviews.length
+    : 0;
+  const productRating = Number(
+    product.average_rating ?? product.rating ?? fetchedRating,
   );
 
   const ensureLogin = () => {
@@ -199,6 +240,41 @@ const ProductDetail = ({ identifier }) => {
     }
   };
 
+  const submitRating = async (event) => {
+    event.preventDefault();
+    if (!ensureLogin()) return;
+    const title = reviewTitle.trim();
+    const review_text = reviewText.trim();
+
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+      toast.error("Please choose a rating from 1 to 5 stars");
+      return;
+    }
+    if (!title) {
+      toast.error("Please add a review title before submitting");
+      return;
+    }
+    if (!review_text) {
+      toast.error("Please write a review before submitting");
+      return;
+    }
+
+    try {
+      await submitReview.mutateAsync({
+        product_id: product.id,
+        rating,
+        title,
+        review_text,
+      });
+      setRating(0);
+      setReviewTitle("");
+      setReviewText("");
+      toast.success("Thanks for reviewing this product");
+    } catch (error) {
+      toast.error(apiErrorMessage(error, "Could not submit your rating"));
+    }
+  };
+
   return (
     <main className="mx-auto w-full max-w-[1380px] px-5 py-12 sm:px-8 lg:px-14">
       <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
@@ -219,6 +295,15 @@ const ProductDetail = ({ identifier }) => {
           <p className="mt-3 text-gray-500">
             {product.brand_name || product.sku}
           </p>
+          <div className="mt-5 flex items-center gap-2">
+            <div className="flex items-center gap-0.5" aria-label={`${productRating || 0} out of 5 stars`}>
+              {[1, 2, 3, 4, 5].map((star) => (
+                <Star key={star} size={19} className={star <= Math.round(productRating) ? "fill-amber-400 text-amber-400" : "text-gray-200"} />
+              ))}
+            </div>
+            <span className="font-semibold text-gray-800">{productRating ? productRating.toFixed(1) : "New"}</span>
+            <span className="text-sm text-gray-500">{reviewCount ? `(${reviewCount} ratings)` : "Be the first to rate"}</span>
+          </div>
           <div className="mt-7 flex items-baseline gap-3">
             <span className="text-3xl font-bold text-[#079447]">
               {formatCurrency(price)}
@@ -300,6 +385,66 @@ const ProductDetail = ({ identifier }) => {
           </div>
         </div>
       </div>
+      <section className="mt-20 grid gap-8 rounded-[2rem] bg-[#f5f7f1] p-6 sm:p-10 lg:grid-cols-[0.85fr_1.15fr]">
+        <div>
+          <div className="mb-2 flex items-center gap-1">
+            <span
+              className="
+                  pointer-events-none
+
+                text-[clamp(22px,1.8vw,27px)]
+                font-bold
+                leading-none
+                text-[#3d3d3d]
+              "
+            >
+            Customer feedback
+            </span>
+
+            <img
+              className="h-auto w-[17px]"
+            alt="Tiny leaf"
+              aria-hidden="true"
+              src={Tinyleaf}
+            />
+              
+          </div>
+           <h2 className="mt-2 text-3xl font-semibold text-gray-900">Rate this product</h2>
+          <p className="mt-3 leading-7 text-gray-600">Your rating helps other customers choose with confidence.</p>
+          {isAuthenticated ? (
+            <form onSubmit={submitRating} className="mt-6 rounded-2xl bg-white p-5 shadow-sm">
+              <div className="flex gap-1" onMouseLeave={() => setHoveredRating(0)}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button key={star} type="button" onMouseEnter={() => setHoveredRating(star)} onClick={() => setRating(star)} className="rounded-md p-1" aria-label={`${star} stars`}>
+                    <Star size={28} className={star <= (hoveredRating || rating) ? "fill-amber-400 text-amber-400" : "text-gray-200"} />
+                  </button>
+                ))}
+              </div>
+              <input type="text" value={reviewTitle} onChange={(event) => setReviewTitle(event.target.value)} maxLength={150} required placeholder="Review title" className="mt-4 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#079447]" />
+              <textarea value={reviewText} onChange={(event) => setReviewText(event.target.value)} maxLength={500} minLength={1} required rows={3} placeholder="Share a few words about your experience" className="mt-3 w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#079447]" />
+              <button disabled={submitReview.isPending} className="mt-3 rounded-xl bg-[#079447] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#057a3a] disabled:bg-gray-300">{submitReview.isPending ? "Submitting..." : "Submit review"}</button>
+            </form>
+          ) : (
+            <button onClick={ensureLogin} className="mt-6 rounded-xl border border-[#079447] px-5 py-3 font-semibold text-[#079447] hover:bg-white">Log in to rate this product</button>
+          )}
+        </div>
+        <div className="rounded-2xl bg-white p-6">
+          <div className="flex items-end justify-between gap-4">
+            <div><h2 className="text-2xl font-semibold text-gray-900">Reviews</h2><p className="mt-1 text-sm text-gray-500">What customers are saying</p></div>
+            <span className="text-sm font-semibold text-[#079447]">{reviewCount} total</span>
+          </div>
+          <div className="mt-6 space-y-5">
+            {reviewsLoading && <p className="text-sm text-gray-500">Loading reviews...</p>}
+            {!reviewsLoading && !reviews.length && <p className="text-sm text-gray-500">No reviews yet. Be the first to share your experience.</p>}
+            {reviews.map((review) => {
+              const author = review.user_name || review.user?.name || "Verified customer";
+              const score = Number(review.rating || 0);
+              const text = review.review_text || review.comment || review.review || review.content;
+              return <article key={review.id} className="border-b border-gray-100 pb-5 last:border-0 last:pb-0"><div className="flex items-center justify-between gap-4"><p className="font-semibold text-gray-800">{author}</p><div className="flex gap-0.5">{[1, 2, 3, 4, 5].map((star) => <Star key={star} size={14} className={star <= score ? "fill-amber-400 text-amber-400" : "text-gray-200"} />)}</div></div>{review.title && <h3 className="mt-2 font-semibold text-gray-800">{review.title}</h3>}{text && <p className="mt-2 text-sm leading-6 text-gray-600">{text}</p>}</article>;
+            })}
+          </div>
+        </div>
+      </section>
       {related?.length > 0 && (
         <section className="mt-20">
           <h2 className="text-3xl font-semibold text-gray-900">
