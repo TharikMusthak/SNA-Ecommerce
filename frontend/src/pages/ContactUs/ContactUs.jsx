@@ -14,9 +14,9 @@ const contactDetails = [
   {
     icon: Phone,
     label: "Call us",
-    value: "+91 XXXXX XXXXX",
+    value: "+91 8438660669",
     description: "Available for product & order enquiries",
-    href: "tel:+91XXXXXXXXXX",
+    href: "tel:+918438660669",
   },
   {
     icon: Mail,
@@ -30,7 +30,7 @@ const contactDetails = [
     label: "WhatsApp",
     value: "Chat with us",
     description: "For quick questions & order support",
-    href: "https://wa.me/91XXXXXXXXXX",
+    href: "https://wa.me/918438660669",
   },
   {
     icon: MapPin,
