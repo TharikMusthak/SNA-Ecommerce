@@ -1220,6 +1220,7 @@ main>header>button {
 }
 
 .commerce-toolbar,.commerce-pagination,.modal-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:12px 0}.commerce-toolbar input,.commerce-toolbar select{min-height:40px;border:1px solid #dce3dd;border-radius:9px;padding:8px 11px}.commerce-toolbar input{min-width:240px;flex:1}.commerce-pagination{justify-content:flex-end}.commerce-pagination button,.modal-actions button{border:1px solid #dce3dd;border-radius:8px;background:#fff;padding:9px 13px}.commerce-detail>div{display:grid;grid-template-columns:160px 1fr;gap:12px;padding:8px 0;border-bottom:1px solid #edf0ed}.commerce-detail dt{font-weight:700}.commerce-detail dd{margin:0;overflow-wrap:anywhere}.commerce-json{max-height:260px;overflow:auto;background:#f7f9f7;border-radius:8px;padding:12px;font-size:12px}
+.settings-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;max-width:900px;padding:24px}.settings-form>p{grid-column:1/-1;margin:0}.settings-form label{display:flex;flex-direction:column;gap:7px;font-weight:600}.settings-form label:has(input[type="checkbox"]){flex-direction:row;align-items:center}.settings-form input:not([type="checkbox"]),.settings-form select{min-height:42px;border:1px solid #dce3dd;border-radius:9px;padding:8px 11px}.settings-form>button{grid-column:1/-1;justify-self:start}@media(max-width:720px){.settings-form{grid-template-columns:1fr}.settings-form>p,.settings-form>button{grid-column:1}}
 
 .action-btn {
     display: inline-flex;

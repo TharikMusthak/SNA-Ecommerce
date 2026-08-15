@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, assetUrl } from "../api";
+import { ConfirmDialog } from "./Dialog";
 
 export default function ProductGalleryManager({
   productId,
@@ -10,6 +11,7 @@ export default function ProductGalleryManager({
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState(null);
   const [primaryId, setPrimaryId] = useState(null);
+  const [deleteCandidate, setDeleteCandidate] = useState(null);
 
   const loadImages = useCallback(async () => {
     const rows = await api(`/products/${productId}/images`);
@@ -38,12 +40,7 @@ export default function ProductGalleryManager({
   }, [loadImages, onNotice]);
 
   async function removeImage(imageId) {
-    if (
-      deletingId ||
-      !window.confirm("Delete this gallery image permanently?")
-    ) {
-      return;
-    }
+    if (deletingId) return;
 
     setDeletingId(imageId);
     try {
@@ -54,6 +51,7 @@ export default function ProductGalleryManager({
         current.filter((image) => image.id !== imageId),
       );
       onNotice("Gallery image deleted");
+      setDeleteCandidate(null);
     } catch (error) {
       onNotice(error.message || "Unable to delete gallery image", "error");
     } finally {
@@ -110,7 +108,7 @@ export default function ProductGalleryManager({
               <button
                 type="button"
                 disabled={deletingId !== null || primaryId !== null}
-                onClick={() => removeImage(image.id)}
+                onClick={() => setDeleteCandidate(image)}
                 aria-label={`Delete gallery image ${index + 1}`}
               >
                 {deletingId === image.id ? "Deleting…" : "Delete"}
@@ -119,6 +117,17 @@ export default function ProductGalleryManager({
           </figure>
         ))}
       </div>
+      {deleteCandidate && (
+        <ConfirmDialog
+          title="Delete gallery image"
+          description="This image will be removed permanently from the product gallery."
+          confirmLabel="Delete image"
+          danger
+          busy={deletingId !== null}
+          onClose={() => !deletingId && setDeleteCandidate(null)}
+          onConfirm={() => removeImage(deleteCandidate.id)}
+        />
+      )}
     </section>
   );
 }

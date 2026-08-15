@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import Login from "./components/Login";
 import AdminLayout from "./components/AdminLayout";
+import { ConfirmDialog } from "./components/Dialog";
 import Editor from "./components/Editor";
+import InventoryDialog from "./components/InventoryDialog";
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
 import Categories from "./pages/Categories";
@@ -14,6 +16,13 @@ import Orders from "./pages/Orders";
 import Faq from "./pages/Faq";
 import Users from "./pages/Users";
 import CommerceList from "./pages/CommerceList";
+import Dispatch from "./pages/Dispatch";
+import ShippingSettings from "./pages/ShippingSettings";
+import {
+  getMenusForRole,
+  viewFromHash,
+  viewToHash,
+} from "./constants/navigation";
 
 const emptyData = {
   products: [],
@@ -38,6 +47,8 @@ const emptyData = {
 export default function App() {
   const [admin, setAdmin] = useState(null);
   const [checkingSession, setCheckingSession] = useState(true);
+  const [sessionMessage, setSessionMessage] = useState("");
+  const authenticatedRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -47,7 +58,10 @@ export default function App() {
 
     api("/auth/me")
       .then((data) => {
-        if (active) setAdmin(data.admin);
+        if (active) {
+          authenticatedRef.current = true;
+          setAdmin(data.admin);
+        }
       })
       .catch(() => {
         if (active) setAdmin(null);
@@ -56,7 +70,13 @@ export default function App() {
         if (active) setCheckingSession(false);
       });
 
-    const clearSession = () => setAdmin(null);
+    const clearSession = () => {
+      if (authenticatedRef.current) {
+        setSessionMessage("Your session has expired. Please sign in again.");
+      }
+      authenticatedRef.current = false;
+      setAdmin(null);
+    };
     window.addEventListener("sna:unauthorized", clearSession);
 
     return () => {
@@ -66,6 +86,8 @@ export default function App() {
   }, []);
 
   function handleLogin(newAdmin) {
+    authenticatedRef.current = true;
+    setSessionMessage("");
     setAdmin(newAdmin);
   }
 
@@ -73,6 +95,8 @@ export default function App() {
     try {
       await api("/auth/logout", { method: "POST" });
     } finally {
+      authenticatedRef.current = false;
+      setSessionMessage("");
       setAdmin(null);
     }
   }
@@ -85,16 +109,21 @@ export default function App() {
     );
   }
 
-  if (!admin) return <Login onLogin={handleLogin} />;
+  if (!admin) return <Login onLogin={handleLogin} initialMessage={sessionMessage} />;
   return <Cms admin={admin} onLogout={handleLogout} />;
 }
 
 function Cms({ admin, onLogout }) {
-  const [view, setView] = useState("Dashboard");
+  const menus = getMenusForRole(admin?.role);
+  const [view, setView] = useState(() => viewFromHash());
   const [data, setData] = useState(emptyData);
   const [modal, setModal] = useState(null);
   const [editing, setEditing] = useState(null);
   const [notice, setNotice] = useState(null);
+  const [loadingViews, setLoadingViews] = useState({});
+  const [confirmation, setConfirmation] = useState(null);
+  const [confirming, setConfirming] = useState(false);
+  const [inventoryDialog, setInventoryDialog] = useState(null);
   const noticeTimer = useRef(null);
 
   const showNotice = useCallback((message, type = "success") => {
@@ -114,85 +143,115 @@ function Cms({ admin, onLogout }) {
     [],
   );
 
-  const loadDashboard = useCallback(async () => {
+  const loadDashboard = useCallback(async (days = 30, summaryOnly = false) => {
+    setLoadingViews((current) => ({ ...current, Dashboard: true }));
     try {
       const [dashboard, dashboardSummary] = await Promise.all([
-        api("/cms/dashboard"),
-        api("/dashboard/summary"),
+        summaryOnly ? Promise.resolve(null) : api("/cms/dashboard"),
+        api(`/dashboard/summary?days=${days}`),
       ]);
       setData((current) => ({
         ...current,
-        ...dashboard,
+        ...(dashboard || {}),
         dashboardSummary,
       }));
     } catch (error) {
       showNotice(error.message, "error");
+    } finally {
+      setLoadingViews((current) => ({ ...current, Dashboard: false }));
     }
   }, [showNotice]);
 
-  async function loadUsers() {
+  const loadUsers = useCallback(async () => {
+    setLoadingViews((current) => ({ ...current, Users: true }));
     try {
       const users = await api("/users");
       setData((current) => ({ ...current, users }));
     } catch (error) {
       showNotice(error.message, "error");
+    } finally {
+      setLoadingViews((current) => ({ ...current, Users: false }));
     }
-  }
+  }, [showNotice]);
 
-  async function loadCategories() {
+  const loadCategories = useCallback(async () => {
+    setLoadingViews((current) => ({ ...current, Categories: true }));
     try {
       const categories = await api("/categories");
       setData((current) => ({ ...current, categories }));
     } catch (error) {
       showNotice(error.message, "error");
+    } finally {
+      setLoadingViews((current) => ({ ...current, Categories: false }));
     }
-  }
+  }, [showNotice]);
 
-  async function loadInventory() {
+  const loadInventory = useCallback(async () => {
+    setLoadingViews((current) => ({ ...current, Inventory: true }));
     try {
       const inventory = await api("/inventory");
       setData((current) => ({ ...current, inventory }));
     } catch (error) {
       showNotice(error.message, "error");
+    } finally {
+      setLoadingViews((current) => ({ ...current, Inventory: false }));
     }
-  }
+  }, [showNotice]);
 
-  async function loadCmsPages() {
+  const loadCmsPages = useCallback(async () => {
+    setLoadingViews((current) => ({ ...current, "CMS Pages": true }));
     try {
       const cmsPages = await api("/cms/pages");
       setData((current) => ({ ...current, cmsPages }));
     } catch (error) {
       showNotice(error.message, "error");
+    } finally {
+      setLoadingViews((current) => ({ ...current, "CMS Pages": false }));
     }
-  }
+  }, [showNotice]);
 
-  async function loadCommerce(nextView) {
-    const routes = {
-      Customers: ["customers", "customers"], Reviews: ["reviews", "reviews"],
-      Returns: ["returns", "returns"], "Support Tickets": ["tickets", "tickets"],
-      Coupons: ["coupons", "coupons"], "Refund Records": ["refunds", "refunds"], Notifications: ["notifications", "notifications"],
-    };
-    const target = routes[nextView];
-    if (!target) return;
-    try {
-      const response = await api(`/v1/admin/${target[0]}`);
-      setData((current) => ({ ...current, [target[1]]: response.data || [] }));
-    } catch (error) { showNotice(error.message, "error"); }
-  }
-
-  useEffect(() => {
-    loadDashboard();
-  }, [loadDashboard]);
-
-  async function openView(nextView) {
-    setView(nextView);
+  const loadViewData = useCallback(async (nextView) => {
+    if (["Dashboard", "Products", "Attributes", "Banners", "FAQ"].includes(nextView)) {
+      await loadDashboard();
+    }
     if (nextView === "Users") await loadUsers();
-    if (nextView === "Products" || nextView === "Categories") {
+    if (nextView === "Products" || nextView === "Categories" || nextView === "Banners") {
       await loadCategories();
     }
     if (nextView === "Inventory") await loadInventory();
     if (nextView === "CMS Pages") await loadCmsPages();
-    await loadCommerce(nextView);
+  }, [loadCategories, loadCmsPages, loadDashboard, loadInventory, loadUsers]);
+
+  useEffect(() => {
+    const allowedView = menus.includes(viewFromHash()) ? viewFromHash() : "Dashboard";
+    if (view !== allowedView) setView(allowedView);
+    if (window.location.hash !== viewToHash(allowedView)) {
+      window.history.replaceState(null, "", viewToHash(allowedView));
+    }
+
+    function restoreRoute() {
+      const nextView = viewFromHash();
+      setView(menus.includes(nextView) ? nextView : "Dashboard");
+    }
+
+    window.addEventListener("popstate", restoreRoute);
+    window.addEventListener("hashchange", restoreRoute);
+    return () => {
+      window.removeEventListener("popstate", restoreRoute);
+      window.removeEventListener("hashchange", restoreRoute);
+    };
+  }, [menus, view]);
+
+  useEffect(() => {
+    void loadViewData(view);
+  }, [loadViewData, view]);
+
+  function openView(nextView) {
+    if (!menus.includes(nextView)) return;
+    if (view !== nextView) {
+      window.history.pushState(null, "", viewToHash(nextView));
+    }
+    setView(nextView);
   }
 
   function openEditor(type, item = null) {
@@ -245,18 +304,22 @@ function Cms({ admin, onLogout }) {
     }
   }
 
-  async function remove(route, id, refreshTarget = "dashboard") {
-    if (!window.confirm("Delete this item?")) return;
-    try {
-      await api(`/${route}/${id}`, { method: "DELETE" });
-      showNotice("Deleted successfully");
-      if (refreshTarget === "users") await loadUsers();
-      else if (refreshTarget === "categories") {
-        await Promise.all([loadCategories(), loadDashboard()]);
-      } else await loadDashboard();
-    } catch (error) {
-      showNotice(error.message, "error");
-    }
+  function remove(route, id, refreshTarget = "dashboard") {
+    const entity = route.split("/").at(-1)?.replace(/s$/, "") || "item";
+    setConfirmation({
+      title: `Delete ${entity}`,
+      description: "This action permanently removes the record and cannot be undone.",
+      confirmLabel: `Delete ${entity}`,
+      danger: true,
+      action: async () => {
+        await api(`/${route}/${id}`, { method: "DELETE" });
+        showNotice("Deleted successfully");
+        if (refreshTarget === "users") await loadUsers();
+        else if (refreshTarget === "categories") {
+          await Promise.all([loadCategories(), loadDashboard()]);
+        } else await loadDashboard();
+      },
+    });
   }
 
   async function updateOrderStage(id, stage) {
@@ -272,54 +335,64 @@ function Cms({ admin, onLogout }) {
     }
   }
 
-  async function setInventoryStock(item) {
-    const stockInput = window.prompt(
-      `${item.name} new stock quantity:`,
-      String(item.stock),
-    );
-    if (stockInput === null) return;
-
-    const thresholdInput = window.prompt(
-      "Low-stock warning level:",
-      String(item.low_stock_threshold),
-    );
-    if (thresholdInput === null) return;
-
+  async function toggleFeaturedProduct(product) {
+    const isFeatured = Number(product.is_featured) === 1;
     try {
-      await api(`/inventory/${item.product_id}/stock`, {
+      await api(`/products/${product.id}/featured`, {
         method: "PUT",
-        body: JSON.stringify({
-          stock: Number(stockInput),
-          low_stock_threshold: Number(thresholdInput),
-          note: "Updated from SNA Admin Panel",
-        }),
+        body: JSON.stringify({ is_featured: !isFeatured }),
       });
-      showNotice("Stock updated successfully");
-      await Promise.all([loadInventory(), loadDashboard()]);
+      showNotice(
+        isFeatured
+          ? "Product removed from featured products"
+          : "Product added to featured products",
+      );
+      await loadDashboard();
     } catch (error) {
       showNotice(error.message, "error");
     }
   }
 
-  async function restockInventory(item) {
-    const quantityInput = window.prompt(
-      `${item.name} restock quantity:`,
-      "1",
-    );
-    if (quantityInput === null) return;
+  function setInventoryStock(item) {
+    setInventoryDialog({ item, mode: "set" });
+  }
 
+  function restockInventory(item) {
+    setInventoryDialog({ item, mode: "restock" });
+  }
+
+  async function submitInventory({ quantity, threshold, reason }) {
+    const { item, mode } = inventoryDialog;
     try {
-      await api(`/inventory/${item.product_id}/restock`, {
-        method: "POST",
-        body: JSON.stringify({
-          quantity: Number(quantityInput),
-          note: "Restocked from SNA Admin Panel",
-        }),
-      });
-      showNotice("Product restocked successfully");
+      await api(
+        `/inventory/${item.product_id}/${mode === "restock" ? "restock" : "stock"}`,
+        {
+          method: mode === "restock" ? "POST" : "PUT",
+          body: JSON.stringify(
+            mode === "restock"
+              ? { quantity, note: reason }
+              : { stock: quantity, low_stock_threshold: threshold, note: reason },
+          ),
+        },
+      );
+      showNotice(mode === "restock" ? "Product restocked successfully" : "Stock updated successfully");
       await Promise.all([loadInventory(), loadDashboard()]);
     } catch (error) {
       showNotice(error.message, "error");
+      throw error;
+    }
+  }
+
+  async function runConfirmation() {
+    if (!confirmation || confirming) return;
+    setConfirming(true);
+    try {
+      await confirmation.action();
+      setConfirmation(null);
+    } catch (error) {
+      showNotice(error.message, "error");
+    } finally {
+      setConfirming(false);
     }
   }
 
@@ -352,13 +425,20 @@ function Cms({ admin, onLogout }) {
         </div>
       )}
       {view === "Dashboard" && (
-        <Dashboard data={data} admin={admin} setView={openView} />
+        <Dashboard
+          data={data}
+          admin={admin}
+          setView={openView}
+          loading={loadingViews.Dashboard}
+          onRangeChange={(days) => loadDashboard(days, true)}
+        />
       )}
       {view === "Products" && (
         <Products
           rows={data.products}
           onEdit={(item) => openEditor("product", item)}
           onDelete={(id) => remove("products", id)}
+          onToggleFeatured={toggleFeaturedProduct}
         />
       )}
       {view === "Categories" && (
@@ -397,6 +477,10 @@ function Cms({ admin, onLogout }) {
       )}
       {view === "Orders" && (
         <Orders rows={data.orders} onStageChange={updateOrderStage} />
+      )}
+      {view === "Dispatch" && <Dispatch onNotice={showNotice} />}
+      {view === "Shipping Settings" && (
+        <ShippingSettings onNotice={showNotice} />
       )}
       {view === "FAQ" && (
         <Faq
@@ -447,6 +531,21 @@ function Cms({ admin, onLogout }) {
             );
             await loadDashboard();
           }}
+        />
+      )}
+      {confirmation && (
+        <ConfirmDialog
+          {...confirmation}
+          busy={confirming}
+          onClose={() => !confirming && setConfirmation(null)}
+          onConfirm={runConfirmation}
+        />
+      )}
+      {inventoryDialog && (
+        <InventoryDialog
+          {...inventoryDialog}
+          onClose={() => setInventoryDialog(null)}
+          onSubmit={submitInventory}
         />
       )}
     </AdminLayout>

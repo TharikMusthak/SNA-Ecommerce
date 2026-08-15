@@ -2,7 +2,7 @@ import { useState } from "react";
 import { api } from "../api";
 import "../Login.css";
 
-export default function Login({ onLogin }) {
+export default function Login({ onLogin, initialMessage = "" }) {
   const resetToken =
     new URLSearchParams(window.location.search).get("token") || "";
 
@@ -16,7 +16,7 @@ export default function Login({ onLogin }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(initialMessage);
   const [loading, setLoading] = useState(false);
 
   function changeMode(nextMode) {

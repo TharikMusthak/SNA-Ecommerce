@@ -239,7 +239,13 @@ export default function Editor({
         )}
 
         {type === "banner" && (
-          <BannerFields form={form} setForm={setForm} item={item} />
+          <BannerFields
+            form={form}
+            setForm={setForm}
+            item={item}
+            products={products}
+            categories={categories}
+          />
         )}
 
         {type === "faq" && (

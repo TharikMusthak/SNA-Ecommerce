@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
+import { RotateCcw } from "lucide-react";
 import { api } from "../api";
+import Badge from "../components/Badge";
 import DataTable from "../components/DataTable";
+import { Dialog } from "../components/Dialog";
 
 const configs = {
   Customers: {
@@ -148,7 +151,8 @@ export default function CommerceList({ type, onNotice }) {
     [loading, setLoading] = useState(false),
     [error, setError] = useState(""),
     [modal, setModal] = useState(null),
-    [saving, setSaving] = useState(false);
+    [saving, setSaving] = useState(false),
+    [searchInput, setSearchInput] = useState("");
   const load = useCallback(async () => {
     if (!config) return;
     setLoading(true);
@@ -175,6 +179,13 @@ export default function CommerceList({ type, onNotice }) {
   useEffect(() => {
     load();
   }, [load]);
+  useEffect(() => {
+    const timer = window.setTimeout(
+      () => setQuery((current) => ({ ...current, search: searchInput, page: 1 })),
+      350,
+    );
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
   if (!config) return null;
   const headers = [...config.keys.map(label), "Actions"];
   async function details(row) {
@@ -458,10 +469,8 @@ export default function CommerceList({ type, onNotice }) {
         <input
           aria-label={`Search ${type}`}
           placeholder="Search"
-          value={query.search}
-          onChange={(e) =>
-            setQuery({ ...query, search: e.target.value, page: 1 })
-          }
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
         />
         <select
           aria-label="Status filter"
@@ -505,6 +514,17 @@ export default function CommerceList({ type, onNotice }) {
         <button onClick={load} disabled={loading}>
           Refresh
         </button>
+        <button
+          className="secondary-button"
+          type="button"
+          disabled={!searchInput && !Object.entries(query).some(([key, value]) => !["page", "limit", "sort", "order", "search"].includes(key) && value)}
+          onClick={() => {
+            setSearchInput("");
+            setQuery({ search: "", status: "", page: 1, limit: 20, sort: "id", order: "desc" });
+          }}
+        >
+          <RotateCcw size={15} aria-hidden="true" /> Reset
+        </button>
       </div>
       <DataTable
         headers={headers}
@@ -520,7 +540,7 @@ export default function CommerceList({ type, onNotice }) {
             }
           >
             {config.keys.map((key) => (
-              <td key={key}>{formatCell(row[key])}</td>
+              <td key={key}>{formatCell(key, row[key])}</td>
             ))}
             <td>
               <div className="action-buttons">{actions(row)}</div>
@@ -546,9 +566,11 @@ export default function CommerceList({ type, onNotice }) {
         </button>
       </div>
       {modal && (
-        <Modal
+        <Dialog
           title={modal.title || `${type} details`}
           onClose={() => !saving && setModal(null)}
+          size={modal.kind === "details" ? "large" : "medium"}
+          tone={modal.method === "DELETE" ? "danger" : "default"}
         >
           {modal.kind === "details" ? (
             <DetailView type={type} response={modal.data} setModal={setModal} />
@@ -561,18 +583,18 @@ export default function CommerceList({ type, onNotice }) {
             />
           ) : (
             <form onSubmit={submitAction}>
-              <p>This action changes persisted data. Continue?</p>
+              <p className="confirmation-copy">This action changes persisted data. Review the action before continuing.</p>
               <footer>
                 <button type="button" onClick={() => setModal(null)}>
                   Cancel
                 </button>
                 <button disabled={saving}>
-                  {saving ? "Saving…" : "Confirm"}
+                  {saving ? "Saving…" : modal.title}
                 </button>
               </footer>
             </form>
           )}
-        </Modal>
+        </Dialog>
       )}
     </section>
   );
@@ -584,11 +606,11 @@ function DetailView({ type, response, setModal }) {
     <div>
       <dl className="commerce-detail">
         {Object.entries(data || {})
-          .filter(([, v]) => !Array.isArray(v) && typeof v !== "object")
+          .filter(([key, value]) => !isSensitiveKey(key) && !Array.isArray(value) && typeof value !== "object")
           .map(([key, value]) => (
             <div key={key}>
               <dt>{label(key)}</dt>
-              <dd>{formatCell(value)}</dd>
+              <dd>{formatCell(key, value)}</dd>
             </div>
           ))}
       </dl>
@@ -672,11 +694,11 @@ function DetailView({ type, response, setModal }) {
         </div>
       )}
       {Object.entries(data || {})
-        .filter(([, value]) => Array.isArray(value))
+        .filter(([key, value]) => !isSensitiveKey(key) && Array.isArray(value))
         .map(([key, value]) => (
           <div key={key}>
             <h3>{label(key)}</h3>
-            <pre className="commerce-json">{JSON.stringify(value, null, 2)}</pre>
+            <DetailCollection rows={value} />
           </div>
         ))}
       <footer>
@@ -828,34 +850,22 @@ function ActionForm({ modal, saving, onSubmit, onCancel }) {
     </form>
   );
 }
-function Modal({ title, onClose, children }) {
-  return (
-    <div
-      className="overlay"
-      role="presentation"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="modal" role="dialog" aria-modal="true" aria-label={title}>
-        <header>
-          <h2>{title}</h2>
-          <button onClick={onClose} aria-label="Close">
-            ×
-          </button>
-        </header>
-        {children}
-      </div>
-    </div>
-  );
-}
 function label(value) {
   return String(value)
     .replaceAll("_", " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
-function formatCell(value) {
+function formatCell(key, value) {
   if (value === null || value === undefined || value === "") return "—";
+  if (key === "status" || key.endsWith("_status")) return <Badge value={value} />;
+  if (key === "rating") return `${value} / 5`;
+  if (["amount", "refund_amount", "refunded_amount", "discount_value", "minimum_order_value"].some((part) => key.includes(part))) {
+    return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(Number(value || 0));
+  }
+  if (key.endsWith("_at") || key === "created_at" || key === "updated_at") {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+  }
   if (
     typeof value === "boolean" ||
     value === 0 ||
@@ -863,6 +873,25 @@ function formatCell(value) {
   )
     return value ? "Yes" : "No";
   return String(value);
+}
+
+function DetailCollection({ rows }) {
+  if (!rows.length) return <p className="compact-empty">No records.</p>;
+  return (
+    <div className="detail-collection">
+      {rows.map((row, index) => (
+        <article key={row?.id || index}>
+          {row && typeof row === "object" ? Object.entries(row).filter(([key]) => !isSensitiveKey(key)).map(([key, value]) => (
+            <div key={key}><span>{label(key)}</span><b>{typeof value === "object" ? "Structured data" : formatCell(key, value)}</b></div>
+          )) : <span>{String(row)}</span>}
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function isSensitiveKey(key) {
+  return /(password|secret|token|otp|provider_response|raw_response|hash)/i.test(key);
 }
 function dateTimeLocal(value) {
   return value ? new Date(value).toISOString().slice(0, 16) : "";

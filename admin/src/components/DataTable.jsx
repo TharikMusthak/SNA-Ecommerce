@@ -1,5 +1,5 @@
 import { Children, useState } from "react";
-import { ImageOff } from "lucide-react";
+import { AlertTriangle, ImageOff, Inbox } from "lucide-react";
 
 export default function DataTable({
   headers,
@@ -48,13 +48,31 @@ export default function DataTable({
           </tr>
         </thead>
         <tbody>
-          {stateMessage ? (
+          {loading ? (
+            Array.from({ length: 5 }, (_, rowIndex) => (
+              <tr className="table-skeleton-row" key={`skeleton-${rowIndex}`}>
+                {headers.map((header, columnIndex) => (
+                  <td key={`${header}-${columnIndex}`}>
+                    <span className="skeleton-line" />
+                  </td>
+                ))}
+              </tr>
+            ))
+          ) : stateMessage ? (
             <tr className={`table-state${error ? " table-state--error" : ""}`}>
               <td
                 colSpan={headers.length}
                 role={error ? "alert" : "status"}
               >
-                {stateMessage}
+                <span className="table-state-content">
+                  {error ? (
+                    <AlertTriangle size={24} aria-hidden="true" />
+                  ) : (
+                    <Inbox size={24} aria-hidden="true" />
+                  )}
+                  <b>{error ? "Unable to load records" : stateMessage}</b>
+                  {error && <small>{stateMessage}</small>}
+                </span>
               </td>
             </tr>
           ) : (
