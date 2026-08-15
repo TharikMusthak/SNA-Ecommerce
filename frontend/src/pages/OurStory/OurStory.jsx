@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 
 import Logo from "@assets/images/Navbar/snaNavbarLogo.svg";
-import Tinyleaf from "@assets/images/Tinyleaf.svg";
+import Tinyleaf from "@assets/images/tinyleaf.svg";
 
 const values = [
   {
