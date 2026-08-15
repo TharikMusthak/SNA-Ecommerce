@@ -269,13 +269,23 @@ const ContactUs = () => {
                   </p>
 
                   <p className="mt-1 text-[14px] leading-[1.7] text-[#737373]">
-                    Tamil Nadu, India
+                    Tisaiyanvilai, Tirunelveli
                   </p>
 
                   <p className="mt-1 text-[12px] text-gray-400">
                     Made with care for everyday homes.
                   </p>
                 </div>
+              </div>
+
+              <div className="mt-5 overflow-hidden rounded-2xl border border-emerald-100 bg-[#f6faf7] shadow-sm">
+                <iframe
+                  title="SNA Sundaram location in Tisaiyanvilai, Tirunelveli"
+                  src="https://www.google.com/maps?q=Tisaiyanvilai%2C%20Tirunelveli&output=embed"
+                  className="h-56 w-full border-0 sm:h-64"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
               </div>
             </div>
           </div>

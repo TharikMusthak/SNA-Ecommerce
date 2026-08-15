@@ -2,6 +2,7 @@ import {
   createReview,
   getProductReviews,
   markReviewHelpful,
+  updateReview,
 } from "@api/review.api";
 
 export const listProductReviews = async (productId, params) => {
@@ -19,6 +20,9 @@ export const listProductReviews = async (productId, params) => {
 };
 export const submitReview = async (payload) =>
   (await createReview(payload)).data.data;
+
+export const saveReview = async ({ reviewId, ...payload }) =>
+  (await updateReview(reviewId, payload)).data.data;
 
 export const voteReviewHelpful = async (reviewId) =>
   markReviewHelpful(reviewId);

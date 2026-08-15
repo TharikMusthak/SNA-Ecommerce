@@ -1,6 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { listProductReviews, submitReview } from "@services/review.service";
+import {
+  listProductReviews,
+  saveReview,
+  submitReview,
+  voteReviewHelpful,
+} from "@services/review.service";
 
 const reviewKey = (productId) => ["reviews", "product", productId];
 
@@ -20,6 +25,40 @@ export function useSubmitReview(productId) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: reviewKey(productId) });
       queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+}
+
+export function useUpdateReview(productId) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: saveReview,
+    onSuccess: (_, { reviewId, ...changes }) => {
+      queryClient.setQueryData(reviewKey(productId), (current) => {
+        if (!current) return current;
+
+        return {
+          ...current,
+          items: current.items.map((review) =>
+            String(review.id) === String(reviewId)
+              ? { ...review, ...changes }
+              : review,
+          ),
+        };
+      });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+}
+
+export function useMarkReviewHelpful(productId) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: voteReviewHelpful,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: reviewKey(productId) });
     },
   });
 }

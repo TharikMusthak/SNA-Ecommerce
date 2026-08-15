@@ -12,6 +12,8 @@ import formatCurrency from "@utils/formatCurrency";
 import { assetUrl, effectivePrice } from "@utils/helpers";
 
 const ProductCard = ({ product }) => {
+
+  
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated } = useAuth();
@@ -38,7 +40,7 @@ const ProductCard = ({ product }) => {
       reviewsData?.pagination?.total ??
       reviews.length,
   );
-
+console.log(product, "product");
   const requireLogin = () => {
     if (isAuthenticated) return true;
     navigate("/auth/login", {

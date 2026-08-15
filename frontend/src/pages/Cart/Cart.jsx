@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Minus, Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, MapPin, Minus, Pencil, Plus, Trash2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
@@ -23,7 +23,13 @@ const Cart = () => {
   const [checkingOut, setCheckingOut] = useState(false);
   const addresses = useQuery({
     queryKey: QUERY_KEYS.addresses,
-    queryFn: async () => (await getAddresses()).data.data || [],
+    queryFn: async () => {
+      const savedAddresses = (await getAddresses()).data.data || [];
+      return savedAddresses.map((address) => ({
+        ...address,
+        is_default: Number(address.is_default) === 1,
+      }));
+    },
   });
 
   const run = async (operation, successMessage) => {
@@ -244,29 +250,30 @@ const Cart = () => {
                 Apply
               </button>
             </form>
-            <label className="mt-6 block text-sm font-semibold text-gray-700">
-              Delivery address
-              <select
-                value={addressId}
-                onChange={(event) => setAddressId(event.target.value)}
-                className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm outline-none focus:border-[#079447]"
-              >
-                <option value="">Choose an address</option>
-                {addresses.data?.map((address) => (
-                  <option key={address.id} value={address.id}>
-                    {address.full_name} — {address.city}, {address.postal_code}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {!addresses.isLoading && !addresses.data?.length && (
-              <Link
-                to="/profile"
-                className="mt-2 block text-sm font-semibold text-[#079447]"
-              >
-                Add a delivery address
-              </Link>
-            )}
+            <section className="mt-7 border-t border-emerald-100 pt-6" aria-labelledby="delivery-address-heading">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-2"><span className="rounded-lg bg-emerald-100 p-2 text-[#079447]"><MapPin size={17} /></span><div><h3 id="delivery-address-heading" className="text-sm font-semibold text-gray-900">Delivery address</h3><p className="mt-0.5 text-xs text-gray-500">Choose where we should deliver your order.</p></div></div>
+                <Link to="/profile" className="shrink-0 rounded-lg px-2 py-1 text-xs font-semibold text-[#079447] transition hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447]">Manage</Link>
+              </div>
+              {addresses.isLoading ? (
+                <div className="mt-4 rounded-xl border border-white bg-white/70 px-4 py-5 text-center text-sm text-gray-500">Loading your saved addresses…</div>
+              ) : addresses.data?.length ? (
+                <div className="mt-4 max-h-[19.5rem] space-y-3 overflow-y-auto pr-1.5 [scrollbar-gutter:stable]" role="radiogroup" aria-label="Delivery address">
+                  {addresses.data.map((address) => {
+                    const isSelected = String(addressId || addresses.data?.find((item) => item.is_default)?.id || "") === String(address.id);
+                    return <label key={address.id} className={`group relative block cursor-pointer rounded-2xl border bg-white p-4 transition ${isSelected ? "border-[#079447] shadow-[0_8px_20px_rgba(7,148,71,0.12)]" : "border-gray-200 hover:border-emerald-300"}`}>
+                      <input type="radio" name="delivery-address" value={address.id} checked={isSelected} onChange={(event) => setAddressId(event.target.value)} className="sr-only" />
+                      <span className={`absolute right-4 top-4 flex h-5 w-5 items-center justify-center rounded-full border ${isSelected ? "border-[#079447] bg-[#079447] text-white" : "border-gray-300 bg-white"}`}>{isSelected && <CheckCircle2 size={14} aria-hidden="true" />}</span>
+                      <div className="pr-7"><div className="flex flex-wrap items-center gap-2"><p className="text-sm font-semibold text-gray-900">{address.full_name}</p>{address.is_default && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#057a3a]">Default</span>}</div><p className="mt-1.5 text-xs leading-5 text-gray-600">{address.address_line_1}{address.address_line_2 ? `, ${address.address_line_2}` : ""}<br />{address.city}, {address.state} {address.postal_code}</p>{address.phone && <p className="mt-1 text-xs text-gray-500">{address.phone}</p>}</div>
+                      <Link to="/profile" onClick={(event) => event.stopPropagation()} className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#079447] underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447]"><Pencil size={12} /> Edit</Link>
+                    </label>;
+                  })}
+                  <Link to="/profile" className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-emerald-300 px-3 py-3 text-xs font-semibold text-[#079447] transition hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447]"><Plus size={15} /> Add another address</Link>
+                </div>
+              ) : (
+                <div className="mt-4 rounded-2xl border border-dashed border-emerald-200 bg-white/70 p-5 text-center"><p className="text-sm font-semibold text-gray-800">No delivery address saved</p><p className="mt-1 text-xs leading-5 text-gray-500">Add an address to continue with checkout.</p><Link to="/profile" className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#079447] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#057a3a] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447]"><Plus size={14} /> Add delivery address</Link></div>
+              )}
+            </section>
             <p className="mt-4 text-xs text-gray-500">
               Payment method: Cash on delivery
             </p>
