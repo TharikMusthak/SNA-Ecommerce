@@ -360,6 +360,35 @@ router.put("/:id/status", async (req, res) => {
   res.json({ message: "Product status updated" });
 });
 
+router.put("/:id/featured", async (req, res) => {
+  const id = parsePositiveId(req.params.id);
+  const { is_featured: isFeatured } = req.body;
+
+  if (!id || typeof isFeatured !== "boolean") {
+    return res.status(400).json({
+      message: id ? "is_featured must be a boolean" : "Invalid product ID",
+    });
+  }
+
+  const [[product]] = await pool.query(
+    "SELECT id FROM products WHERE id = ? LIMIT 1",
+    [id],
+  );
+  if (!product) {
+    return res.status(404).json({ message: "Product not found" });
+  }
+
+  await pool.query(
+    "UPDATE products SET is_featured = ? WHERE id = ?",
+    [isFeatured ? 1 : 0, id],
+  );
+  res.json({
+    success: true,
+    message: isFeatured ? "Product featured" : "Product unfeatured",
+    product: { id, is_featured: isFeatured },
+  });
+});
+
 router.get("/:id/images", async (req, res) => {
   const id = parsePositiveId(req.params.id);
   if (!id) return res.status(400).json({ message: "Invalid product ID" });
