@@ -2,11 +2,15 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileTypeFromFile } from "file-type";
 
-export const ALLOWED_IMAGE_TYPES = new Map([
+export const ALLOWED_MEDIA_TYPES = new Map([
   ["image/jpeg", "jpg"],
   ["image/png", "png"],
   ["image/webp", "webp"],
+  ["video/mp4", "mp4"],
+  ["video/webm", "webm"],
+  ["video/quicktime", "mov"],
 ]);
+
 
 export function imageFileFilter(_req, file, callback) {
   if (!ALLOWED_IMAGE_TYPES.has(file.mimetype)) {
