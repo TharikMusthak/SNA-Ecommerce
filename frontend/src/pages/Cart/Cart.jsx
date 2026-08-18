@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, MapPin, Minus, Pencil, Plus, Trash2 } from "lucide-react";
+import { Banknote, CheckCircle2, CreditCard, MapPin, Minus, Pencil, Plus, Trash2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
 import fallbackImage from "@assets/images/product1.png";
 import { apiErrorMessage } from "@api/axios";
 import { getAddresses } from "@api/address.api";
-import { createOrder } from "@api/order.api";
+import {
+  createOrder,
+  createRazorpayCheckout,
+} from "@api/order.api";
 import Spinner from "@components/ui/Spinner/Spinner";
 import { QUERY_KEYS } from "@config/constants";
 import { useCart } from "@hooks/useCart";
@@ -21,6 +24,7 @@ const Cart = () => {
     useCart();
   const [addressId, setAddressId] = useState("");
   const [checkingOut, setCheckingOut] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("razorpay");
   const addresses = useQuery({
     queryKey: QUERY_KEYS.addresses,
     queryFn: async () => {
@@ -47,6 +51,69 @@ const Cart = () => {
     if (code) run(() => applyCoupon.mutateAsync(code), "Coupon applied");
   };
 
+  const refreshCheckoutData = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.cart }),
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.orders }),
+    ]);
+
+  const openRazorpay = (payment) =>
+    new Promise((resolve, reject) => {
+      const Razorpay = window.Razorpay;
+      if (!Razorpay) {
+        reject(new Error("Razorpay could not be loaded. Please try again."));
+        return;
+      }
+
+      const razorpayOrderId = payment.razorpay_order_id || payment.razorpayOrderId;
+      const key = payment.key_id || payment.keyId;
+      if (!key || !razorpayOrderId || !payment.amount) {
+        reject(new Error("The payment order returned by the server is incomplete."));
+        return;
+      }
+
+      const checkout = new Razorpay({
+        key,
+        amount: Number(payment.amount),
+        currency: payment.currency || "INR",
+        name: "SNA Sundaram",
+        description: "Order payment",
+        order_id: razorpayOrderId,
+        theme: { color: "#079447" },
+        handler: resolve,
+        modal: { ondismiss: () => reject(new Error("Payment was cancelled.")) },
+      });
+      checkout.on("payment.failed", (response) =>
+        reject(new Error(response.error?.description || "Payment failed.")),
+      );
+      checkout.open();
+    });
+
+  const loadRazorpay = () =>
+    new Promise((resolve, reject) => {
+      if (window.Razorpay) {
+        resolve();
+        return;
+      }
+      const existingScript = document.querySelector('script[data-razorpay="checkout"]');
+      if (existingScript) {
+        existingScript.addEventListener("load", resolve, { once: true });
+        existingScript.addEventListener(
+          "error",
+          () => reject(new Error("Razorpay could not be loaded.")),
+          { once: true },
+        );
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.async = true;
+      script.dataset.razorpay = "checkout";
+      script.onload = resolve;
+      script.onerror = () => reject(new Error("Razorpay could not be loaded."));
+      document.body.appendChild(script);
+    });
+
   const checkout = async () => {
     const selectedAddress =
       addressId || addresses.data?.find((item) => item.is_default)?.id;
@@ -56,17 +123,33 @@ const Cart = () => {
     }
     try {
       setCheckingOut(true);
-      const response = await createOrder(
-        { address_id: Number(selectedAddress), payment_method: "cod" },
+      if (paymentMethod === "cod") {
+        const response = await createOrder(
+          { address_id: Number(selectedAddress), payment_method: "cod" },
+          crypto.randomUUID(),
+        );
+        await refreshCheckoutData();
+        toast.success(
+          `Order ${response.data.data.order_number} placed successfully`,
+        );
+        navigate("/profile");
+        return;
+      }
+
+      await loadRazorpay();
+      const orderResponse = await createOrder(
+        { address_id: Number(selectedAddress), payment_method: "razorpay" },
         crypto.randomUUID(),
       );
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.cart }),
-        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.orders }),
-      ]);
-      toast.success(
-        `Order ${response.data.data.order_number} placed successfully`,
-      );
+      const order = orderResponse.data.data || orderResponse.data;
+      if (!order.payment_id) {
+        throw new Error("The order was created without a payment reference.");
+      }
+      const response = await createRazorpayCheckout(order.payment_id);
+      const payment = response.data.data || response.data;
+      await openRazorpay(payment);
+      await refreshCheckoutData();
+      toast.success("Payment submitted. Your order is being confirmed.");
       navigate("/profile");
     } catch (error) {
       toast.error(apiErrorMessage(error, "Order could not be placed"));
@@ -274,15 +357,31 @@ const Cart = () => {
                 <div className="mt-4 rounded-2xl border border-dashed border-emerald-200 bg-white/70 p-5 text-center"><p className="text-sm font-semibold text-gray-800">No delivery address saved</p><p className="mt-1 text-xs leading-5 text-gray-500">Add an address to continue with checkout.</p><Link to="/profile" className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#079447] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#057a3a] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447]"><Plus size={14} /> Add delivery address</Link></div>
               )}
             </section>
-            <p className="mt-4 text-xs text-gray-500">
-              Payment method: Cash on delivery
-            </p>
+            <section className="mt-6 border-t border-emerald-100 pt-5" aria-labelledby="payment-method-heading">
+              <h3 id="payment-method-heading" className="text-sm font-semibold text-gray-900">Payment method</h3>
+              <div className="mt-3 space-y-2" role="radiogroup" aria-label="Payment method">
+                <label className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition ${paymentMethod === "razorpay" ? "border-[#079447] bg-white" : "border-transparent bg-white/60"}`}>
+                  <input type="radio" name="payment-method" value="razorpay" checked={paymentMethod === "razorpay"} onChange={() => setPaymentMethod("razorpay")} className="accent-[#079447]" />
+                  <CreditCard size={17} className="text-[#079447]" aria-hidden="true" />
+                  <span className="text-sm font-medium text-gray-800">Pay securely with Razorpay</span>
+                </label>
+                <label className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition ${paymentMethod === "cod" ? "border-[#079447] bg-white" : "border-transparent bg-white/60"}`}>
+                  <input type="radio" name="payment-method" value="cod" checked={paymentMethod === "cod"} onChange={() => setPaymentMethod("cod")} className="accent-[#079447]" />
+                  <Banknote size={17} className="text-[#079447]" aria-hidden="true" />
+                  <span className="text-sm font-medium text-gray-800">Cash on delivery</span>
+                </label>
+              </div>
+            </section>
             <button
               onClick={checkout}
               disabled={checkingOut || !addresses.data?.length}
               className="mt-5 w-full rounded-xl bg-[#079447] px-5 py-3 font-semibold text-white hover:bg-[#057a3a] disabled:bg-gray-300"
             >
-              {checkingOut ? "Placing order…" : "Place order"}
+              {checkingOut
+                ? "Processing…"
+                : paymentMethod === "razorpay"
+                  ? "Pay with Razorpay"
+                  : "Place order"}
             </button>
           </aside>
         </div>

@@ -16,8 +16,7 @@ const HeroCarousel = () => {
 
 
   const handleTouchStart = (e) => {
-    console.log("called");
-
+ 
     touchStartX.current = e.touches[0].clientX;
     touchCurrentX.current = e.touches[0].clientX;
 

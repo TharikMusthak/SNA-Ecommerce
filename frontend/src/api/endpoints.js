@@ -3,6 +3,7 @@ export const ENDPOINTS = Object.freeze({
   users: "/users",
   products: "/products",
   cart: "/cart",
+  payments: "/payments",
   wishlist: "/wishlist",
   addresses: "/addresses",
   orders: "/orders",

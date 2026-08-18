@@ -1,15 +1,14 @@
 import { Outlet } from "react-router-dom";
 
-import Logo from "@assets/images/Navbar/snaNavbarLogo.svg";
 import AuthModal from "@components/modals/AuthModal";
+import Loaders from "@components/loaders/Loaders";
 import { useAuth } from "@context/AuthProvider";
- import Loaders from "@components/loaders/Loaders";
 
 const ProtectedRoute = () => {
   const { loading, isAuthenticated } = useAuth();
 
-if (loading) {
-   <Loaders/>
+  if (loading) {
+    return <Loaders />;
   }
 
   if (!isAuthenticated) {

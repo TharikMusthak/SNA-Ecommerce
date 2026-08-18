@@ -68,7 +68,7 @@ const Profile = () => {
     queryKey: QUERY_KEYS.orders,
     queryFn: () => listOrders({ page: 1, limit: 10 }),
   });
-  console.log("orders", orders.data);
+ 
   const saveProfile = useMutation({
     mutationFn: () =>
       updateProfileRequest({ ...profile, phone: profile.phone || null }),

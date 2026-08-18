@@ -50,6 +50,29 @@ const isReviewOwnedByUser = (review, user) => {
   );
 };
 
+const productGallery = (product) => {
+  const source = product?.images ?? product?.gallery ?? product?.product_images;
+  let images = Array.isArray(source) ? source : [];
+
+  if (typeof source === "string") {
+    try {
+      const parsed = JSON.parse(source);
+      images = Array.isArray(parsed) ? parsed : [source];
+    } catch {
+      images = [source];
+    }
+  }
+
+  return [product?.main_image, ...images]
+    .map((image) =>
+      typeof image === "string"
+        ? image
+        : image?.url ?? image?.image_url ?? image?.path ?? image?.image,
+    )
+    .filter(Boolean)
+    .filter((image, index, all) => all.indexOf(image) === index);
+};
+
 const ProductList = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const params = useMemo(
@@ -181,6 +204,7 @@ const ProductDetail = ({ identifier }) => {
   const wishlist = useWishlist();
   const [quantity, setQuantity] = useState(1);
   const [variantId, setVariantId] = useState(null);
+  const [selectedImage, setSelectedImage] = useState(null);
   const [rating, setRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
   const [reviewTitle, setReviewTitle] = useState("");
@@ -190,9 +214,6 @@ const ProductDetail = ({ identifier }) => {
   const submitReview = useSubmitReview(product?.id);
   const updateReview = useUpdateReview(product?.id);
   const markReviewHelpful = useMarkReviewHelpful(product?.id);
-
-console.log(reviewsData, "reviewsData");
-console.log(user, "user");
 
   if (isLoading)
     return (
@@ -216,6 +237,11 @@ console.log(user, "user");
   const selectedVariant = product.variants?.find(
     (variant) => Number(variant.id) === Number(variantId),
   );
+  const galleryImages = productGallery(product);
+  const activeImage =
+    selectedImage?.productId === product.id
+      ? selectedImage.url
+      : galleryImages[0] || product.main_image;
   const price = selectedVariant?.price ?? effectivePrice(product);
   const stock = selectedVariant?.stock ?? product.stock;
   const favorite = wishlist.items.some(
@@ -354,12 +380,38 @@ console.log(user, "user");
   return (
     <main className="mx-auto w-full max-w-[1380px] px-5 py-12 sm:px-8 lg:px-14">
       <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
-        <div className="rounded-[2rem] bg-[#f5f7f1] p-8">
-          <img
-            src={assetUrl(product.main_image, fallbackImage)}
-            alt={product.name}
-            className="mx-auto aspect-square w-full object-contain"
-          />
+        <div className="flex flex-col gap-4 sm:flex-row">
+          {galleryImages.length > 1 && (
+            <div className="order-2 flex gap-3 overflow-x-auto pb-1 sm:order-1 sm:max-h-[520px] sm:flex-col sm:overflow-y-auto sm:overflow-x-hidden">
+              {galleryImages.map((image, index) => (
+                <button
+                  key={image}
+                  type="button"
+                  onClick={() => setSelectedImage({ productId: product.id, url: image })}
+                  aria-label={`View image ${index + 1} of ${galleryImages.length}`}
+                  aria-pressed={activeImage === image}
+                  className={`h-20 w-20 shrink-0 overflow-hidden rounded-xl border-2 bg-[#f5f7f1] p-1 transition focus:outline-none focus:ring-2 focus:ring-[#079447] ${
+                    activeImage === image
+                      ? "border-[#079447]"
+                      : "border-transparent hover:border-[#9bc9a9]"
+                  }`}
+                >
+                  <img
+                    src={assetUrl(image, fallbackImage)}
+                    alt={`${product.name} view ${index + 1}`}
+                    className="h-full w-full object-contain"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="min-w-0 flex-1 rounded-[2rem] bg-[#f5f7f1] p-8">
+            <img
+              src={assetUrl(activeImage, fallbackImage)}
+              alt={product.name}
+              className="mx-auto aspect-square w-full object-contain"
+            />
+          </div>
         </div>
         <div className="py-4">
           <p className="font-semibold uppercase tracking-[0.18em] text-[#079447]">
@@ -391,9 +443,7 @@ console.log(user, "user");
             )}
           </div>
          <div className="mt-6 leading-7 text-gray-600">
-  <ProductDescription
-  description={product.description || product.short_description}
-/>
+  
 </div>
           {product.variants?.length > 0 && (
             <div className="mt-7">
@@ -459,8 +509,13 @@ console.log(user, "user");
               <Heart fill={favorite ? "currentColor" : "none"} />
             </button>
           </div>
-        </div>
-      </div>
+         <ProductDescription
+  description={product.description || product.short_description}
+/>   </div>
+       
+  
+
+ </div>
       <section className="mt-20 rounded-[2rem] border border-emerald-100 bg-[#f5f7f1] p-5 sm:p-8 lg:p-10" aria-labelledby="reviews-heading">
         <div className="flex flex-col justify-between gap-4 border-b border-emerald-100 pb-6 sm:flex-row sm:items-end">
           <div>

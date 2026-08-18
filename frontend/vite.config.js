@@ -3,11 +3,24 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 
+const apiOrigin = "https://sna-ecommerce.vercel.app";
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
-    port: 5173,
-    strictPort: true,
+    proxy: {
+      "/api": {
+        target: apiOrigin,
+        changeOrigin: true,
+        secure: true,
+        cookieDomainRewrite: "",
+        configure(proxy) {
+          proxy.on("proxyReq", (proxyRequest) => {
+            proxyRequest.setHeader("Origin", apiOrigin);
+          });
+        },
+      },
+    },
   },
   resolve: {
     alias: {

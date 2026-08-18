@@ -65,8 +65,7 @@ const ContactUs = () => {
     e.preventDefault();
 
     // Connect this with your API later
-    console.log("Contact form:", formData);
-
+ 
     setSubmitted(true);
 
     setFormData({

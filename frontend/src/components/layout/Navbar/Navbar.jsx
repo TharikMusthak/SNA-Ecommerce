@@ -32,7 +32,7 @@ const CountBadge = ({ value }) =>
 const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
-console.log(location.pathname)
+ 
   const { user, isAuthenticated, logout } = useAuth();
   const { cart } = useCart();
   const { items: wishlist } = useWishlist();

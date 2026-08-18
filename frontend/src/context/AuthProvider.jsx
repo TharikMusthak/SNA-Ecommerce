@@ -39,9 +39,9 @@ export const AuthProvider = ({ children }) => {
 
   // Login
   const login = useCallback(async (credentials) => {
-    console.log(credentials)
+ 
     const userData = await loginUser(credentials);
-console.log("-------",userData)
+ 
     setUser(userData);
 
     return userData;
