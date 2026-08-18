@@ -3,7 +3,7 @@
   "info": {
     "title": "SNA CMS and E-commerce API",
     "version": "1.0.0",
-    "description": "Actual registered SNA API. Online provider operations are deferred and return ONLINE_PAYMENTS_DISABLED while ONLINE_PAYMENTS_ENABLED=false. COD remains available."
+    "description": "Actual registered SNA API. Razorpay order creation is available when ONLINE_PAYMENTS_ENABLED=true and Razorpay test credentials are configured. COD remains available."
   },
   "servers": [
     {
@@ -121,8 +121,8 @@
       "description": "Orders operations"
     },
     {
-      "name": "Payments — Deferred",
-      "description": "Online payment provider integration is disabled by feature flag and is not certified."
+      "name": "Payments",
+      "description": "Customer-authorized payment operations. Razorpay order creation requires ONLINE_PAYMENTS_ENABLED=true and configured test credentials."
     },
     {
       "name": "Products",
@@ -9530,6 +9530,187 @@
         }
       }
     },
+    "/api/v1/admin/products/{id}/featured": {
+      "put": {
+        "tags": [
+          "Admin Products"
+        ],
+        "summary": "PUT /api/v1/admin/products/{id}/featured",
+        "operationId": "put_v1_admin_products_id_featured",
+        "description": "Registered from src/routes/products.js. Authentication requirements are declared in security.",
+        "security": [
+          {
+            "adminAccessCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Resource created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No content"
+          },
+          "400": {
+            "description": "ValidationError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Validation failed"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AuthenticationError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationError"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Request could not be completed"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenError"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Request could not be completed"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Request could not be completed"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ConflictError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictError"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Request could not be completed"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ValidationError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Validation failed"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RateLimitError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimitError"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Request could not be completed"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Feature disabled or dependent service unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/products/{id}/images": {
       "get": {
         "tags": [
@@ -16654,6 +16835,173 @@
         }
       }
     },
+    "/api/v1/auth/resend-verification": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "POST /api/v1/auth/resend-verification",
+        "operationId": "post_v1_auth_resend_verification",
+        "description": "Registered from src/routes/v1/auth.js. Authentication requirements are declared in security.",
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Resource created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No content"
+          },
+          "400": {
+            "description": "ValidationError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Validation failed"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AuthenticationError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationError"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Request could not be completed"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenError"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Request could not be completed"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Request could not be completed"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ConflictError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictError"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Request could not be completed"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ValidationError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Validation failed"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RateLimitError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimitError"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Request could not be completed"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Feature disabled or dependent service unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/reset-password": {
       "post": {
         "tags": [
@@ -22043,11 +22391,11 @@
     "/api/v1/payments/{id}": {
       "get": {
         "tags": [
-          "Payments — Deferred"
+          "Payments"
         ],
         "summary": "GET /api/v1/payments/{id}",
         "operationId": "get_v1_payments_id",
-        "description": "Deferred online-payment endpoint. Returns 503 with code ONLINE_PAYMENTS_DISABLED when the feature flag is off.",
+        "description": "Customer payment operation. Online payment routes return 503 with code ONLINE_PAYMENTS_DISABLED when the feature flag is off.",
         "security": [
           {
             "customerAccessCookie": []
@@ -22212,11 +22560,11 @@
     "/api/v1/payments/create-order": {
       "post": {
         "tags": [
-          "Payments — Deferred"
+          "Payments"
         ],
         "summary": "POST /api/v1/payments/create-order",
         "operationId": "post_v1_payments_create_order",
-        "description": "Deferred online-payment endpoint. Returns 503 with code ONLINE_PAYMENTS_DISABLED when the feature flag is off.",
+        "description": "Creates or returns the authenticated customer's Razorpay order for an existing Razorpay payment record. The amount is taken from the internal order and never from the request body. Returns 503 with code ONLINE_PAYMENTS_DISABLED when the feature flag is off.",
         "security": [
           {
             "customerAccessCookie": []
@@ -22375,8 +22723,7 @@
                 "additionalProperties": true
               },
               "example": {
-                "order_id": "{{orderId}}",
-                "provider": "{{provider}}"
+                "payment_id": "{{paymentId}}"
               }
             }
           }
@@ -22386,11 +22733,11 @@
     "/api/v1/payments/history": {
       "get": {
         "tags": [
-          "Payments — Deferred"
+          "Payments"
         ],
         "summary": "GET /api/v1/payments/history",
         "operationId": "get_v1_payments_history",
-        "description": "Deferred online-payment endpoint. Returns 503 with code ONLINE_PAYMENTS_DISABLED when the feature flag is off.",
+        "description": "Customer payment operation. Online payment routes return 503 with code ONLINE_PAYMENTS_DISABLED when the feature flag is off.",
         "security": [
           {
             "customerAccessCookie": []
@@ -22561,11 +22908,11 @@
     "/api/v1/payments/verify": {
       "post": {
         "tags": [
-          "Payments — Deferred"
+          "Payments"
         ],
         "summary": "POST /api/v1/payments/verify",
         "operationId": "post_v1_payments_verify",
-        "description": "Deferred online-payment endpoint. Returns 503 with code ONLINE_PAYMENTS_DISABLED when the feature flag is off.",
+        "description": "Customer payment operation. Online payment routes return 503 with code ONLINE_PAYMENTS_DISABLED when the feature flag is off.",
         "security": [
           {
             "customerAccessCookie": []
@@ -22737,11 +23084,11 @@
     "/api/v1/payments/webhook/{provider}": {
       "post": {
         "tags": [
-          "Payments — Deferred"
+          "Payments"
         ],
         "summary": "POST /api/v1/payments/webhook/{provider}",
         "operationId": "post_v1_payments_webhook_provider",
-        "description": "Deferred online-payment endpoint. Returns 503 with code ONLINE_PAYMENTS_DISABLED when the feature flag is off.",
+        "description": "Customer payment operation. Online payment routes return 503 with code ONLINE_PAYMENTS_DISABLED when the feature flag is off.",
         "security": [],
         "parameters": [
           {

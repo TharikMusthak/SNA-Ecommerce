@@ -7,6 +7,7 @@ import request from "supertest";
 process.env.NODE_ENV = "development";
 process.env.FRONTEND_URL = "http://localhost:5173";
 process.env.JWT_SECRET = "test-only-secret-".repeat(5);
+process.env.RAZORPAY_KEY_ID = "rzp_test_example";
 process.env.RAZORPAY_KEY_SECRET = "test-razorpay-key-secret";
 process.env.RAZORPAY_WEBHOOK_SECRET = "test-razorpay-webhook-secret";
 
@@ -35,6 +36,9 @@ const { splitMigration } = await import(
 );
 const { createHmac } = await import("node:crypto");
 const { verifyCheckoutSignature, verifyWebhookSignature } = await import(
+  "../src/integrations/payments/razorpay.js"
+);
+const { createRazorpayOrder } = await import(
   "../src/integrations/payments/razorpay.js"
 );
 
@@ -95,6 +99,43 @@ test("Razorpay signatures reject tampering and verify exact raw payloads", () =>
     .update(body).digest("hex");
   assert.equal(verifyWebhookSignature(body, webhookSignature), true);
   assert.equal(verifyWebhookSignature(Buffer.from(`${body} `), webhookSignature), false);
+});
+
+test("Razorpay order creation sends only server-side credentials and order data", async () => {
+  const originalFetch = globalThis.fetch;
+  let request;
+  globalThis.fetch = async (url, options) => {
+    request = { url, options };
+    return {
+      ok: true,
+      async json() {
+        return {
+          id: "order_test_123",
+          amount: 12500,
+          currency: "INR",
+        };
+      },
+    };
+  };
+
+  try {
+    const order = await createRazorpayOrder({
+      amountMinor: 12500,
+      currency: "INR",
+      receipt: "SNA-TEST-123",
+    });
+    assert.equal(order.id, "order_test_123");
+    assert.equal(request.url, "https://api.razorpay.com/v1/orders");
+    assert.deepEqual(JSON.parse(request.options.body), {
+      amount: 12500,
+      currency: "INR",
+      receipt: "SNA-TEST-123",
+    });
+    assert.match(request.options.headers.Authorization, /^Basic /);
+    assert.equal(request.options.body.includes("test-razorpay-key-secret"), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("product name duplicate validation normalizes and identifies conflicts", () => {

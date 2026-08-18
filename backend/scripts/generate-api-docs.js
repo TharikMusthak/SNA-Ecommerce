@@ -53,14 +53,14 @@ const spec = {
     title: "SNA CMS and E-commerce API",
     version: "1.0.0",
     description:
-      "Actual registered SNA API. Online provider operations are deferred and return ONLINE_PAYMENTS_DISABLED while ONLINE_PAYMENTS_ENABLED=false. COD remains available.",
+      "Actual registered SNA API. Razorpay order creation is available when ONLINE_PAYMENTS_ENABLED=true and Razorpay test credentials are configured. COD remains available.",
   },
   servers: [{ url: "http://localhost:5000", description: "Local development" }],
   tags: [...new Set(routes.map(tagFor))].map((name) => ({
     name,
     description:
-      name === "Payments — Deferred"
-        ? "Online payment provider integration is disabled by feature flag and is not certified."
+      name === "Payments"
+        ? "Customer-authorized payment operations. Razorpay order creation requires ONLINE_PAYMENTS_ENABLED=true and configured test credentials."
         : `${name} operations`,
   })),
   paths,
@@ -309,7 +309,7 @@ function securityFor(route) {
 function tagFor(route) {
   const pathValue = route.path;
   if (pathValue.startsWith("/api/auth")) return "Admin Authentication";
-  if (pathValue.includes("/payments")) return "Payments — Deferred";
+  if (pathValue.includes("/payments")) return "Payments";
   if (pathValue.includes("/webhooks/wati")) return "WATI Webhook";
   if (pathValue === "/api/health") return "Health";
   const segment = pathValue.replace(/^\/api\/v1\/?/, "").split("/");
@@ -330,8 +330,10 @@ function title(value) {
     .join(" ");
 }
 function description(route) {
+  if (route.path === "/api/v1/payments/create-order")
+    return "Creates or returns the authenticated customer's Razorpay order for an existing Razorpay payment record. The amount is taken from the internal order and never from the request body. Returns 503 with code ONLINE_PAYMENTS_DISABLED when the feature flag is off.";
   if (route.path.includes("/payments"))
-    return "Deferred online-payment endpoint. Returns 503 with code ONLINE_PAYMENTS_DISABLED when the feature flag is off.";
+    return "Customer payment operation. Online payment routes return 503 with code ONLINE_PAYMENTS_DISABLED when the feature flag is off.";
   if (route.path.includes("/webhooks/wati"))
     return "Public provider callback authenticated with the configured WATI webhook HMAC secret; duplicate external events are idempotent.";
   return `Registered from ${route.sources.join(", ")}. Authentication requirements are declared in security.`;
@@ -414,7 +416,7 @@ function requestExample(route) {
     "POST /api/v1/analytics/product-view": { product_id: "{{productId}}", source: "postman" },
     "POST /api/v1/analytics/search": { query: "postman test", result_count: 1 },
     "PUT /api/v1/notifications/preferences": { email_enabled: true, whatsapp_enabled: true, order_updates: true, promotional: false },
-    "POST /api/v1/payments/create-order": { order_id: "{{orderId}}", provider: "{{provider}}" },
+    "POST /api/v1/payments/create-order": { payment_id: "{{paymentId}}" },
     "POST /api/v1/payments/verify": { provider: "{{provider}}", payment_id: "pay_test_example", order_id: "order_test_example", signature: "test_signature" },
     "POST /api/v1/payments/webhook/{provider}": { event: "payment.captured", external_event_id: "postman-{{runId}}" },
     "POST /api/v1/webhooks/wati": { eventId: "postman-wati-{{runId}}", status: "delivered", messageId: "wati-test-message", timestamp: "2026-08-05T12:00:00.000Z" },

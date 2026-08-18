@@ -37,9 +37,11 @@ Admin product and banner uploads accept JPG, PNG, or WEBP, maximum 5 MB per file
 
 Create an address, add available products to the cart, then call `POST /api/v1/orders/create` with `payment_method:"cod"` and a unique `Idempotency-Key` (8–190 characters). COD does not receive a reservation expiry and continues while online payments are disabled.
 
-## Deferred online payments
+## Razorpay test-mode checkout
 
-`ONLINE_PAYMENTS_ENABLED=false` is the supported current configuration. Non-COD checkout and `/api/v1/payments` provider operations return HTTP 503 with `ONLINE_PAYMENTS_DISABLED`. Existing adapter/schema code is retained but no provider is represented as live or certified.
+Create the internal order first with `POST /api/v1/orders/create`, using `payment_method:"razorpay"` and a unique `Idempotency-Key`. The server recalculates the cart total, reserves stock, and returns `payment_id`. Then call `POST /api/v1/payments/create-order` with `{ "payment_id": 123 }`. It returns `order_id`, `payment_id`, `razorpay_order_id`, `key_id`, `amount` (paise), and `currency`, which are the fields needed for Razorpay Checkout. The server saves the Razorpay order ID before responding and does not mark the order as paid.
+
+Set `ONLINE_PAYMENTS_ENABLED=true`, `PAYMENT_PROVIDER=razorpay`, `RAZORPAY_KEY_ID=rzp_test_...`, and `RAZORPAY_KEY_SECRET=...` only in the server environment. The secret is never returned. With the feature flag off, non-COD checkout and `/api/v1/payments` provider operations return HTTP 503 with `ONLINE_PAYMENTS_DISABLED`.
 
 ## Return and internal refund flow
 

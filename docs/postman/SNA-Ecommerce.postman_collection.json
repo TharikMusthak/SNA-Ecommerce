@@ -386,6 +386,27 @@
           ]
         },
         {
+          "name": "POST /api/v1/auth/resend-verification",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/auth/resend-verification",
+            "description": "Registered from src/routes/v1/auth.js. Authentication requirements are declared in security."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected HTTP status', () => pm.expect(pm.response.code).to.be.oneOf([200,201,204,400,401,403,404,409,422,429,503]));",
+                  "if (pm.response.code !== 204 && pm.response.headers.get('Content-Type')?.includes('json')) { const body=pm.response.json(); pm.test('JSON success field',()=>pm.expect(body).to.have.property('success')); if (body.pagination) pm.test('Pagination shape',()=>pm.expect(body.pagination).to.include.all.keys('page','limit','total','totalPages','hasNext','hasPrevious')); const data=body.data ?? body;  }"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "POST /api/v1/auth/reset-password",
           "request": {
             "method": "POST",
@@ -2819,6 +2840,27 @@
           ]
         },
         {
+          "name": "PUT /api/v1/admin/products/{id}/featured",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/admin/products/{{productId}}/featured",
+            "description": "Registered from src/routes/products.js. Authentication requirements are declared in security."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected HTTP status', () => pm.expect(pm.response.code).to.be.oneOf([200,201,204,400,401,403,404,409,422,429,503]));",
+                  "if (pm.response.code !== 204 && pm.response.headers.get('Content-Type')?.includes('json')) { const body=pm.response.json(); pm.test('JSON success field',()=>pm.expect(body).to.have.property('success')); if (body.pagination) pm.test('Pagination shape',()=>pm.expect(body.pagination).to.include.all.keys('page','limit','total','totalPages','hasNext','hasPrevious')); const data=body.data ?? body;  }"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "GET /api/v1/admin/products/{id}/images",
           "request": {
             "method": "GET",
@@ -4650,7 +4692,7 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/api/v1/payments/{{paymentId}}",
-            "description": "Deferred online-payment endpoint. Returns 503 with code ONLINE_PAYMENTS_DISABLED when the feature flag is off."
+            "description": "Customer payment operation. Online payment routes return 503 with code ONLINE_PAYMENTS_DISABLED when the feature flag is off."
           },
           "event": [
             {
@@ -4680,10 +4722,10 @@
               }
             ],
             "url": "{{baseUrl}}/api/v1/payments/create-order",
-            "description": "Deferred online-payment endpoint. Returns 503 with code ONLINE_PAYMENTS_DISABLED when the feature flag is off.",
+            "description": "Creates or returns the authenticated customer's Razorpay order for an existing Razorpay payment record. The amount is taken from the internal order and never from the request body. Returns 503 with code ONLINE_PAYMENTS_DISABLED when the feature flag is off.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"order_id\": \"{{orderId}}\",\n  \"provider\": \"{{provider}}\"\n}",
+              "raw": "{\n  \"payment_id\": \"{{paymentId}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4710,7 +4752,7 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/api/v1/payments/history",
-            "description": "Deferred online-payment endpoint. Returns 503 with code ONLINE_PAYMENTS_DISABLED when the feature flag is off."
+            "description": "Customer payment operation. Online payment routes return 503 with code ONLINE_PAYMENTS_DISABLED when the feature flag is off."
           },
           "event": [
             {
@@ -4736,7 +4778,7 @@
               }
             ],
             "url": "{{baseUrl}}/api/v1/payments/verify",
-            "description": "Deferred online-payment endpoint. Returns 503 with code ONLINE_PAYMENTS_DISABLED when the feature flag is off.",
+            "description": "Customer payment operation. Online payment routes return 503 with code ONLINE_PAYMENTS_DISABLED when the feature flag is off.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"provider\": \"{{provider}}\",\n  \"payment_id\": \"pay_test_example\",\n  \"order_id\": \"order_test_example\",\n  \"signature\": \"test_signature\"\n}",
@@ -4771,7 +4813,7 @@
               }
             ],
             "url": "{{baseUrl}}/api/v1/payments/webhook/{{provider}}",
-            "description": "Deferred online-payment endpoint. Returns 503 with code ONLINE_PAYMENTS_DISABLED when the feature flag is off.",
+            "description": "Customer payment operation. Online payment routes return 503 with code ONLINE_PAYMENTS_DISABLED when the feature flag is off.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"event\": \"payment.captured\",\n  \"external_event_id\": \"postman-{{runId}}\"\n}",
