@@ -38,7 +38,7 @@ export default function ProductFields({ form, setForm, item, field, onNotice, ca
       </fieldset>
 
       <fieldset className="form-section">
-        <legend><span>3</span><b>Product media</b><small>JPG, PNG, WebP or MP4 · Maximum 5 MB per image</small></legend>
+        <legend><span>3</span><b>Product media</b><small>JPG, PNG or WebP up to 5 MB per image</small></legend>
         <ImagePreviewField name="main_image" label="Main product image" existingImage={form.main_image || item?.main_image} removeFieldName="remove_main_image" />
         {item && <ProductGalleryManager productId={item.id} onNotice={onNotice} onPrimaryChanged={(mainImage) => setForm({ ...form, main_image: mainImage })} />}
         <ImagePreviewField name="gallery" label={item ? "Add gallery images" : "Product gallery images"} multiple />

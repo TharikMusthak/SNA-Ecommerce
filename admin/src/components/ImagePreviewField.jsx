@@ -72,14 +72,14 @@ export default function ImagePreviewField({
           id={inputId}
           name={name}
           type="file"
-           accept="image/jpeg,image/png,image/webp,video/*"
+          accept="image/jpeg,image/png,image/webp"
           multiple={multiple}
           required={required && previews.length === 0}
           onChange={handleChange}
           aria-describedby={helpId}
         />
         <small id={helpId}>
-          JPG, PNG, WebP or MP4 · Maximum 5 MB
+          JPG, PNG or WebP · Maximum 5 MB
           {multiple ? " · Up to 8 images" : ""}
         </small>
       </div>

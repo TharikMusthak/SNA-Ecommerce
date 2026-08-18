@@ -168,14 +168,14 @@ app.use((_req, res) => {
 
 app.use((error, _req, res, _next) => {
   if (error?.code === "LIMIT_FILE_SIZE") {
-    return res.status(400).json({ message: "File size must be 5 MB or smaller" });
+    return res.status(400).json({ message: "Image must be 5 MB or smaller" });
   }
 
   if (error?.code?.startsWith("LIMIT_")) {
     return res.status(400).json({ message: "Invalid upload request" });
   }
 
-  if (error?.message === "JPG, PNG, WebP or MP4 files are allowed") {
+  if (error?.message === "Only JPG, PNG and WEBP images are allowed") {
     return res.status(400).json({ message: error.message });
   }
 

@@ -31,7 +31,7 @@ The API has a global rate limit and stricter authentication/OTP limits. Credenti
 
 ## File uploads
 
-Admin product and banner uploads accept JPG, PNG, mp4 or WEBP, maximum 5 MB per file. The server verifies MIME type, signature, extension, count, and resolved upload paths. Never trust a browser-provided filename or MIME type.
+Admin product and banner uploads accept JPG, PNG, or WEBP, maximum 5 MB per file. The server verifies MIME type, signature, extension, count, and resolved upload paths. Never trust a browser-provided filename or MIME type.
 
 ## COD checkout
 

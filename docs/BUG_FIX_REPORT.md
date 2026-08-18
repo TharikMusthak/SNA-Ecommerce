@@ -209,7 +209,7 @@ This audit records issue groups rather than counting every affected line as a se
 - Status: Fixed
 - Severity: Medium
 - Module: React uploads
-- Reproduction: The form advertised GIF and 8 MB while backend security accepts only JPG/PNG/WebP/MP4 up to 5 MB.
+- Reproduction: The form advertised GIF and 8 MB while backend security accepts only JPG/PNG/WebP up to 5 MB.
 - Root cause: Frontend help text and accept list were stale.
 - Files changed: `admin/src/components/ImagePreviewField.jsx`
 - Fix: Align accepted MIME types and size guidance; remove stale state-reset effect.
