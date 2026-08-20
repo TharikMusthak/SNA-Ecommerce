@@ -60,7 +60,7 @@ const productUpload = upload.fields([
 
 const productMediaUpload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024, files: 10 },
+  limits: { fileSize: 50 * 1024 * 1024, files: 11 },
   fileFilter: productMediaFileFilter,
 });
 
@@ -68,6 +68,7 @@ const productUploadWithVideo = productMediaUpload.fields([
   { name: "main_image", maxCount: 1 },
   { name: "gallery", maxCount: 8 },
   { name: "video", maxCount: 1 },
+  { name: "future_image", maxCount: 1 },
 ]);
 
 router.use(requireAdmin, allowRoles("Super Admin", "Product Manager"));
@@ -202,8 +203,8 @@ router.post("/", productUploadWithVideo, verifyProductMedia, async (req, res) =>
       `INSERT INTO products
           (name, category, category_id, price, stock, low_stock_threshold,
            status, short_description, description, sale_price, video_url,
-           is_featured, published_at, main_image, slug)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           is_featured, published_at, main_image, future_image, slug)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         input.value.name,
         category.name,
@@ -219,6 +220,7 @@ router.post("/", productUploadWithVideo, verifyProductMedia, async (req, res) =>
         input.value.isFeatured,
         input.value.publishedAt,
         mainImage,
+        req.files?.future_image?.[0] ? imageUrl(req.files.future_image[0]) : null,
         slug,
       ],
     );
@@ -257,12 +259,13 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
   let connection;
   let oldMainImage = null;
   let oldVideo = null;
+  let oldFutureImage = null;
 
   try {
     connection = await pool.getConnection();
     await connection.beginTransaction();
     const [[existingProduct]] = await connection.query(
-      `SELECT main_image, video_url, slug
+      `SELECT main_image, future_image, video_url, slug
          FROM products
          WHERE id = ?
          FOR UPDATE`,
@@ -292,6 +295,7 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
 
     oldMainImage = existingProduct.main_image;
     oldVideo = existingProduct.video_url;
+    oldFutureImage = existingProduct.future_image;
     const newMainFile = req.files?.main_image?.[0];
     const removeMainImage = req.body.remove_main_image === "1" && !newMainFile;
     const mainImage = newMainFile
@@ -306,6 +310,13 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
       : removeVideo
         ? null
         : existingProduct.video_url;
+    const newFutureImageFile = req.files?.future_image?.[0];
+    const removeFutureImage = req.body.remove_future_image === "1" && !newFutureImageFile;
+    const futureImage = newFutureImageFile
+      ? imageUrl(newFutureImageFile)
+      : removeFutureImage
+        ? null
+        : existingProduct.future_image;
     const slug = req.body.slug
       ? await resolveProductSlug(connection, req.body.slug, id)
       : existingProduct.slug ||
@@ -329,7 +340,7 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
          SET name = ?, category = ?, category_id = ?, price = ?, stock = ?,
              low_stock_threshold = ?, status = ?, short_description = ?,
              description = ?, sale_price = ?, video_url = ?, is_featured = ?,
-             published_at = ?, main_image = ?, slug = ?
+             published_at = ?, main_image = ?, future_image = ?, slug = ?
          WHERE id = ?`,
       [
         input.value.name,
@@ -346,6 +357,7 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
         input.value.isFeatured,
         input.value.publishedAt,
         mainImage,
+        futureImage,
         slug,
         id,
       ],
@@ -366,6 +378,9 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
     }
     if ((newVideoFile || removeVideo) && oldVideo !== video) {
       await safelyDeleteUpload(oldVideo, "products");
+    }
+    if ((newFutureImageFile || removeFutureImage) && oldFutureImage !== futureImage) {
+      await safelyDeleteUpload(oldFutureImage, "products");
     }
 
     res.json({ message: "Product updated" });
@@ -523,7 +538,7 @@ router.put("/:productId/images/:imageId/primary", async (req, res) => {
   try {
     await connection.beginTransaction();
     const [[product]] = await connection.query(
-      "SELECT main_image, video_url FROM products WHERE id = ? FOR UPDATE",
+      "SELECT main_image, future_image, video_url FROM products WHERE id = ? FOR UPDATE",
       [productId],
     );
     const [[image]] = await connection.query(
@@ -670,7 +685,7 @@ router.delete("/:id", async (req, res) => {
   try {
     await connection.beginTransaction();
     const [[product]] = await connection.query(
-      "SELECT main_image, video_url FROM products WHERE id = ? FOR UPDATE",
+      "SELECT main_image, future_image, video_url FROM products WHERE id = ? FOR UPDATE",
       [id],
     );
 
@@ -683,7 +698,7 @@ router.delete("/:id", async (req, res) => {
       "SELECT image FROM product_images WHERE product_id = ?",
       [id],
     );
-    uploadUrls = [product.main_image, product.video_url, ...images.map((image) => image.image)];
+    uploadUrls = [product.main_image, product.future_image, product.video_url, ...images.map((image) => image.image)];
 
     await connection.query("DELETE FROM products WHERE id = ?", [id]);
     await connection.commit();
