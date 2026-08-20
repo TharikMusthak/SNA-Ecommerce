@@ -16,3 +16,4 @@ export const uploadsRoot = process.env.VERCEL === "1"
   : path.join(backendRoot, "uploads");
 export const productUploadsDir = path.join(uploadsRoot, "products");
 export const bannerUploadsDir = path.join(uploadsRoot, "banners");
+export const reviewUploadsDir = path.join(uploadsRoot, "reviews");
