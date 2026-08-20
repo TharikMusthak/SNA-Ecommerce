@@ -32,7 +32,7 @@ export default function Products({ rows = [], onEdit, onDelete, onToggleFeatured
             <td><b>{product.name}</b><small>{product.description}</small></td>
             <td>{product.sku || "—"}</td>
             <td>{product.category}</td>
-            <td>{currency(product.price)}</td>
+            <td>{currency(product.sale_price ?? product.price)}{product.sale_price !== null && product.sale_price !== undefined && <small>Regular: {currency(product.price)}</small>}</td>
             <td><span className={Number(product.stock) <= Number(product.low_stock_threshold) ? "quantity-pill quantity-pill--low" : "quantity-pill"}>{product.stock}</span></td>
             <td><span className="rating-chip"><Star size={13} fill="currentColor" /> {Number(product.average_rating || 0).toFixed(1)}</span></td>
             <td><Badge value={Number(product.is_featured) === 1 ? "Featured" : "Standard"} /></td>
