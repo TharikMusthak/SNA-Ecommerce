@@ -5,7 +5,14 @@ import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { parsePositiveId } from "../../security/validation.js";
 import { fail, ok, paginated } from "../../utils/apiResponse.js";
 import { parsePagination } from "../../utils/pagination.js";
+import {
+  findAdminOrdersDetails,
+  findOrderDetails,
+} from "../../services/orderDetails.js";
 import { queueUserEvent } from "../../integrations/notifications/notification.service.js";
+import { reviewFileUrl, reviewUpload } from "../../middleware/reviewUpload.js";
+import { deleteUploadedFiles, uploadedFiles } from "../../middleware/uploadSecurity.js";
+import { safelyDeleteUpload, safelyDeleteUploads } from "../../services/uploadFiles.js";
 
 const router = Router();
 const productRoles = allowRoles("Super Admin", "Product Manager");
@@ -73,7 +80,7 @@ router.get(
     if (!user) return fail(res, 404, "Customer not found");
     const [[addresses], [orders], [returns], [tickets]] = await Promise.all([
       pool.query(
-        "SELECT id,full_name,phone,address_line_1,address_line_2,city,state,country,postal_code,address_type,is_default FROM user_addresses WHERE user_id=? ORDER BY is_default DESC,id DESC",
+        "SELECT id,full_name,phone,address_line_1,address_line_2,city,state,country,postal_code,address_type,is_default,pincode_serviceable,cod_available,pincode_verified_at FROM user_addresses WHERE user_id=? ORDER BY is_default DESC,id DESC",
         [id],
       ),
       pool.query(
@@ -164,7 +171,7 @@ router.get(
         params,
       ),
       pool.query(
-        `SELECT r.id,r.product_id,r.user_id,r.rating,r.title,r.review_text,r.is_verified_purchase,r.status,r.helpful_count,r.created_at,p.name product_name,u.email customer_email,CONCAT(u.first_name,' ',u.last_name) customer FROM reviews r JOIN products p ON p.id=r.product_id JOIN users u ON u.id=r.user_id ${clause} ORDER BY r.${p.sort} ${p.order} LIMIT ? OFFSET ?`,
+        `SELECT r.id,r.product_id,r.user_id,r.rating,r.title,r.review_text,r.image_url,r.video_url,r.is_verified_purchase,r.status,r.helpful_count,r.created_at,p.name product_name,u.email customer_email,u.phone customer_phone,CONCAT(u.first_name,' ',u.last_name) customer FROM reviews r JOIN products p ON p.id=r.product_id JOIN users u ON u.id=r.user_id ${clause} ORDER BY r.${p.sort} ${p.order} LIMIT ? OFFSET ?`,
         [...params, p.limit, p.offset],
       ),
     ]);
@@ -178,10 +185,75 @@ router.get(
     const id = parsePositiveId(req.params.id);
     if (!id) return fail(res, 400, "Invalid review ID");
     const [[row]] = await pool.query(
-      `SELECT r.id,r.product_id,r.user_id,r.order_item_id,r.rating,r.title,r.review_text,r.is_verified_purchase,r.status,r.helpful_count,r.created_at,p.name product_name,u.email customer_email FROM reviews r JOIN products p ON p.id=r.product_id JOIN users u ON u.id=r.user_id WHERE r.id=?`,
+      `SELECT r.id,r.product_id,r.user_id,r.order_item_id,r.rating,r.title,r.review_text,r.image_url,r.video_url,r.is_verified_purchase,r.status,r.helpful_count,r.created_at,p.name product_name,u.email customer_email,u.phone customer_phone,CONCAT(u.first_name,' ',u.last_name) customer FROM reviews r JOIN products p ON p.id=r.product_id JOIN users u ON u.id=r.user_id WHERE r.id=?`,
       [id],
     );
     return row ? ok(res, row) : fail(res, 404, "Review not found");
+  }),
+);
+router.post(
+  "/reviews",
+  productRoles,
+  ...reviewUpload,
+  asyncHandler(async (req, res) => {
+    const files = uploadedFiles(req);
+    const input = adminReviewInput(req.body);
+    if (input.error) {
+      await deleteUploadedFiles(files);
+      return fail(res, 422, input.error);
+    }
+    const [[user], [product]] = await Promise.all([
+      pool.query("SELECT id FROM users WHERE id=? AND deleted_at IS NULL", [input.userId]),
+      pool.query("SELECT id FROM products WHERE id=?", [input.productId]),
+    ]);
+    if (!user[0] || !product[0]) {
+      await deleteUploadedFiles(files);
+      return fail(res, 422, "Selected customer or product was not found");
+    }
+    try {
+      const [result] = await pool.query(
+        "INSERT INTO reviews(user_id,product_id,rating,title,review_text,image_url,video_url,is_verified_purchase,status) VALUES (?,?,?,?,?,?,?,?,?)",
+        [input.userId, input.productId, input.rating, input.title, input.reviewText, reviewFileUrl(req.files?.image?.[0]), reviewFileUrl(req.files?.video?.[0]), input.verified, input.status],
+      );
+      await logAudit(req.admin, "review.created", "review", result.insertId);
+      return ok(res, { id: result.insertId }, "Review created", 201);
+    } catch (error) {
+      await deleteUploadedFiles(files);
+      if (error.code === "ER_DUP_ENTRY") return fail(res, 409, "This customer already reviewed the selected product");
+      throw error;
+    }
+  }),
+);
+router.put(
+  "/reviews/:id",
+  productRoles,
+  ...reviewUpload,
+  asyncHandler(async (req, res) => {
+    const id = parsePositiveId(req.params.id);
+    const files = uploadedFiles(req);
+    const input = adminReviewInput(req.body);
+    if (!id || input.error) {
+      await deleteUploadedFiles(files);
+      return fail(res, 422, input.error || "Invalid review ID");
+    }
+    const [[existing]] = await pool.query("SELECT image_url,video_url FROM reviews WHERE id=?", [id]);
+    if (!existing) {
+      await deleteUploadedFiles(files);
+      return fail(res, 404, "Review not found");
+    }
+    const imageUrl = reviewFileUrl(req.files?.image?.[0]) || (req.body.remove_image === "1" ? null : existing.image_url);
+    const videoUrl = reviewFileUrl(req.files?.video?.[0]) || (req.body.remove_video === "1" ? null : existing.video_url);
+    try {
+      await pool.query("UPDATE reviews SET user_id=?,product_id=?,rating=?,title=?,review_text=?,image_url=?,video_url=?,is_verified_purchase=?,status=? WHERE id=?", [input.userId, input.productId, input.rating, input.title, input.reviewText, imageUrl, videoUrl, input.verified, input.status, id]);
+    } catch (error) {
+      await deleteUploadedFiles(files);
+      if (error.code === "ER_DUP_ENTRY") return fail(res, 409, "This customer already reviewed the selected product");
+      throw error;
+    }
+    if (existing.image_url !== imageUrl) await safelyDeleteUpload(existing.image_url, "reviews");
+    if (existing.video_url !== videoUrl) await safelyDeleteUpload(existing.video_url, "reviews");
+    await logAudit(req.admin, "review.updated", "review", id);
+    return ok(res, null, "Review updated");
   }),
 );
 router.put(
@@ -212,12 +284,27 @@ router.delete(
   asyncHandler(async (req, res) => {
     const id = parsePositiveId(req.params.id);
     if (!id) return fail(res, 400, "Invalid review ID");
-    const [result] = await pool.query("DELETE FROM reviews WHERE id=?", [id]);
-    if (!result.affectedRows) return fail(res, 404, "Review not found");
+    const [[review]] = await pool.query("SELECT image_url,video_url FROM reviews WHERE id=?", [id]);
+    if (!review) return fail(res, 404, "Review not found");
+    await pool.query("DELETE FROM reviews WHERE id=?", [id]);
+    await safelyDeleteUploads([review.image_url, review.video_url], "reviews");
     await logAudit(req.admin, "review.deleted", "review", id);
     return res.status(204).end();
   }),
 );
+
+function adminReviewInput(body) {
+  const userId = parsePositiveId(body.user_id);
+  const productId = parsePositiveId(body.product_id);
+  const rating = Number(body.rating);
+  const title = String(body.title || "").trim().slice(0, 190) || null;
+  const reviewText = String(body.review_text || "").trim().slice(0, 5000);
+  const status = ["pending", "approved", "rejected", "hidden"].includes(body.status) ? body.status : null;
+  if (!userId || !productId || !Number.isInteger(rating) || rating < 1 || rating > 5 || !reviewText || !status) {
+    return { error: "Customer, product, rating, review text, and status are required" };
+  }
+  return { userId, productId, rating, title, reviewText, status, verified: ["1", "true", "on"].includes(String(body.is_verified_purchase).toLowerCase()) };
+}
 
 router.get(
   "/tickets",
@@ -512,14 +599,36 @@ router.get(
       where.push("o.status=?");
       params.push(String(req.query.status).slice(0, 40));
     }
+    if (req.query.payment_status) {
+      where.push("o.payment_status=?");
+      params.push(String(req.query.payment_status).slice(0, 40));
+    }
+    if (req.query.scope === "current") {
+      where.push(
+        "o.status NOT IN ('delivered','cancelled','returned','refunded','failed')",
+      );
+    } else if (req.query.scope === "unpaid") {
+      where.push("o.payment_status NOT IN ('paid','refunded')");
+    }
+    if (validDate(req.query.from)) {
+      where.push("o.created_at>=?");
+      params.push(`${req.query.from} 00:00:00`);
+    }
+    if (validDate(req.query.to)) {
+      where.push("o.created_at<DATE_ADD(?,INTERVAL 1 DAY)");
+      params.push(req.query.to);
+    }
     const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
-    const [[count], [rows]] = await Promise.all([
+    const [[count], [orderIds]] = await Promise.all([
       pool.query(`SELECT COUNT(*) total FROM orders o ${clause}`, params),
       pool.query(
-        `SELECT o.id,o.order_code,o.customer,o.phone,o.amount,o.status,o.payment_status,o.created_at,p.provider payment_method FROM orders o LEFT JOIN payments p ON p.order_id=o.id ${clause} ORDER BY o.${p.sort} ${p.order} LIMIT ? OFFSET ?`,
+        `SELECT o.id FROM orders o ${clause} ORDER BY o.${p.sort} ${p.order} LIMIT ? OFFSET ?`,
         [...params, p.limit, p.offset],
       ),
     ]);
+    const rows = await findAdminOrdersDetails(
+      orderIds.map((order) => order.id),
+    );
     return paginated(res, rows, { ...p, total: Number(count[0].total) });
   }),
 );
@@ -529,20 +638,12 @@ router.get(
   asyncHandler(async (req, res) => {
     const id = parsePositiveId(req.params.id);
     if (!id) return fail(res, 400, "Invalid order ID");
-    const [[order]] = await pool.query("SELECT * FROM orders WHERE id=?", [id]);
+    const order = await findOrderDetails({
+      orderId: id,
+      includeInternal: true,
+    });
     if (!order) return fail(res, 404, "Order not found");
-    const [[items], [history], [payments]] = await Promise.all([
-      pool.query("SELECT * FROM order_items WHERE order_id=?", [id]),
-      pool.query(
-        "SELECT * FROM order_status_history WHERE order_id=? ORDER BY id",
-        [id],
-      ),
-      pool.query(
-        "SELECT id,provider,amount_minor,currency,status,created_at FROM payments WHERE order_id=?",
-        [id],
-      ),
-    ]);
-    return ok(res, { ...order, items, history, payments });
+    return ok(res, order);
   }),
 );
 
