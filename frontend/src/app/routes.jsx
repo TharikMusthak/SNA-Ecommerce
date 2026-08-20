@@ -9,6 +9,8 @@ import Product from "@pages/Product/Product";
 import Cart from "@pages/Cart/Cart";
 import OurStory from "@pages/OurStory/OurStory";
 import ContactUs from "@pages/ContactUs/ContactUs";
+import TermsAndConditions from "@pages/TermsAndConditions/TermsAndConditions";
+import PrivacyPolicy from "@pages/PrivacyPolicy/PrivacyPolicy";
 
 import Login from "@pages/Login/Login";
 import Register from "@pages/Register/Register";
@@ -47,6 +49,14 @@ export const router = createBrowserRouter([
       {
         path: "contactus",
         element: <ContactUs />,
+      },
+      {
+        path: "terms-and-conditions",
+        element: <TermsAndConditions />,
+      },
+      {
+        path: "privacy-policy",
+        element: <PrivacyPolicy />,
       },
 
       // Protected Routes

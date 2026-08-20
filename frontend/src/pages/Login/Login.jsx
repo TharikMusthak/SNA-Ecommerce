@@ -6,6 +6,7 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 // import { loginUser,registerUser } from "@context/AuthProvider";
 import { useAuth } from "@context/AuthProvider";
@@ -943,19 +944,17 @@ overflow-hidden
                     "
                   >
                     I agree to the{" "}
-                    <button
-                      type="button"
+                   <Link
+                    to={"/terms-and-conditions"}
                       className="
                         font-medium
                         text-[#079447]
                         hover:underline
                       "
-                      onClick={(e) =>
-                        e.preventDefault()
-                      }
+                      
                     >
                       Terms & Conditions
-                    </button>{" "}
+                    </Link>{" "}
                     and confirm that the information
                     provided is correct.
                   </span>

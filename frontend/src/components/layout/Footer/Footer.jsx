@@ -18,6 +18,8 @@ const Footer = () => {
     { label: "Our Story", href: "/ourstory" },
     { label: "Products", href: "/products" },
     { label: "Contact Us", href: "/contactus" },
+    { label: "Terms & Conditions", href: "/terms-and-conditions" },
+    { label: "Privacy Policy", href: "/privacy-policy" },
   ];
 
   const products = [
@@ -148,7 +150,7 @@ const Footer = () => {
               {products.map((product) => (
                 <li key={product.label}>
                   <Link
-                    href={product.href}
+                    to={product.href}
                     className="text-[16px] leading-6 text-[#444444] transition-colors duration-200 hover:text-[#079447]"
                   >
                     {product.label}
