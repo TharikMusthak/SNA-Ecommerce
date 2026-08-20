@@ -168,7 +168,7 @@ app.use((_req, res) => {
 
 app.use((error, _req, res, _next) => {
   if (error?.code === "LIMIT_FILE_SIZE") {
-    return res.status(400).json({ message: "Image must be 5 MB or smaller" });
+    return res.status(400).json({ message: "Uploaded file is too large" });
   }
 
   if (error?.code?.startsWith("LIMIT_")) {
@@ -176,6 +176,10 @@ app.use((error, _req, res, _next) => {
   }
 
   if (error?.message === "Only JPG, PNG and WEBP images are allowed") {
+    return res.status(400).json({ message: error.message });
+  }
+
+  if (error?.message === "Only MP4, WebM and MOV videos are allowed") {
     return res.status(400).json({ message: error.message });
   }
 
