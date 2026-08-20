@@ -179,8 +179,9 @@ router.post(
       const [result] = await connection.query(
         `INSERT INTO products
           (name, category, category_id, price, stock, low_stock_threshold,
-           status, description, main_image, slug)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           status, short_description, description, sale_price, video_url,
+           is_featured, published_at, main_image, slug)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           input.value.name,
           category.name,
@@ -189,7 +190,12 @@ router.post(
           input.value.stock,
           input.value.lowStockThreshold,
           input.value.status,
+          input.value.shortDescription,
           input.value.description,
+          input.value.salePrice,
+          input.value.videoUrl,
+          input.value.isFeatured,
+          input.value.publishedAt,
           mainImage,
           slug,
         ],
@@ -297,8 +303,9 @@ router.put(
       await connection.query(
         `UPDATE products
          SET name = ?, category = ?, category_id = ?, price = ?, stock = ?,
-             low_stock_threshold = ?, status = ?, description = ?,
-             main_image = ?, slug = ?
+             low_stock_threshold = ?, status = ?, short_description = ?,
+             description = ?, sale_price = ?, video_url = ?, is_featured = ?,
+             published_at = ?, main_image = ?, slug = ?
          WHERE id = ?`,
         [
           input.value.name,
@@ -308,7 +315,12 @@ router.put(
           input.value.stock,
           input.value.lowStockThreshold,
           input.value.status,
+          input.value.shortDescription,
           input.value.description,
+          input.value.salePrice,
+          input.value.videoUrl,
+          input.value.isFeatured,
+          input.value.publishedAt,
           mainImage,
           slug,
           id,
@@ -529,6 +541,55 @@ router.put("/:productId/images/:imageId/primary", async (req, res) => {
   }
 });
 
+router.put(
+  "/:productId/images/:imageId",
+  upload.single("image"),
+  verifyUploadedImages,
+  async (req, res) => {
+    const productId = parsePositiveId(req.params.productId);
+    const imageId = parsePositiveId(req.params.imageId);
+    const files = uploadedFiles(req);
+    const file = files[0];
+
+    if (!productId || !imageId || !file) {
+      await deleteUploadedFiles(files);
+      return res.status(400).json({
+        message: file ? "Invalid product or image ID" : "Replacement image is required",
+      });
+    }
+
+    const connection = await pool.getConnection();
+    let oldImage;
+    try {
+      await connection.beginTransaction();
+      const [[image]] = await connection.query(
+        "SELECT image FROM product_images WHERE id = ? AND product_id = ? FOR UPDATE",
+        [imageId, productId],
+      );
+      if (!image) {
+        await connection.rollback();
+        await deleteUploadedFiles(files);
+        return res.status(404).json({ message: "Image not found" });
+      }
+      oldImage = image.image;
+      const replacement = imageUrl(file);
+      await connection.query(
+        "UPDATE product_images SET image = ? WHERE id = ? AND product_id = ?",
+        [replacement, imageId, productId],
+      );
+      await connection.commit();
+      await safelyDeleteUpload(oldImage, "products");
+      res.json({ id: imageId, product_id: productId, image: replacement });
+    } catch (error) {
+      await connection.rollback();
+      await deleteUploadedFiles(files);
+      throw error;
+    } finally {
+      connection.release();
+    }
+  },
+);
+
 router.delete("/:productId/images/:imageId", async (req, res) => {
   const productId = parsePositiveId(req.params.productId);
   const imageId = parsePositiveId(req.params.imageId);
@@ -630,7 +691,12 @@ function parseProduct(body) {
     stock: Number(body.stock || 0),
     lowStockThreshold: Number(body.low_stock_threshold || 5),
     status: body.status || "Active",
+    shortDescription: cleanText(body.short_description, 500),
     description: cleanText(body.description, 5000),
+    salePrice: String(body.sale_price ?? "").trim() === "" ? null : Number(body.sale_price),
+    videoUrl: cleanText(body.video_url, 1000) || null,
+    isFeatured: ["true", "1", "on"].includes(String(body.is_featured).toLowerCase()) ? 1 : 0,
+    publishedAt: parsePublishedAt(body.published_at),
   };
 
   if (rawCategoryId && !categoryId) {
@@ -641,6 +707,18 @@ function parseProduct(body) {
   }
   if (!Number.isFinite(value.price) || value.price < 0) {
     return { error: "Price must be a positive number" };
+  }
+  if (value.salePrice !== null && (!Number.isFinite(value.salePrice) || value.salePrice < 0)) {
+    return { error: "Selling price must be a positive number" };
+  }
+  if (value.salePrice !== null && value.salePrice > value.price) {
+    return { error: "Selling price cannot be higher than the regular price" };
+  }
+  if (body.published_at && !value.publishedAt) {
+    return { error: "Invalid future publish date" };
+  }
+  if (value.videoUrl && !isValidVideoUrl(value.videoUrl)) {
+    return { error: "Video must be a valid HTTP or HTTPS URL" };
   }
   if (!Number.isInteger(value.stock) || value.stock < 0) {
     return { error: "Stock must be a positive whole number" };
@@ -656,6 +734,20 @@ function parseProduct(body) {
   }
 
   return { value };
+}
+
+function parsePublishedAt(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 19).replace("T", " ");
+}
+
+function isValidVideoUrl(value) {
+  try {
+    return ["http:", "https:"].includes(new URL(value).protocol);
+  } catch {
+    return false;
+  }
 }
 
 async function resolveProductSlug(queryable, value, excludeId = null) {
