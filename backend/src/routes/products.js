@@ -7,10 +7,13 @@ import { productUploadsDir } from "../config/paths.js";
 import { allowRoles, requireAdmin } from "../middleware/auth.js";
 import {
   ALLOWED_IMAGE_TYPES,
+  ALLOWED_VIDEO_TYPES,
   deleteUploadedFiles,
   imageFileFilter,
+  productMediaFileFilter,
   uploadedFiles,
   verifyUploadedImages,
+  verifyProductMedia,
 } from "../middleware/uploadSecurity.js";
 import {
   cleanText,
@@ -37,7 +40,9 @@ fs.mkdirSync(productUploadsDir, { recursive: true });
 const storage = multer.diskStorage({
   destination: productUploadsDir,
   filename: (_req, file, callback) => {
-    const extension = ALLOWED_IMAGE_TYPES.get(file.mimetype);
+    const extension =
+      ALLOWED_IMAGE_TYPES.get(file.mimetype) ||
+      ALLOWED_VIDEO_TYPES.get(file.mimetype);
     callback(null, `${randomUUID()}.${extension}`);
   },
 });
@@ -53,13 +58,26 @@ const productUpload = upload.fields([
   { name: "gallery", maxCount: 8 },
 ]);
 
-router.use(
-  requireAdmin,
-  allowRoles("Super Admin", "Product Manager"),
-);
+const productMediaUpload = multer({
+  storage,
+  limits: { fileSize: 50 * 1024 * 1024, files: 10 },
+  fileFilter: productMediaFileFilter,
+});
+
+const productUploadWithVideo = productMediaUpload.fields([
+  { name: "main_image", maxCount: 1 },
+  { name: "gallery", maxCount: 8 },
+  { name: "video", maxCount: 1 },
+]);
+
+router.use(requireAdmin, allowRoles("Super Admin", "Product Manager"));
 
 router.get("/", async (req, res) => {
-  const pagination = parsePagination(req.query, ["id", "name", "price", "stock", "status", "created_at"], "id");
+  const pagination = parsePagination(
+    req.query,
+    ["id", "name", "price", "stock", "status", "created_at"],
+    "id",
+  );
   const search = cleanText(req.query.search, 120);
   const status = cleanText(req.query.status, 20);
   const categoryId = parsePositiveId(req.query.category_id);
@@ -92,10 +110,15 @@ router.get("/", async (req, res) => {
      GROUP BY p.id
      ORDER BY p.${pagination.sort} ${pagination.order}
      ${req.baseUrl.includes("/v1/") ? "LIMIT ? OFFSET ?" : ""}`,
-    req.baseUrl.includes("/v1/") ? [...params,pagination.limit,pagination.offset] : params,
+    req.baseUrl.includes("/v1/")
+      ? [...params, pagination.limit, pagination.offset]
+      : params,
   );
   if (req.baseUrl.includes("/v1/")) {
-    const [[count]] = await pool.query(`SELECT COUNT(*) total FROM products p ${where}`, params);
+    const [[count]] = await pool.query(
+      `SELECT COUNT(*) total FROM products p ${where}`,
+      params,
+    );
     return paginated(res, rows, { ...pagination, total: Number(count.total) });
   }
   res.json(rows);
@@ -138,219 +161,222 @@ router.get("/:id", async (req, res) => {
   res.json({ ...product, images, variants });
 });
 
-router.post(
-  "/",
-  productUpload,
-  verifyUploadedImages,
-  async (req, res) => {
-    const input = parseProduct(req.body);
-    const newFiles = uploadedFiles(req);
+router.post("/", productUploadWithVideo, verifyProductMedia, async (req, res) => {
+  const input = parseProduct(req.body);
+  const newFiles = uploadedFiles(req);
 
-    if (input.error) {
+  if (input.error) {
+    await deleteUploadedFiles(newFiles);
+    return res.status(400).json({ message: input.error });
+  }
+
+  let connection;
+
+  try {
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    if (await productNameExists(connection, input.value.name)) {
+      await connection.rollback();
       await deleteUploadedFiles(newFiles);
-      return res.status(400).json({ message: input.error });
+      return res.status(409).json({
+        message: DUPLICATE_PRODUCT_MESSAGE,
+      });
     }
 
-    let connection;
+    const category = await resolveCategory(connection, input.value);
+    if (!category) {
+      await connection.rollback();
+      await deleteUploadedFiles(newFiles);
+      return res.status(400).json({ message: "Selected category not found" });
+    }
 
-    try {
-      connection = await pool.getConnection();
-      await connection.beginTransaction();
-
-      if (await productNameExists(connection, input.value.name)) {
-        await connection.rollback();
-        await deleteUploadedFiles(newFiles);
-        return res.status(409).json({
-          message: DUPLICATE_PRODUCT_MESSAGE,
-        });
-      }
-
-      const category = await resolveCategory(connection, input.value);
-      if (!category) {
-        await connection.rollback();
-        await deleteUploadedFiles(newFiles);
-        return res.status(400).json({ message: "Selected category not found" });
-      }
-
-      const mainImage = req.files?.main_image?.[0]
-        ? imageUrl(req.files.main_image[0])
-        : null;
-      const slug = await resolveProductSlug(connection, req.body.slug || input.value.name);
-      const [result] = await connection.query(
-        `INSERT INTO products
+    const mainImage = req.files?.main_image?.[0]
+      ? imageUrl(req.files.main_image[0])
+      : null;
+    const slug = await resolveProductSlug(
+      connection,
+      req.body.slug || input.value.name,
+    );
+    const [result] = await connection.query(
+      `INSERT INTO products
           (name, category, category_id, price, stock, low_stock_threshold,
            status, short_description, description, sale_price, video_url,
            is_featured, published_at, main_image, slug)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          input.value.name,
-          category.name,
-          category.id,
-          input.value.price,
-          input.value.stock,
-          input.value.lowStockThreshold,
-          input.value.status,
-          input.value.shortDescription,
-          input.value.description,
-          input.value.salePrice,
-          input.value.videoUrl,
-          input.value.isFeatured,
-          input.value.publishedAt,
-          mainImage,
-          slug,
-        ],
-      );
+      [
+        input.value.name,
+        category.name,
+        category.id,
+        input.value.price,
+        input.value.stock,
+        input.value.lowStockThreshold,
+        input.value.status,
+        input.value.shortDescription,
+        input.value.description,
+        input.value.salePrice,
+        req.files?.video?.[0] ? imageUrl(req.files.video[0]) : null,
+        input.value.isFeatured,
+        input.value.publishedAt,
+        mainImage,
+        slug,
+      ],
+    );
 
-      for (const [index, file] of (
-        req.files?.gallery || []
-      ).entries()) {
-        await connection.query(
-          `INSERT INTO product_images(product_id, image, sort_order)
+    for (const [index, file] of (req.files?.gallery || []).entries()) {
+      await connection.query(
+        `INSERT INTO product_images(product_id, image, sort_order)
            VALUES (?, ?, ?)`,
-          [result.insertId, imageUrl(file), index],
-        );
-      }
-
-      await connection.commit();
-      res.status(201).json({ id: result.insertId });
-    } catch (error) {
-      if (connection) await connection.rollback();
-      await deleteUploadedFiles(newFiles);
-      throw error;
-    } finally {
-      connection?.release();
-    }
-  },
-);
-
-router.put(
-  "/:id",
-  productUpload,
-  verifyUploadedImages,
-  async (req, res) => {
-    const id = parsePositiveId(req.params.id);
-    const input = parseProduct(req.body);
-    const newFiles = uploadedFiles(req);
-
-    if (!id || input.error) {
-      await deleteUploadedFiles(newFiles);
-      return res.status(400).json({
-        message: input.error || "Invalid product ID",
-      });
+        [result.insertId, imageUrl(file), index],
+      );
     }
 
-    let connection;
-    let oldMainImage = null;
+    await connection.commit();
+    res.status(201).json({ id: result.insertId });
+  } catch (error) {
+    if (connection) await connection.rollback();
+    await deleteUploadedFiles(newFiles);
+    throw error;
+  } finally {
+    connection?.release();
+  }
+});
 
-    try {
-      connection = await pool.getConnection();
-      await connection.beginTransaction();
-      const [[existingProduct]] = await connection.query(
-        `SELECT main_image, slug
+router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) => {
+  const id = parsePositiveId(req.params.id);
+  const input = parseProduct(req.body);
+  const newFiles = uploadedFiles(req);
+
+  if (!id || input.error) {
+    await deleteUploadedFiles(newFiles);
+    return res.status(400).json({
+      message: input.error || "Invalid product ID",
+    });
+  }
+
+  let connection;
+  let oldMainImage = null;
+  let oldVideo = null;
+
+  try {
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+    const [[existingProduct]] = await connection.query(
+      `SELECT main_image, video_url, slug
          FROM products
          WHERE id = ?
          FOR UPDATE`,
-        [id],
-      );
+      [id],
+    );
 
-      if (!existingProduct) {
-        await connection.rollback();
-        await deleteUploadedFiles(newFiles);
-        return res.status(404).json({ message: "Product not found" });
-      }
+    if (!existingProduct) {
+      await connection.rollback();
+      await deleteUploadedFiles(newFiles);
+      return res.status(404).json({ message: "Product not found" });
+    }
 
-      if (await productNameExists(connection, input.value.name, id)) {
-        await connection.rollback();
-        await deleteUploadedFiles(newFiles);
-        return res.status(409).json({
-          message: DUPLICATE_PRODUCT_MESSAGE,
-        });
-      }
+    if (await productNameExists(connection, input.value.name, id)) {
+      await connection.rollback();
+      await deleteUploadedFiles(newFiles);
+      return res.status(409).json({
+        message: DUPLICATE_PRODUCT_MESSAGE,
+      });
+    }
 
-      const category = await resolveCategory(connection, input.value);
-      if (!category) {
-        await connection.rollback();
-        await deleteUploadedFiles(newFiles);
-        return res.status(400).json({ message: "Selected category not found" });
-      }
+    const category = await resolveCategory(connection, input.value);
+    if (!category) {
+      await connection.rollback();
+      await deleteUploadedFiles(newFiles);
+      return res.status(400).json({ message: "Selected category not found" });
+    }
 
-      oldMainImage = existingProduct.main_image;
-      const newMainFile = req.files?.main_image?.[0];
-      const removeMainImage =
-        req.body.remove_main_image === "1" && !newMainFile;
-      const mainImage = newMainFile
-        ? imageUrl(newMainFile)
-        : removeMainImage
-          ? null
-          : existingProduct.main_image;
-      const slug = req.body.slug
-        ? await resolveProductSlug(connection, req.body.slug, id)
-        : existingProduct.slug || await resolveProductSlug(connection, input.value.name, id);
-      const [[imageCount]] = await connection.query(
-        "SELECT COUNT(*) AS total FROM product_images WHERE product_id = ?",
-        [id],
-      );
-      const newGallery = req.files?.gallery || [];
+    oldMainImage = existingProduct.main_image;
+    oldVideo = existingProduct.video_url;
+    const newMainFile = req.files?.main_image?.[0];
+    const removeMainImage = req.body.remove_main_image === "1" && !newMainFile;
+    const mainImage = newMainFile
+      ? imageUrl(newMainFile)
+      : removeMainImage
+        ? null
+        : existingProduct.main_image;
+    const newVideoFile = req.files?.video?.[0];
+    const removeVideo = req.body.remove_video === "1" && !newVideoFile;
+    const video = newVideoFile
+      ? imageUrl(newVideoFile)
+      : removeVideo
+        ? null
+        : existingProduct.video_url;
+    const slug = req.body.slug
+      ? await resolveProductSlug(connection, req.body.slug, id)
+      : existingProduct.slug ||
+        (await resolveProductSlug(connection, input.value.name, id));
+    const [[imageCount]] = await connection.query(
+      "SELECT COUNT(*) AS total FROM product_images WHERE product_id = ?",
+      [id],
+    );
+    const newGallery = req.files?.gallery || [];
 
-      if (Number(imageCount.total) + newGallery.length > 8) {
-        await connection.rollback();
-        await deleteUploadedFiles(newFiles);
-        return res.status(400).json({
-          message: "A product can contain a maximum of 8 gallery images",
-        });
-      }
+    if (Number(imageCount.total) + newGallery.length > 8) {
+      await connection.rollback();
+      await deleteUploadedFiles(newFiles);
+      return res.status(400).json({
+        message: "A product can contain a maximum of 8 gallery images",
+      });
+    }
 
-      await connection.query(
-        `UPDATE products
+    await connection.query(
+      `UPDATE products
          SET name = ?, category = ?, category_id = ?, price = ?, stock = ?,
              low_stock_threshold = ?, status = ?, short_description = ?,
              description = ?, sale_price = ?, video_url = ?, is_featured = ?,
              published_at = ?, main_image = ?, slug = ?
          WHERE id = ?`,
-        [
-          input.value.name,
-          category.name,
-          category.id,
-          input.value.price,
-          input.value.stock,
-          input.value.lowStockThreshold,
-          input.value.status,
-          input.value.shortDescription,
-          input.value.description,
-          input.value.salePrice,
-          input.value.videoUrl,
-          input.value.isFeatured,
-          input.value.publishedAt,
-          mainImage,
-          slug,
-          id,
-        ],
-      );
+      [
+        input.value.name,
+        category.name,
+        category.id,
+        input.value.price,
+        input.value.stock,
+        input.value.lowStockThreshold,
+        input.value.status,
+        input.value.shortDescription,
+        input.value.description,
+        input.value.salePrice,
+        video,
+        input.value.isFeatured,
+        input.value.publishedAt,
+        mainImage,
+        slug,
+        id,
+      ],
+    );
 
-      for (const [index, file] of newGallery.entries()) {
-        await connection.query(
-          `INSERT INTO product_images(product_id, image, sort_order)
+    for (const [index, file] of newGallery.entries()) {
+      await connection.query(
+        `INSERT INTO product_images(product_id, image, sort_order)
            VALUES (?, ?, ?)`,
-          [id, imageUrl(file), Number(imageCount.total) + index],
-        );
-      }
-
-      await connection.commit();
-
-      if ((newMainFile || removeMainImage) && oldMainImage !== mainImage) {
-        await safelyDeleteUpload(oldMainImage, "products");
-      }
-
-      res.json({ message: "Product updated" });
-    } catch (error) {
-      if (connection) await connection.rollback();
-      await deleteUploadedFiles(newFiles);
-      throw error;
-    } finally {
-      connection?.release();
+        [id, imageUrl(file), Number(imageCount.total) + index],
+      );
     }
-  },
-);
+
+    await connection.commit();
+
+    if ((newMainFile || removeMainImage) && oldMainImage !== mainImage) {
+      await safelyDeleteUpload(oldMainImage, "products");
+    }
+    if ((newVideoFile || removeVideo) && oldVideo !== video) {
+      await safelyDeleteUpload(oldVideo, "products");
+    }
+
+    res.json({ message: "Product updated" });
+  } catch (error) {
+    if (connection) await connection.rollback();
+    await deleteUploadedFiles(newFiles);
+    throw error;
+  } finally {
+    connection?.release();
+  }
+});
 
 router.put("/:id/status", async (req, res) => {
   const id = parsePositiveId(req.params.id);
@@ -390,10 +416,10 @@ router.put("/:id/featured", async (req, res) => {
     return res.status(404).json({ message: "Product not found" });
   }
 
-  await pool.query(
-    "UPDATE products SET is_featured = ? WHERE id = ?",
-    [isFeatured ? 1 : 0, id],
-  );
+  await pool.query("UPDATE products SET is_featured = ? WHERE id = ?", [
+    isFeatured ? 1 : 0,
+    id,
+  ]);
   res.json({
     success: true,
     message: isFeatured ? "Product featured" : "Product unfeatured",
@@ -497,7 +523,7 @@ router.put("/:productId/images/:imageId/primary", async (req, res) => {
   try {
     await connection.beginTransaction();
     const [[product]] = await connection.query(
-      "SELECT main_image FROM products WHERE id = ? FOR UPDATE",
+      "SELECT main_image, video_url FROM products WHERE id = ? FOR UPDATE",
       [productId],
     );
     const [[image]] = await connection.query(
@@ -513,14 +539,13 @@ router.put("/:productId/images/:imageId/primary", async (req, res) => {
       return res.status(404).json({ message: "Product image not found" });
     }
 
-    await connection.query(
-      "UPDATE products SET main_image = ? WHERE id = ?",
-      [image.image, productId],
-    );
-    await connection.query(
-      "DELETE FROM product_images WHERE id = ?",
-      [image.id],
-    );
+    await connection.query("UPDATE products SET main_image = ? WHERE id = ?", [
+      image.image,
+      productId,
+    ]);
+    await connection.query("DELETE FROM product_images WHERE id = ?", [
+      image.id,
+    ]);
     if (product.main_image && product.main_image !== image.image) {
       await connection.query(
         `INSERT INTO product_images(product_id, image, sort_order)
@@ -554,7 +579,9 @@ router.put(
     if (!productId || !imageId || !file) {
       await deleteUploadedFiles(files);
       return res.status(400).json({
-        message: file ? "Invalid product or image ID" : "Replacement image is required",
+        message: file
+          ? "Invalid product or image ID"
+          : "Replacement image is required",
       });
     }
 
@@ -643,7 +670,7 @@ router.delete("/:id", async (req, res) => {
   try {
     await connection.beginTransaction();
     const [[product]] = await connection.query(
-      "SELECT main_image FROM products WHERE id = ? FOR UPDATE",
+      "SELECT main_image, video_url FROM products WHERE id = ? FOR UPDATE",
       [id],
     );
 
@@ -656,10 +683,7 @@ router.delete("/:id", async (req, res) => {
       "SELECT image FROM product_images WHERE product_id = ?",
       [id],
     );
-    uploadUrls = [
-      product.main_image,
-      ...images.map((image) => image.image),
-    ];
+    uploadUrls = [product.main_image, product.video_url, ...images.map((image) => image.image)];
 
     await connection.query("DELETE FROM products WHERE id = ?", [id]);
     await connection.commit();
@@ -680,9 +704,7 @@ function imageUrl(file) {
 
 function parseProduct(body) {
   const rawCategoryId = String(body.category_id || "").trim();
-  const categoryId = rawCategoryId
-    ? parsePositiveId(rawCategoryId)
-    : null;
+  const categoryId = rawCategoryId ? parsePositiveId(rawCategoryId) : null;
   const value = {
     name: normalizeProductName(body.name),
     category: cleanText(body.category, 120),
@@ -693,9 +715,15 @@ function parseProduct(body) {
     status: body.status || "Active",
     shortDescription: cleanText(body.short_description, 500),
     description: cleanText(body.description, 5000),
-    salePrice: String(body.sale_price ?? "").trim() === "" ? null : Number(body.sale_price),
-    videoUrl: cleanText(body.video_url, 1000) || null,
-    isFeatured: ["true", "1", "on"].includes(String(body.is_featured).toLowerCase()) ? 1 : 0,
+    salePrice:
+      String(body.sale_price ?? "").trim() === ""
+        ? null
+        : Number(body.sale_price),
+    isFeatured: ["true", "1", "on"].includes(
+      String(body.is_featured).toLowerCase(),
+    )
+      ? 1
+      : 0,
     publishedAt: parsePublishedAt(body.published_at),
   };
 
@@ -708,7 +736,10 @@ function parseProduct(body) {
   if (!Number.isFinite(value.price) || value.price < 0) {
     return { error: "Price must be a positive number" };
   }
-  if (value.salePrice !== null && (!Number.isFinite(value.salePrice) || value.salePrice < 0)) {
+  if (
+    value.salePrice !== null &&
+    (!Number.isFinite(value.salePrice) || value.salePrice < 0)
+  ) {
     return { error: "Selling price must be a positive number" };
   }
   if (value.salePrice !== null && value.salePrice > value.price) {
@@ -716,9 +747,6 @@ function parseProduct(body) {
   }
   if (body.published_at && !value.publishedAt) {
     return { error: "Invalid future publish date" };
-  }
-  if (value.videoUrl && !isValidVideoUrl(value.videoUrl)) {
-    return { error: "Video must be a valid HTTP or HTTPS URL" };
   }
   if (!Number.isInteger(value.stock) || value.stock < 0) {
     return { error: "Stock must be a positive whole number" };
@@ -739,26 +767,23 @@ function parseProduct(body) {
 function parsePublishedAt(value) {
   if (!value) return null;
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 19).replace("T", " ");
-}
-
-function isValidVideoUrl(value) {
-  try {
-    return ["http:", "https:"].includes(new URL(value).protocol);
-  } catch {
-    return false;
-  }
+  return Number.isNaN(date.getTime())
+    ? null
+    : date.toISOString().slice(0, 19).replace("T", " ");
 }
 
 async function resolveProductSlug(queryable, value, excludeId = null) {
-  const base = cleanText(value, 190).toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "") || "product";
+  const base =
+    cleanText(value, 190)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "product";
   const params = [base];
   const exclusion = excludeId ? "AND id<>?" : "";
   if (excludeId) params.push(excludeId);
   const [[existing]] = await queryable.query(
-    `SELECT id FROM products WHERE slug=? ${exclusion} LIMIT 1`, params,
+    `SELECT id FROM products WHERE slug=? ${exclusion} LIMIT 1`,
+    params,
   );
   return existing ? `${base}-${randomUUID().slice(0, 8)}` : base;
 }
