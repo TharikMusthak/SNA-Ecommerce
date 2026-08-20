@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { RotateCcw } from "lucide-react";
-import { api } from "../api";
+import { api, assetUrl } from "../api";
 import Badge from "../components/Badge";
 import DataTable from "../components/DataTable";
 import { Dialog } from "../components/Dialog";
+import ImagePreviewField from "../components/ImagePreviewField";
+import VideoUploadField from "../components/VideoUploadField";
 
 const configs = {
   Customers: {
@@ -25,7 +27,11 @@ const configs = {
       "id",
       "product_name",
       "customer",
+      "customer_email",
+      "customer_phone",
       "rating",
+      "image_url",
+      "video_url",
       "is_verified_purchase",
       "status",
       "created_at",
@@ -229,6 +235,10 @@ export default function CommerceList({ type, onNotice }) {
     }
   }
   async function submitForm(form) {
+    if (modal.formType === "review") {
+      await api(modal.path, { method: modal.method || "POST", body: form });
+      return;
+    }
     const body = Object.fromEntries(form);
     let path = modal.path,
       method = modal.method || "POST",
@@ -300,6 +310,22 @@ export default function CommerceList({ type, onNotice }) {
         </button>,
       );
     if (type === "Reviews") {
+      buttons.push(
+        <button
+          className="action-btn edit"
+          key="edit"
+          onClick={async () => {
+            try {
+              const response = await api(`/v1/admin/reviews/${row.id}`);
+              setModal({ kind: "form", formType: "review", title: "Edit review", path: `/v1/admin/reviews/${row.id}`, method: "PUT", data: response.data || response });
+            } catch (err) {
+              onNotice?.(err.message, "error");
+            }
+          }}
+        >
+          Edit
+        </button>,
+      );
       for (const status of ["approved", "rejected", "hidden"])
         buttons.push(
           <button
@@ -462,6 +488,11 @@ export default function CommerceList({ type, onNotice }) {
             }
           >
             + Add coupon
+          </button>
+        )}
+        {type === "Reviews" && (
+          <button onClick={() => setModal({ kind: "form", formType: "review", title: "Add review", path: "/v1/admin/reviews", method: "POST", data: {} })}>
+            + Add review
           </button>
         )}
       </div>
@@ -716,6 +747,23 @@ function ActionForm({ modal, saving, onSubmit, onCancel }) {
           <textarea name="message" required maxLength="10000" />
         </label>
       )}
+      {modal.formType === "review" && (
+        <>
+          <div className="row">
+            <label>Customer ID<input name="user_id" type="number" min="1" defaultValue={modal.data?.user_id || ""} required /></label>
+            <label>Product ID<input name="product_id" type="number" min="1" defaultValue={modal.data?.product_id || ""} required /></label>
+          </div>
+          <div className="row">
+            <label>Rating<select name="rating" defaultValue={modal.data?.rating || 5}>{[1,2,3,4,5].map(value => <option key={value} value={value}>{value} stars</option>)}</select></label>
+            <label>Status<select name="status" defaultValue={modal.data?.status || "approved"}>{["pending","approved","rejected","hidden"].map(value => <option key={value}>{value}</option>)}</select></label>
+          </div>
+          <label>Title<input name="title" maxLength="190" defaultValue={modal.data?.title || ""} /></label>
+          <label>Review<textarea name="review_text" maxLength="5000" defaultValue={modal.data?.review_text || ""} required /></label>
+          <label className="toggle-row"><input name="is_verified_purchase" type="checkbox" defaultChecked={Boolean(modal.data?.is_verified_purchase)} /><span><b>Verified purchase</b></span></label>
+          <ImagePreviewField name="image" label="Review image" existingImage={modal.data?.image_url} removeFieldName="remove_image" />
+          <VideoUploadField existingVideo={modal.data?.video_url} />
+        </>
+      )}
       {modal.formType === "coupon" && (
         <>
           <label>
@@ -859,6 +907,8 @@ function formatCell(key, value) {
   if (value === null || value === undefined || value === "") return "—";
   if (key === "status" || key.endsWith("_status")) return <Badge value={value} />;
   if (key === "rating") return `${value} / 5`;
+  if (key === "image_url") return <img src={assetUrl(value)} alt="Review" style={{ width: 64, height: 48, objectFit: "cover", borderRadius: 6 }} />;
+  if (key === "video_url") return <a href={assetUrl(value)} target="_blank" rel="noreferrer">View video</a>;
   if (["amount", "refund_amount", "refunded_amount", "discount_value", "minimum_order_value"].some((part) => key.includes(part))) {
     return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(Number(value || 0));
   }
