@@ -23,7 +23,7 @@ async function listProducts(req, res, extra = []) {
   const where = conditions.join(" AND ");
   const [[count], [rows]] = await Promise.all([
     pool.query(`SELECT COUNT(*) AS total FROM products p LEFT JOIN categories c ON c.id=p.category_id LEFT JOIN brands b ON b.id=p.brand_id WHERE ${where}`, params),
-    pool.query(`SELECT p.id,p.name,p.slug,p.sku,p.short_description,p.price,p.sale_price,COALESCE(p.sale_price,p.price) AS effective_price,p.stock,p.main_image,p.is_featured,p.is_organic,p.is_homemade,p.is_vegan,c.name AS category_name,b.name AS brand_name FROM products p LEFT JOIN categories c ON c.id=p.category_id LEFT JOIN brands b ON b.id=p.brand_id WHERE ${where} ORDER BY ${SORTS[req.query.sort] || SORTS.newest} LIMIT ? OFFSET ?`, [...params, limit, (page - 1) * limit]),
+    pool.query(`SELECT p.id,p.name,p.slug,p.sku,p.short_description,p.price,p.sale_price,COALESCE(p.sale_price,p.price) AS effective_price,p.stock,p.main_image,p.video_url,p.is_featured,p.is_organic,p.is_homemade,p.is_vegan,c.name AS category_name,b.name AS brand_name FROM products p LEFT JOIN categories c ON c.id=p.category_id LEFT JOIN brands b ON b.id=p.brand_id WHERE ${where} ORDER BY ${SORTS[req.query.sort] || SORTS.newest} LIMIT ? OFFSET ?`, [...params, limit, (page - 1) * limit]),
   ]);
   return paginated(res, rows, { page, limit, total: Number(count[0].total) });
 }
