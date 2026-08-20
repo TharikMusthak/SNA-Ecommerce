@@ -20,7 +20,7 @@ import { assetUrl } from "@utils/helpers";
 const Cart = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { cart, isLoading, updateItem, removeItem, clear, applyCoupon } =
+  const { cart, isLoading, updateItem, removeItem, clear, applyCoupon, removeCoupon } =
     useCart();
   const [addressId, setAddressId] = useState("");
   const [checkingOut, setCheckingOut] = useState(false);
@@ -50,6 +50,8 @@ const Cart = () => {
     const code = new FormData(event.currentTarget).get("code");
     if (code) run(() => applyCoupon.mutateAsync(code), "Coupon applied");
   };
+
+  const couponApplied = Number(cart.summary.discount) > 0;
 
   const refreshCheckoutData = () =>
     Promise.all([
@@ -314,6 +316,12 @@ const Cart = () => {
             <h2 className="text-xl font-semibold text-gray-900">
               Order summary
             </h2>
+            {isLoading && (
+              <div className="mt-4 flex items-center gap-2 rounded-2xl border border-dashed border-emerald-200 bg-white/70 px-4 py-3 text-sm text-gray-600">
+                <Spinner className="h-4 w-4 border-2 border-[#079447] border-t-transparent" />
+                Loading cart totals…
+              </div>
+            )}
             <div className="mt-5 space-y-3 text-sm">
               <Summary label="Subtotal" value={cart.summary.subtotal} />
               <Summary label="Tax" value={cart.summary.tax} />
@@ -323,16 +331,37 @@ const Cart = () => {
                 <Summary label="Total" value={cart.summary.total} strong />
               </div>
             </div>
-            <form onSubmit={submitCoupon} className="mt-6 flex gap-2">
-              <input
-                name="code"
-                placeholder="Coupon code"
-                className="min-w-0 flex-1 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#079447]"
-              />
-              <button className="rounded-xl border border-[#079447] px-4 py-2 text-sm font-semibold text-[#079447]">
-                Apply
-              </button>
-            </form>
+            {couponApplied ? (
+              <div className="mt-6 rounded-2xl border border-emerald-200 bg-white px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">Coupon applied</p>
+                    <p className="mt-0.5 text-xs text-gray-500">
+                      Your current discount is being applied to this order.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={removeCoupon.isPending}
+                    onClick={() => run(() => removeCoupon.mutateAsync(), "Coupon removed")}
+                    className="rounded-xl border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {removeCoupon.isPending ? "Removing…" : "Remove coupon"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={submitCoupon} className="mt-6 flex gap-2">
+                <input
+                  name="code"
+                  placeholder="Coupon code"
+                  className="min-w-0 flex-1 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#079447]"
+                />
+                <button className="rounded-xl border border-[#079447] px-4 py-2 text-sm font-semibold text-[#079447]">
+                  Apply
+                </button>
+              </form>
+            )}
             <section className="mt-7 border-t border-emerald-100 pt-6" aria-labelledby="delivery-address-heading">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-2"><span className="rounded-lg bg-emerald-100 p-2 text-[#079447]"><MapPin size={17} /></span><div><h3 id="delivery-address-heading" className="text-sm font-semibold text-gray-900">Delivery address</h3><p className="mt-0.5 text-xs text-gray-500">Choose where we should deliver your order.</p></div></div>

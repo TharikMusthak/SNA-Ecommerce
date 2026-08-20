@@ -1,7 +1,7 @@
 import { useCallback, useRef, useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
-import image from '../../assets/images/bannerImage1.jpg'
+import image from '../../assets/images/bannerImage1.png'
 
 const AUTOPLAY_DURATION = 5000;
 
@@ -238,7 +238,7 @@ const HeroCarousel = () => {
           <img
             src={item.image}
             alt=""
-            className="absolute inset-0 h-full w-full object-contain"
+            className="absolute inset-0 h-full w-full object-cover"
           />
 
           {/* =================================================
