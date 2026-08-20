@@ -1,4 +1,4 @@
-import { Heart, ShoppingBag, Trash2 } from "lucide-react";
+import { Heart, ShoppingBag, Star, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 
@@ -51,31 +51,99 @@ const Wishlist = () => {
         </section>
       ) : (
         <section className="mt-9" aria-label="Saved products">
-          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
             {items.map((product) => {
               const detailPath = `/products/${product.slug || product.id}`;
               const isMoving = moveItemToCart.isPending && Number(moveItemToCart.variables) === Number(product.id);
               const isRemoving = removeItem.isPending && Number(removeItem.variables) === Number(product.id);
               const isBusy = isMoving || isRemoving;
+              const rating = Number(product.average_rating ?? product.rating ?? 0);
+              const reviewCount = Number(product.review_count ?? product.reviews_count ?? 0);
 
               return (
-                <article key={product.id} className="group flex min-w-0 flex-col overflow-hidden rounded-[1.5rem] border border-gray-200 bg-white transition duration-300 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-950/[0.06]">
-                  <div className="relative bg-[#f5f7f1] p-4">
-                    <Link to={detailPath} className="block overflow-hidden rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#079447]">
-                      <img src={assetUrl(product.main_image, fallbackImage)} alt={product.name} className="aspect-[1.18/1] w-full object-contain transition duration-500 group-hover:scale-105" />
+                <article key={product.id} className="group overflow-hidden rounded-[100px] rounded-t-[500px] bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
+                  <div className="relative bg-white p-3 rounded-t-[500px]">
+                    <Link
+                      to={detailPath}
+                      className="block overflow-hidden bg-white"
+                    >
+                      <img
+                        src={assetUrl(product.main_image, fallbackImage)}
+                        alt={product.name}
+          className=" w-full rounded-[100px] rounded-t-[500px] object-contain transition duration-500 group-hover:scale-102"
+                      />
                     </Link>
-                    <button type="button" disabled={isBusy} onClick={() => run(() => removeItem.mutateAsync(product.id), "Removed from wishlist")} className="absolute right-6 top-6 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-red-600 shadow-sm transition hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447] disabled:cursor-not-allowed disabled:opacity-60" aria-label={`Remove ${product.name} from wishlist`}><Heart size={18} fill="currentColor" /></button>
+                    <button
+                      type="button"
+                      disabled={isBusy}
+                      onClick={() => run(() => removeItem.mutateAsync(product.id), "Removed from wishlist")}
+                      className="invisible  absolute right-4 top-4 hidden  inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-red-600 shadow-sm transition hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447] disabled:cursor-not-allowed disabled:opacity-60"
+                      aria-label={`Remove ${product.name} from wishlist`}
+                    >
+                      <Heart size={18} fill="currentColor" />
+                    </button>
                   </div>
-                  <div className="flex flex-1 flex-col p-5">
-                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#079447]">{product.category_name || product.brand_name || "SNA Sundaram"}</p>
-                    <Link to={detailPath} className="mt-2 w-fit rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447]"><h2 className="line-clamp-2 text-xl font-semibold leading-7 text-gray-900 transition group-hover:text-[#079447]">{product.name}</h2></Link>
-                    <p className="mt-2 line-clamp-2 min-h-12 text-sm leading-6 text-gray-500">{product.short_description || product.description || "Made with carefully selected ingredients."}</p>
-                    <div className="mt-5 flex items-baseline gap-2"><span className="text-xl font-bold text-[#079447]">{formatCurrency(effectivePrice(product))}</span>{product.sale_price && <span className="text-sm text-gray-400 line-through">{formatCurrency(product.price)}</span>}</div>
-                    <p className={`mt-2 text-xs font-semibold ${Number(product.stock) > 0 ? "text-[#057a3a]" : "text-red-600"}`}>{Number(product.stock) > 0 ? `${product.stock} available` : "Out of stock"}</p>
-                    <div className="mt-5 flex items-center gap-2 border-t border-gray-100 pt-4">
-                      <button type="button" disabled={isBusy} onClick={() => run(() => moveItemToCart.mutateAsync(product.id), "Moved to cart")} className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#079447] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#057a3a] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447] disabled:cursor-not-allowed disabled:bg-gray-300">{isMoving ? "Moving…" : <><ShoppingBag size={17} /> Move to cart</>}</button>
-                      <button type="button" disabled={isBusy} onClick={() => run(() => removeItem.mutateAsync(product.id), "Removed from wishlist")} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-red-100 text-red-600 transition hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447] disabled:cursor-not-allowed disabled:opacity-60" aria-label={`Remove ${product.name} from wishlist`}>{isRemoving ? <Spinner className="h-4 w-4 border-2 border-red-600 border-t-transparent" /> : <Trash2 size={17} />}</button>
+                  <div className="p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-[#079447]">
+                          {product.category_name || product.brand_name || "SNA Sundaram"}
+                        </p>
+                        <Link to={detailPath}>
+                          <h2 className="mt-1 line-clamp-2 text-lg font-semibold text-gray-800 hover:text-[#079447]">
+                            {product.name}
+                          </h2>
+                        </Link>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={isBusy}
+                        onClick={() => run(() => removeItem.mutateAsync(product.id), "Removed from wishlist")}
+                        className="rounded-full p-2 transition bg-red-50 text-red-600 hover:bg-red-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447] disabled:cursor-not-allowed disabled:opacity-60"
+                        aria-label={`Remove ${product.name} from wishlist`}
+                      >
+                        {isRemoving ? (
+                          <Spinner className="h-4 w-4 border-2 border-red-600 border-t-transparent" />
+                        ) : (
+                          <Heart size={19} fill="currentColor" />
+                        )}
+                      </button>
                     </div>
+                    <p className="mt-3 line-clamp-2 text-sm leading-6 text-gray-500">
+                      {product.short_description || product.description || "Made with carefully selected ingredients."}
+                    </p>
+                    <div className="mt-3 flex items-center gap-1.5 text-sm">
+                      <Star size={16} className="fill-amber-400 text-amber-400" />
+                      <span className="font-semibold text-gray-800">
+                        {rating ? rating.toFixed(1) : "New"}
+                      </span>
+                      <span className="text-gray-400">
+                        {reviewCount ? `(${reviewCount} review${reviewCount === 1 ? "" : "s"})` : "No reviews yet"}
+                      </span>
+                    </div>
+                    <div className="mt-4 flex items-center justify-between gap-3">
+                      <div>
+                        <span className="text-lg font-bold text-[#079447]">
+                          {formatCurrency(effectivePrice(product))}
+                        </span>
+                        {product.sale_price && (
+                          <span className="ml-2 text-sm text-gray-400 line-through">
+                            {formatCurrency(product.price)}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        disabled={isBusy}
+                        onClick={() => run(() => moveItemToCart.mutateAsync(product.id), "Moved to cart")}
+                        className="p-2 px-3 flex items-center justify-center rounded-[50px] bg-[#079447] text-white transition hover:bg-[#057a3a] disabled:bg-gray-300"
+                      >
+                        {isMoving ? "Moving…" : <><ShoppingBag size={17} /> Move to cart</>}
+                      </button>
+                    </div>
+                    <p className={`mt-2 text-xs font-medium ${Number(product.stock) > 0 ? "text-gray-500" : "text-red-600"}`}>
+                      {Number(product.stock) > 0 ? `${product.stock} available` : "Out of stock"}
+                    </p>
                   </div>
                 </article>
               );

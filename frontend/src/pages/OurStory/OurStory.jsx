@@ -157,7 +157,7 @@ const OurStory = () => {
           >
             SNA Sundaram began at home with a simple thought — everyday food
             should be wholesome, familiar, and made with care. What started
-            as a choice for our own family slowly became a purpose we wanted
+            as a choice for our children and family slowly became a purpose we wanted
             to share with others.
           </p>
 
@@ -260,7 +260,7 @@ const OurStory = () => {
                 lg:text-[48px]
               "
             >
-              From our family to yours.
+              From our children to your home
             </h2>
           </div>
 
@@ -292,7 +292,7 @@ const OurStory = () => {
                 sm:text-[17px]
               "
             >
-              Over time, the preparations we made for our family became part
+              Over time, the preparations we made snacks for our children and family became part
               of our everyday routine. They were familiar, comforting, and
               made us feel confident about what we were bringing to the table.
               That experience became the foundation for SNA Sundaram.
@@ -544,7 +544,7 @@ const OurStory = () => {
                   text-[#626862]
                 "
               >
-                Traditional ingredients such as garlic, honey, and ellu-based
+                Traditional ingredients such as garlic, honey, cold-pressed gingelly oils, and ellu-based
                 recipes became an important part of our journey and continue
                 to inspire what we create.
               </p>
@@ -984,7 +984,7 @@ const OurStory = () => {
               sm:text-[16px]
             "
           >
-            Our promise is to keep every product rooted in care, tradition,
+            Our promise is to keep every product rooted in fresh, care, tradition,
             and the belief that healthier choices should still feel familiar,
             enjoyable, and easy to make part of everyday life.
           </p>

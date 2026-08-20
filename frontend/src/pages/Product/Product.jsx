@@ -405,7 +405,7 @@ const ProductDetail = ({ identifier }) => {
               ))}
             </div>
           )}
-          <div className="min-w-0 flex-1 rounded-[2rem] bg-[#f5f7f1] p-8">
+          <div className="min-w-0 flex-1 h-[50%] h-full md:h-1/4 rounded-[2rem] bg-[#f5f7f1] p-8">
             <img
               src={assetUrl(activeImage, fallbackImage)}
               alt={product.name}

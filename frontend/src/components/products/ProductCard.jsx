@@ -12,6 +12,8 @@ import formatCurrency from "@utils/formatCurrency";
 import { assetUrl, effectivePrice } from "@utils/helpers";
 
 const ProductCard = ({ product }) => {
+
+  console.log(product,"product")
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated } = useAuth();
