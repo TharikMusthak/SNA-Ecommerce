@@ -11,6 +11,7 @@ export default function ProductGalleryManager({
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState(null);
   const [primaryId, setPrimaryId] = useState(null);
+  const [replacingId, setReplacingId] = useState(null);
   const [deleteCandidate, setDeleteCandidate] = useState(null);
 
   const loadImages = useCallback(async () => {
@@ -78,6 +79,22 @@ export default function ProductGalleryManager({
     }
   }
 
+  async function replaceImage(imageId, file) {
+    if (!file || replacingId) return;
+    setReplacingId(imageId);
+    try {
+      const body = new FormData();
+      body.append("image", file);
+      const replacement = await api(`/products/${productId}/images/${imageId}`, { method: "PUT", body });
+      setImages((current) => current.map((image) => image.id === imageId ? { ...image, image: replacement.image } : image));
+      onNotice("Gallery image replaced");
+    } catch (error) {
+      onNotice(error.message || "Unable to replace gallery image", "error");
+    } finally {
+      setReplacingId(null);
+    }
+  }
+
   if (loading) {
     return <p className="gallery-state">Loading existing gallery…</p>;
   }
@@ -97,6 +114,10 @@ export default function ProductGalleryManager({
               alt={`Existing product gallery image ${index + 1}`}
             />
             <div className="existing-gallery-actions">
+              <label className="make-primary">
+                {replacingId === image.id ? "Replacing…" : "Replace"}
+                <input type="file" accept="image/jpeg,image/png,image/webp" hidden disabled={replacingId !== null || deletingId !== null || primaryId !== null} onChange={(event) => replaceImage(image.id, event.target.files?.[0])} />
+              </label>
               <button
                 type="button"
                 className="make-primary"
