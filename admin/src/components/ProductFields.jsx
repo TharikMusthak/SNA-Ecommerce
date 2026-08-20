@@ -1,5 +1,6 @@
 import ImagePreviewField from "./ImagePreviewField";
 import ProductGalleryManager from "./ProductGalleryManager";
+import VideoUploadField from "./VideoUploadField";
 
 export default function ProductFields({ form, setForm, item, field, onNotice, categories = [] }) {
   const isFeatured =
@@ -42,12 +43,12 @@ export default function ProductFields({ form, setForm, item, field, onNotice, ca
       <fieldset className="form-section">
         <legend><span>3</span><b>Product media</b><small>JPG, PNG or WebP up to 5 MB per image</small></legend>
         <ImagePreviewField name="main_image" label="Main product image" existingImage={form.main_image || item?.main_image} removeFieldName="remove_main_image" />
-        {field("video_url", "Product video URL", "url", { required: false, placeholder: "https://www.youtube.com/watch?v=…" })}
+        <VideoUploadField existingVideo={form.video_url || item?.video_url} />
         {item && <ProductGalleryManager productId={item.id} onNotice={onNotice} onPrimaryChanged={(mainImage) => setForm({ ...form, main_image: mainImage })} />}
         <ImagePreviewField name="gallery" label={item ? "Add gallery images" : "Product gallery images"} multiple />
       </fieldset>
 
-      {["name", "category", "category_id", "price", "sale_price", "stock", "low_stock_threshold", "video_url", "published_at"].map((name) => <input key={name} type="hidden" name={name} value={form[name] ?? ""} />)}
+      {["name", "category", "category_id", "price", "sale_price", "stock", "low_stock_threshold", "published_at"].map((name) => <input key={name} type="hidden" name={name} value={form[name] ?? ""} />)}
       <input type="hidden" name="status" value={form.status || "Active"} />
       <input type="hidden" name="is_featured" value={isFeatured ? "true" : "false"} />
     </>
