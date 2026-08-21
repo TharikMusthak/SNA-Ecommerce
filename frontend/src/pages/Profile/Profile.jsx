@@ -220,7 +220,7 @@ const Profile = () => {
                       if (profileErrors.first_name) setProfileErrors((prev) => ({ ...prev, first_name: "" }));
                     }
                   }
-                                    maxLength={90}
+                  axLength={50}
 
                   className={fieldClass}
                 />
@@ -236,7 +236,7 @@ const Profile = () => {
                       if (profileErrors.last_name) setProfileErrors((prev) => ({ ...prev, last_name: "" }));
                     }
                   }
-                  maxLength={90}
+                  maxLength={50}
                   className={fieldClass}
                 />
                 <p className={inlineErrorClass}>{profileErrors.last_name || " "}</p>
@@ -248,6 +248,8 @@ const Profile = () => {
                 disabled
                 value={user?.email || ""}
                 className={`${fieldClass} bg-gray-50 text-gray-500`}
+                 maxLength={50}
+
               />
             </label>
             <label className="block text-sm font-medium">
@@ -260,6 +262,8 @@ const Profile = () => {
                     if (profileErrors.phone) setProfileErrors((prev) => ({ ...prev, phone: "" }));
                   }
                 }
+                                 maxLength={10}
+
                 className={fieldClass}
               />
               <p className={inlineErrorClass}>{profileErrors.phone || " "}</p>

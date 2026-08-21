@@ -14,9 +14,11 @@ import PrivacyPolicy from "@pages/PrivacyPolicy/PrivacyPolicy";
 
 import Login from "@pages/Login/Login";
 import Register from "@pages/Register/Register";
+import ForgotPassword from "@pages/ForgotPassword/ForgotPassword";
 
 import Profile from "@pages/Profile/Profile";
 import Wishlist from "@pages/Wishlist/Wishlist";
+import VerifyEmail from "@pages/VerifyEmail/VerifyEmail";
 // import Dashboard from "@pages/Admin/Dashboard";
 
 import ProtectedRoute from "@app/ProtectedRoute";
@@ -57,6 +59,10 @@ export const router = createBrowserRouter([
       {
         path: "privacy-policy",
         element: <PrivacyPolicy />,
+      },
+      {
+        path: "VerifyEmail",
+        element: <VerifyEmail />,
       },
 
       // Protected Routes
@@ -102,6 +108,10 @@ export const router = createBrowserRouter([
           {
             path: "register",
             element: <Register />,
+          },
+          {
+            path: "forgot-password",
+            element: <ForgotPassword />,
           },
         ],
       },

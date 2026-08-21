@@ -7,8 +7,8 @@ import Tinyleaf from "@assets/images/tinyleaf.svg";
 import { apiErrorMessage } from "@api/axios";
 import Spinner from "@components/ui/Spinner/Spinner";
 import { useWishlist } from "@hooks/useWishlist";
-import formatCurrency from "@utils/formatCurrency";
-import { assetUrl, effectivePrice } from "@utils/helpers";
+import ProductPrice from "@components/products/ProductPrice";
+import { assetUrl } from "@utils/helpers";
 
 const Wishlist = () => {
   const { items, isLoading, removeItem, moveItemToCart } = useWishlist();
@@ -59,7 +59,6 @@ const Wishlist = () => {
               const isBusy = isMoving || isRemoving;
               const rating = Number(product.average_rating ?? product.rating ?? 0);
               const reviewCount = Number(product.review_count ?? product.reviews_count ?? 0);
-
               return (
                 <article key={product.id} className="group overflow-hidden rounded-[100px] rounded-t-[500px] bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
                   <div className="relative bg-white p-3 rounded-t-[500px]">
@@ -123,14 +122,11 @@ const Wishlist = () => {
                     </div>
                     <div className="mt-4 flex items-center justify-between gap-3">
                       <div>
-                        <span className="text-lg font-bold text-[#079447]">
-                          {formatCurrency(effectivePrice(product))}
-                        </span>
-                        {product.sale_price && (
-                          <span className="ml-2 text-sm text-gray-400 line-through">
-                            {formatCurrency(product.price)}
-                          </span>
-                        )}
+                        <ProductPrice
+                          product={product}
+                          currentClassName="text-lg font-bold text-[#079447]"
+                          originalClassName="ml-2 text-sm text-gray-400"
+                        />
                       </div>
                       <button
                         type="button"

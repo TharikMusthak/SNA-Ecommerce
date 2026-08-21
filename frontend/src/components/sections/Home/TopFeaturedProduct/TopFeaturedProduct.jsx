@@ -1,120 +1,161 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
-import ProductImage from "@assets/images/garlic-honey-product.png";
 import HomeMadeBadge from "@assets/images/home-made-badge.png";
 import Tinyleaf from "@assets/images/tinyleaf.svg";
-import {
-  useProduct,
-  useProducts,
-  useRelatedProducts,
-} from "@hooks/useProducts";
-const product = {
-  id: 1,
+import fallbackImage from "@assets/images/product1.png";
+import Spinner from "@components/ui/Spinner/Spinner";
+import { apiErrorMessage } from "@api/axios";
+import { useAuth } from "@context/AuthProvider";
+import { useCart } from "@hooks/useCart";
+import { useFeaturedProducts } from "@hooks/useProducts";
+import ProductPrice from "@components/products/ProductPrice";
+import { assetUrl } from "@utils/helpers";
+import toast from "react-hot-toast";
 
-  category: "Featured Product",
+const sizePricing = (source = {}, product = {}) => {
+  const safeSource = source || {};
+  const safeProduct = product || {};
 
-  title: "Garlic with Honey",
+  return {
+    price: safeSource.price ?? safeProduct.price ?? null,
+    sale_price: safeSource.sale_price ?? safeProduct.sale_price ?? null,
+    effective_price:
+      safeSource.effective_price ?? safeProduct.effective_price ?? null,
+  };
+};
 
-  subtitle: "Nature's Perfect Wellness Blend",
+const normalizeSizes = (product) => {
+  if (Array.isArray(product?.sizes) && product.sizes.length) {
+    return product.sizes.map((size, index) => ({
+      label: size.label || size.name || size.size || `Option ${index + 1}`,
+      value: size.value || size.id || size.slug || size.label || `option-${index + 1}`,
+      ...sizePricing(size, product),
+    }));
+  }
 
-  sizes: [
+  if (Array.isArray(product?.variants) && product.variants.length) {
+    return product.variants.map((variant, index) => ({
+      label:
+        variant.label ||
+        variant.name ||
+        variant.size ||
+        variant.pack_size ||
+        `Option ${index + 1}`,
+      value:
+        variant.value ||
+        variant.id ||
+        variant.slug ||
+        variant.size ||
+        `option-${index + 1}`,
+      ...sizePricing(variant, product),
+    }));
+  }
+
+  const fallbackLabel =
+    product?.pack_size ||
+    product?.size ||
+    product?.weight ||
+    "Default";
+
+  return [
     {
-      label: "250 G",
-      value: "250g",
-      price: 50,
+      label: String(fallbackLabel),
+      value: String(product?.slug || product?.id || "default"),
+      ...sizePricing(product, product),
     },
-    {
-      label: "500 G",
-      value: "500g",
-      price: 90,
-    },
-  ],
-
-  description:
-    "Known for its nutritional value and rich flavor, it can be enjoyed daily as part of a balanced lifestyle.",
-
-  productUrl: ProductImage,
+  ];
 };
 
 const TopFeaturedProduct = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { isAuthenticated } = useAuth();
+  const { addItem } = useCart();
+  const { data, isLoading, isError } = useFeaturedProducts({ limit: 1 });
 
-  // ============================================================
-  // STATE
-  // ============================================================
+  const product = data?.items?.[0] || null;
 
-  const [selectedSize, setSelectedSize] = useState(product.sizes[0]);
+  const [selectedSize, setSelectedSize] = useState(null);
 
-  // ============================================================
-  // SIZE CHANGE
-  // ============================================================
+  const sizes = useMemo(() => normalizeSizes(product), [product]);
+
+  const activeSize = selectedSize || sizes[0] || null;
+  const pricingProduct = selectedSize && activeSize
+    ? sizePricing(activeSize, product)
+    : product || {};
+
+  const productImage = assetUrl(
+    product?.future_image ||
+      product?.image ||
+      product?.thumbnail ||
+      product?.future_image,
+    fallbackImage,
+  );
 
   const handleSizeChange = (size) => {
     setSelectedSize(size);
   };
 
-  // ============================================================
-  // ADD TO CART
-  // ============================================================
+  const requireLogin = () => {
+    if (isAuthenticated) return true;
+    navigate("/auth/login", {
+      state: { from: location.pathname + location.search },
+    });
+    return false;
+  };
 
-  const handleAddToCart = () => {
-    const existingCart = JSON.parse(
-      localStorage.getItem("cart") || "[]"
-    );
-
-    const existingItemIndex = existingCart.findIndex(
-      (item) =>
-        item.productId === product.id &&
-        item.size === selectedSize.value
-    );
-
-    if (existingItemIndex !== -1) {
-      existingCart[existingItemIndex].quantity += 1;
-    } else {
-      existingCart.push({
-        productId: product.id,
-        title: product.title,
-        size: selectedSize.value,
-        sizeLabel: selectedSize.label,
-        price: selectedSize.price,
-        image: product.productUrl,
-        quantity: 1,
-      });
+const addToCart = async () => {
+    if (!requireLogin()) return;
+    try {
+      await addItem.mutateAsync({ productId: product.id, quantity: 1 });
+      toast.success(`${product.name} added to cart`);
+    } catch (error) {
+      toast.error(apiErrorMessage(error, "Could not add this product"));
     }
-
-    localStorage.setItem(
-      "cart",
-      JSON.stringify(existingCart)
-    );
-
-    alert(
-      `${product.title} - ${selectedSize.label} added to cart`
-    );
   };
 
-  // ============================================================
-  // BUY NOW
-  // ============================================================
+const handleAddToCart = async () => {
+  const added = await addToCart();
 
-  const handleBuyNow = () => {
-    const buyNowProduct = {
-      productId: product.id,
-      title: product.title,
-      size: selectedSize.value,
-      sizeLabel: selectedSize.label,
-      price: selectedSize.price,
-      image: product.productUrl,
-      quantity: 1,
-    };
+  if (added && product) {
+    toast.success(`${product.name} added to cart`);
+  }
+};
 
-    localStorage.setItem(
-      "buyNowProduct",
-      JSON.stringify(buyNowProduct)
-    );
+const handleBuyNow = async () => {
+  const added = await addToCart();
 
+  
     navigate("/cart");
-  };
+   
+};
+
+
+  if (isLoading) {
+    return (
+      <section className="w-full overflow-hidden bg-white">
+        <div className="mx-auto grid w-full max-w-[1800px] place-items-center px-5 py-16 sm:px-8 lg:px-12">
+          <Spinner />
+        </div>
+      </section>
+    );
+  }
+
+  if (isError || !product) {
+    return (
+      <section className="w-full overflow-hidden bg-white">
+        <div className="mx-auto w-full max-w-[1800px] px-5 py-12 text-center sm:px-8 lg:px-12 lg:py-16">
+          <h2 className="text-3xl font-semibold text-[#3f3f3f]">
+            Featured product is not available right now.
+          </h2>
+          <p className="mt-3 text-sm text-gray-500">
+            Please check back soon for our highlighted product.
+          </p>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="w-full overflow-hidden bg-white">
@@ -137,16 +178,7 @@ const TopFeaturedProduct = () => {
           lg:py-16
         "
       >
-        {/* =====================================================
-            MOBILE/TOP + DESKTOP LEFT CONTENT
-        ====================================================== */}
-
         <div className="contents lg:block">
-
-          {/* =====================================================
-              TITLE
-          ====================================================== */}
-
           <div className="order-1 lg:order-none">
             <div className="mb-2 flex items-center gap-1">
               <span
@@ -157,7 +189,7 @@ const TopFeaturedProduct = () => {
                   text-[#3d3d3d]
                 "
               >
-                Featured Product
+                {product.category_name || "Featured Product"}
               </span>
 
               <img
@@ -181,7 +213,7 @@ const TopFeaturedProduct = () => {
                 lg:text-5xl
               "
             >
-              {product.title}
+              {product.name}
             </h2>
 
             <p
@@ -195,23 +227,11 @@ const TopFeaturedProduct = () => {
                 lg:text-2xl
               "
             >
-              {product.subtitle}
+              {product.short_description || product.subtitle || "Nature's Perfect Wellness Blend"}
             </p>
           </div>
 
-          {/* =====================================================
-              MOBILE BADGE
-          ====================================================== */}
-
-          <div
-            className="
-              order-2
-               flex
-              justify-end
-
-              lg:hidden
-            "
-          >
+          <div className="order-2 flex justify-end lg:hidden">
             <img
               src={HomeMadeBadge}
               alt="Home Made"
@@ -226,15 +246,10 @@ const TopFeaturedProduct = () => {
             />
           </div>
 
-          {/* =====================================================
-              MOBILE PRODUCT IMAGE
-          ====================================================== */}
-
           <div
             className="
               order-3
               relative
-             
               flex
               min-h-[280px]
               items-end
@@ -246,8 +261,8 @@ const TopFeaturedProduct = () => {
             "
           >
             <img
-              src={ProductImage}
-              alt={product.title}
+              src={productImage}
+              alt={product.name}
               className="
                 relative
                 z-10
@@ -261,10 +276,6 @@ const TopFeaturedProduct = () => {
             />
           </div>
 
-          {/* =====================================================
-              SIZE + PRICE + ACTIONS
-          ====================================================== */}
-
           <div
             className="
               order-4
@@ -274,19 +285,13 @@ const TopFeaturedProduct = () => {
               lg:mt-8
             "
           >
-
-            {/* =================================================
-                SIZE
-            ================================================== */}
-
             <h3 className="text-xl font-bold text-[#3f3f3f]">
               Size:
             </h3>
 
             <div className="mt-4 flex flex-wrap gap-3">
-              {product.sizes.map((size) => {
-                const isSelected =
-                  selectedSize.value === size.value;
+              {sizes.map((size) => {
+                const isSelected = activeSize?.value === size.value;
 
                 return (
                   <button
@@ -315,35 +320,23 @@ const TopFeaturedProduct = () => {
               })}
             </div>
 
-            {/* =================================================
-                PRICE
-            ================================================== */}
-
             <h3 className="mt-8 text-xl font-bold text-[#3f3f3f]">
               Price:
             </h3>
 
             <p className="mt-2 text-3xl font-medium text-[#079447]">
-              Rs: {selectedSize.price}
+              <ProductPrice
+                product={pricingProduct}
+                currentClassName="text-3xl font-medium text-[#079447]"
+                originalClassName="ml-2 text-lg font-normal text-gray-400"
+              />
             </p>
 
-            {/* =================================================
-                ACTION BUTTONS
-            ================================================== */}
-
-            <div
-              className="
-                mt-8
-                flex
-                flex-wrap
-                gap-4
-              "
-            >
-              {/* ADD TO CART */}
-
+            <div className="mt-8 flex flex-wrap gap-4">
               <button
                 type="button"
                 onClick={handleAddToCart}
+                disabled={addItem.isPending}
                 className="
                   rounded-lg
                   border
@@ -363,11 +356,10 @@ const TopFeaturedProduct = () => {
                 Add to Cart
               </button>
 
-              {/* BUY NOW */}
-
               <button
                 type="button"
                 onClick={handleBuyNow}
+                disabled={addItem.isPending}
                 className="
                   rounded-lg
                   bg-[#079447]
@@ -387,10 +379,6 @@ const TopFeaturedProduct = () => {
           </div>
         </div>
 
-        {/* =====================================================
-            DESKTOP CENTER IMAGE
-        ====================================================== */}
-
         <div
           className="
             relative
@@ -403,8 +391,8 @@ const TopFeaturedProduct = () => {
           "
         >
           <img
-            src={ProductImage}
-            alt={product.title}
+            src={productImage}
+            alt={product.name}
             className="
               relative
               z-10
@@ -416,16 +404,7 @@ const TopFeaturedProduct = () => {
           />
         </div>
 
-        {/* =====================================================
-            DESKTOP BADGE + RIGHT CONTENT
-        ====================================================== */}
-
         <div className="hidden lg:block">
-
-          {/* =================================================
-              HOME MADE BADGE
-          ================================================== */}
-
           <div className="flex justify-end">
             <img
               src={HomeMadeBadge}
@@ -438,38 +417,17 @@ const TopFeaturedProduct = () => {
             />
           </div>
 
-          {/* =================================================
-              WHY YOU'LL LOVE IT
-          ================================================== */}
-
           <div className="mt-8">
-
-            <h3
-              className="
-                text-3xl
-                font-bold
-                text-[#3f3f3f]
-              "
-            >
+            <h3 className="text-3xl font-bold text-[#3f3f3f]">
               Why You'll Love It
             </h3>
 
-            <p
-              className="
-                mt-5
-                max-w-[400px]
-                text-xl
-                leading-[1.5]
-                text-[#444]
-              "
-            >
-              {product.description}
+            <p className="mt-5 max-w-[400px] text-xl leading-[1.5] text-[#444]">
+              {product.description || "Made with carefully selected ingredients."}
             </p>
 
-            {/* VIEW DETAILS */}
-
             <Link
-              to={`/product/${product.id}`}
+              to={`/products/${product.slug || product.id}`}
               className="
                 mt-8
                 inline-flex
@@ -490,13 +448,8 @@ const TopFeaturedProduct = () => {
             >
               View Details
             </Link>
-
           </div>
         </div>
-
-        {/* =====================================================
-            MOBILE WHY YOU'LL LOVE IT
-        ====================================================== */}
 
         <div
           className="
@@ -506,37 +459,16 @@ const TopFeaturedProduct = () => {
             lg:hidden
           "
         >
-
-          <h3
-            className="
-              text-2xl
-              font-bold
-              text-[#3f3f3f]
-
-              sm:text-3xl
-            "
-          >
+          <h3 className="text-2xl font-bold text-[#3f3f3f] sm:text-3xl">
             Why You'll Love It
           </h3>
 
-          <p
-            className="
-              mt-4
-              max-w-xl
-              text-base
-              leading-7
-              text-[#444]
-
-              sm:text-lg
-            "
-          >
-            {product.description}
+          <p className="mt-4 max-w-xl text-base leading-7 text-[#444] sm:text-lg">
+            {product.description || "Made with carefully selected ingredients."}
           </p>
 
-          {/* VIEW DETAILS */}
-
           <Link
-            to={`/product/${product.id}`}
+            to={`/products/${product.slug || product.id}`}
             className="
               mt-6
               inline-flex
@@ -558,7 +490,6 @@ const TopFeaturedProduct = () => {
           >
             View Details
           </Link>
-
         </div>
       </div>
     </section>

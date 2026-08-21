@@ -21,6 +21,7 @@ import {
 import product1 from "@assets/images/product1.png";
 import product2 from "@assets/images/product2.png";
 import Spinner from "@components/ui/Spinner/Spinner";
+import ProductPrice from "@components/products/ProductPrice";
 
 
 const featuredProducts = [
@@ -207,16 +208,7 @@ const ProductCard1 = ({ product }) => {
     >
       {/* PRICE */}
 
-      <span
-        className="
-          text-[13px]
-          font-semibold
-          text-[#079447]
-          sm:text-[14px]
-        "
-      >
-        Rs:{product.price}
-      </span>
+      <Price product={product} />
 
       {/* QUANTITY */}
 
@@ -504,3 +496,22 @@ bg-[linear-gradient(180deg,#F6F6F6_0%,#FAFAFA_100%)]
 };
 
 export default FeaturedProducts;
+
+const Price = ({ product }) => (
+  <span
+    className="
+      flex
+      items-baseline
+      gap-2
+      text-[13px]
+      font-semibold
+      text-[#079447]
+      sm:text-[14px]
+    "
+  >
+    <ProductPrice
+      product={product}
+      originalClassName="text-[11px] font-medium text-gray-400 sm:text-xs"
+    />
+  </span>
+);

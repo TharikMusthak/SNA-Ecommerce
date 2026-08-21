@@ -14,6 +14,7 @@ import {
 import Spinner from "@components/ui/Spinner/Spinner";
 import { QUERY_KEYS } from "@config/constants";
 import { useCart } from "@hooks/useCart";
+import ProductPrice from "@components/products/ProductPrice";
 import formatCurrency from "@utils/formatCurrency";
 import { assetUrl } from "@utils/helpers";
 
@@ -254,7 +255,23 @@ const Cart = () => {
                     {item.name}
                   </Link>
                   <p className="mt-1 text-sm text-gray-500">
-                    {formatCurrency(item.unit_price)} each
+                    <ProductPrice
+                      product={
+                        item.sale_price != null &&
+                        String(item.sale_price).trim() !== ""
+                          ? {
+                              price: item.price ?? item.original_price,
+                              sale_price: item.sale_price,
+                              effective_price: item.unit_price,
+                            }
+                          : {
+                              price: item.unit_price ?? item.price ?? item.original_price,
+                            }
+                      }
+                      currentClassName="text-sm text-gray-500"
+                      originalClassName="ml-1 text-xs text-gray-400"
+                    />{" "}
+                    each
                   </p>
                   <div className="mt-3 inline-flex items-center rounded-lg border">
                     <button

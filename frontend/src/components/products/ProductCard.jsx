@@ -8,8 +8,8 @@ import { useAuth } from "@context/AuthProvider";
 import { useCart } from "@hooks/useCart";
 import { useProductReviews } from "@hooks/useReviews";
 import { useWishlist } from "@hooks/useWishlist";
-import formatCurrency from "@utils/formatCurrency";
-import { assetUrl, effectivePrice } from "@utils/helpers";
+import ProductPrice from "@components/products/ProductPrice";
+import { assetUrl } from "@utils/helpers";
 
 const ProductCard = ({ product }) => {
   const navigate = useNavigate();
@@ -38,7 +38,6 @@ const ProductCard = ({ product }) => {
       reviewsData?.pagination?.total ??
       reviews.length,
   );
-
   const requireLogin = () => {
     if (isAuthenticated) return true;
     navigate("/auth/login", {
@@ -112,14 +111,11 @@ const ProductCard = ({ product }) => {
         </div>
         <div className="mt-4 flex items-center justify-between gap-3">
           <div>
-            <span className="text-lg font-bold text-[#079447]">
-              {formatCurrency(effectivePrice(product))}
-            </span>
-            {product.sale_price && (
-              <span className="ml-2 text-sm text-gray-400 line-through">
-                {formatCurrency(product.price)}
-              </span>
-            )}
+            <ProductPrice
+              product={product}
+              currentClassName="text-lg font-bold text-[#079447]"
+              originalClassName="ml-2 text-sm text-gray-400"
+            />
           </div>
           <button
             disabled={addItem.isPending || Number(product.stock) < 1}

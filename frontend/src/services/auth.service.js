@@ -29,3 +29,12 @@ export const refreshToken = async () => {
   const response = await refreshSessionRequest();
   return response.data.data;
 };
+export const verifyEmail = async (token) => {
+  const response = await verifyEmailRequest(token);
+  return response.data;
+};
+
+export const resendVerificationEmail = async (email) => {
+  const response = await resendVerificationRequest(email);
+  return response.data;
+};

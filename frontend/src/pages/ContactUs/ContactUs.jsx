@@ -42,6 +42,8 @@ const contactDetails = [
 ];
 
 const ContactUs = () => {
+  const emailRegex = /^\S+@\S+\.\S+$/;
+  const phoneRegex = /^[0-9+\-\s()]{7,15}$/;
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -51,6 +53,7 @@ const ContactUs = () => {
   });
 
   const [submitted, setSubmitted] = useState(false);
+  const [errors, setErrors] = useState({});
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -59,15 +62,35 @@ const ContactUs = () => {
       ...prev,
       [name]: value,
     }));
+
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const nextErrors = {};
+
+    if (!formData.name.trim()) nextErrors.name = "Enter your name.";
+    if (!formData.email.trim()) nextErrors.email = "Enter your email.";
+    else if (!emailRegex.test(formData.email.trim())) {
+      nextErrors.email = "Enter a valid email address.";
+    }
+    if (!formData.message.trim()) nextErrors.message = "Enter a message.";
+    if (!formData.subject) nextErrors.subject = "Choose a subject.";
+    if (formData.phone && !phoneRegex.test(formData.phone.trim())) {
+      nextErrors.phone = "Enter a valid phone number.";
+    }
+
+    if (Object.keys(nextErrors).length) {
+      setErrors(nextErrors);
+      return;
+    }
 
     // Connect this with your API later
- 
+    setErrors({});
     setSubmitted(true);
-
     setFormData({
       name: "",
       email: "",
@@ -332,10 +355,12 @@ const ContactUs = () => {
                         type="text"
                         value={formData.name}
                         onChange={handleChange}
-                        placeholder="Enter your name"
-                        required
-                        className="w-full rounded-xl border border-gray-200 bg-[#f9faf9] px-4 py-3.5 text-sm text-[#333] outline-none transition-all placeholder:text-gray-400 focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
-                      />
+                      placeholder="Enter your name"
+                       className="w-full rounded-xl border border-gray-200 bg-[#f9faf9] px-4 py-3.5 text-sm text-[#333] outline-none transition-all placeholder:text-gray-400 focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
+                    />
+                      <p className="mt-0.5 min-h-4 text-[11px] leading-4 text-red-600">
+                        {errors.name || " "}
+                      </p>
                     </div>
 
                     {/* EMAIL */}
@@ -351,13 +376,16 @@ const ContactUs = () => {
                       <input
                         id="email"
                         name="email"
-                        type="email"
+                        type="text"
                         value={formData.email}
                         onChange={handleChange}
                         placeholder="you@example.com"
-                        required
-                        className="w-full rounded-xl border border-gray-200 bg-[#f9faf9] px-4 py-3.5 text-sm text-[#333] outline-none transition-all placeholder:text-gray-400 focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
-                      />
+                        inputMode="email"
+                      className="w-full rounded-xl border border-gray-200 bg-[#f9faf9] px-4 py-3.5 text-sm text-[#333] outline-none transition-all placeholder:text-gray-400 focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
+                    />
+                      <p className="mt-0.5 min-h-4 text-[11px] leading-4 text-red-600">
+                        {errors.email || " "}
+                      </p>
                     </div>
                   </div>
 
@@ -381,6 +409,9 @@ const ContactUs = () => {
                         placeholder="+91 XXXXX XXXXX"
                         className="w-full rounded-xl border border-gray-200 bg-[#f9faf9] px-4 py-3.5 text-sm text-[#333] outline-none transition-all placeholder:text-gray-400 focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
                       />
+                      <p className="mt-0.5 min-h-4 text-[11px] leading-4 text-red-600">
+                        {errors.phone || " "}
+                      </p>
                     </div>
 
                     <div>
@@ -396,8 +427,7 @@ const ContactUs = () => {
                         name="subject"
                         value={formData.subject}
                         onChange={handleChange}
-                        required
-                        className="w-full appearance-none rounded-xl border border-gray-200 bg-[#f9faf9] px-4 py-3.5 text-sm text-[#333] outline-none transition-all focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
+                      className="w-full appearance-none rounded-xl border border-gray-200 bg-[#f9faf9] px-4 py-3.5 text-sm text-[#333] outline-none transition-all focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
                       >
                         <option value="">
                           Select a subject
@@ -418,6 +448,9 @@ const ContactUs = () => {
                           Other
                         </option>
                       </select>
+                      <p className="mt-0.5 min-h-4 text-[11px] leading-4 text-red-600">
+                        {errors.subject || " "}
+                      </p>
                     </div>
                   </div>
 
@@ -438,9 +471,11 @@ const ContactUs = () => {
                       onChange={handleChange}
                       placeholder="Tell us how we can help..."
                       rows={6}
-                      required
                       className="w-full resize-none rounded-xl border border-gray-200 bg-[#f9faf9] px-4 py-3.5 text-sm leading-6 text-[#333] outline-none transition-all placeholder:text-gray-400 focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
                     />
+                    <p className="mt-0.5 min-h-4 text-[11px] leading-4 text-red-600">
+                      {errors.message || " "}
+                    </p>
                   </div>
 
                   {/* SUBMIT */}

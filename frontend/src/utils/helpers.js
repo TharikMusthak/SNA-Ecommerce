@@ -1,6 +1,9 @@
 import { API_BASE_URL } from "@config/env";
+import { getPricingDisplay } from "@utils/pricing";
 
-const publicApiBase = API_BASE_URL.replace(/\/api\/v1$/, "");
+export { getPricingDisplay, getVariantPricingDisplay } from "@utils/pricing";
+
+const publicApiBase = String(API_BASE_URL || "").replace(/\/api\/v1$/, "");
 
 export function assetUrl(value, fallback = "") {
   if (!value) return fallback;
@@ -11,7 +14,5 @@ export function assetUrl(value, fallback = "") {
 }
 
 export function effectivePrice(product) {
-  return Number(
-    product?.effective_price ?? product?.sale_price ?? product?.price ?? 0,
-  );
+  return getPricingDisplay(product).currentPrice;
 }

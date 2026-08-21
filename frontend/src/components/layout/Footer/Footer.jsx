@@ -24,19 +24,19 @@ const Footer = () => {
 
   const products = [
     {
-      label: "Garlic with Honey",
+      label: "Garlic Halwa",
       href: "/products",
     },
     {
-      label: "Black Sesame Laddu",
+      label: "Ulunthu Laddu",
       href: "/products",
     },
     {
-      label: "Karuppu Ulundhu Laddu",
+      label: "Ellu Laddu",
       href: "/products",
     },
     {
-      label: "Ulundhu Idiyappam Flour",
+      label: "Energy Laddu",
       href: "/products",
     },
   ];

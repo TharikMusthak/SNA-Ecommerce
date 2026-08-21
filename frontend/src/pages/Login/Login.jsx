@@ -171,8 +171,6 @@ const AuthModal = ({ onClose }) => {
             isLogin ? "login" : "register"
           }. Please try again.`
       );
-    } finally {
-     
     }
   };
 
@@ -211,9 +209,7 @@ const AuthModal = ({ onClose }) => {
           shadow-[0_25px_80px_rgba(0,0,0,0.22)]
 
           h-auto
-max-h-[90vh]
-overflow-hidden
-
+          overflow-hidden
           sm:rounded-[32px]
         "
       >
@@ -288,7 +284,8 @@ overflow-hidden
           className="
             relative
             grid
-            min-h-[550px]
+            min-h-0
+            lg:min-h-[550px]
 
             lg:grid-cols-[0.85fr_1.15fr]
           "
@@ -464,11 +461,15 @@ overflow-hidden
           ================================================= */}
 
           <div
-            className="
+            className={`
               relative
               flex
+              min-h-0
+              h-full
               flex-col
-              justify-center
+              justify-start
+              overflow-hidden
+              sm:justify-center
               p-6
 
               sm:p-8
@@ -476,31 +477,31 @@ overflow-hidden
               md:p-10
 
               lg:p-12
-            "
+            `}
           >
             {/* =================================================
                 MOBILE CENTERED BRAND
             ================================================= */}
 
             <div
-              className="
-                mb-7
+              className={`
+                mb-4
                 flex
+                min-h-0
                 flex-col
                 items-center
                 justify-center
                 text-center
-
                 lg:hidden
-              "
+              `}
             >
               <img
                 src={Logo}
                 alt="SNA Sundaram"
                 className="
                   h-auto
-                  w-[110px]
-                  max-w-[65%]
+                  w-[88px]
+                  max-w-[60%]
                   object-contain
                 "
               />
@@ -518,6 +519,18 @@ overflow-hidden
               </p>
             </div>
 
+            <div
+              className={`
+                min-h-0
+                flex
+                flex-col
+                ${
+                  !isLogin
+                    ? "max-[667px]:max-h-[calc(100dvh-14rem)] max-[667px]:overflow-y-auto max-[667px]:overscroll-contain max-[667px]:[-webkit-overflow-scrolling:touch] max-[667px]:pr-1"
+                    : ""
+                }
+              `}
+            >
             {/* =================================================
                 HEADER
             ================================================= */}
@@ -830,6 +843,16 @@ overflow-hidden
                     )}
                   </button>
                 </div>
+                {isLogin && (
+                  <div className="mt-2 flex justify-end">
+                    <Link
+                      to="/auth/forgot-password"
+                      className="text-xs font-medium text-[#079447] transition hover:underline"
+                    >
+                      Forgot password?
+                    </Link>
+                  </div>
+                )}
               </div>
 
               {/* =================================================
@@ -1038,10 +1061,13 @@ overflow-hidden
 
             <div
               className="
-                mt-6
+                mt-3
                 text-center
                 text-sm
                 text-gray-500
+                sm:mt-3
+                md:mt-6
+                lg:mt-6
               "
             >
               {isLogin
@@ -1071,13 +1097,16 @@ overflow-hidden
 
             <div
               className="
-                mt-6
+                mt-3
                 flex
                 items-center
                 justify-center
                 gap-2
                 text-[11px]
                 text-gray-400
+                sm:mt-7
+                md:mt-7
+                lg:mt-6
               "
             >
               <ShieldCheck
@@ -1088,6 +1117,7 @@ overflow-hidden
               <span>
                 Your information is kept secure
               </span>
+            </div>
             </div>
           </div>
         </div>
