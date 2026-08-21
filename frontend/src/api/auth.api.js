@@ -10,6 +10,10 @@ export const registerRequest = (payload) =>
 export const currentUserRequest = () => api.get(`${AUTH}/me`);
 export const logoutRequest = () => api.post(`${AUTH}/logout`);
 export const refreshSessionRequest = () => api.post(`${AUTH}/refresh-token`);
+export const verifyEmailRequest = (token) =>
+  api.post(`${AUTH}/verify-email`, { token });
+export const resendVerificationRequest = (email) =>
+  api.post(`${AUTH}/resend-verification`, { email });
 export const forgotPasswordRequest = (email) =>
   api.post(`${AUTH}/forgot-password`, { email });
 export const resetPasswordRequest = (payload) =>

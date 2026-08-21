@@ -4,6 +4,8 @@ import {
   logoutRequest,
   refreshSessionRequest,
   registerRequest,
+  verifyEmailRequest,
+  resendVerificationRequest
 } from "@api/auth.api";
 
 export const loginUser = async ({ login, email, password }) => {
