@@ -61,7 +61,7 @@ export const router = createBrowserRouter([
         element: <PrivacyPolicy />,
       },
       {
-        path: "VerifyEmail",
+        path: "verify-email",
         element: <VerifyEmail />,
       },
 
