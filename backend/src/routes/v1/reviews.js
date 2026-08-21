@@ -22,6 +22,28 @@ router.get("/product/:productId", asyncHandler(async (req, res) => {
   return paginated(res, rows, { page, limit, total: Number(counts[0].total) });
 }));
 
+router.get("/my", requireCustomer, asyncHandler(async (req, res) => {
+  const page = Math.max(Number(req.query.page) || 1, 1);
+  const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
+  const offset = (page - 1) * limit;
+  const [[count], [rows]] = await Promise.all([
+    pool.query("SELECT COUNT(*) AS total FROM reviews WHERE user_id=?", [req.user.id]),
+    pool.query(
+      `SELECT r.id,r.product_id,p.name AS product_name,p.slug AS product_slug,
+              p.main_image AS product_image,r.rating,r.title,r.review_text,
+              r.image_url,r.video_url,r.is_verified_purchase,r.status,
+              r.helpful_count,r.created_at,r.updated_at
+       FROM reviews r
+       JOIN products p ON p.id=r.product_id
+       WHERE r.user_id=?
+       ORDER BY r.id DESC
+       LIMIT ? OFFSET ?`,
+      [req.user.id, limit, offset],
+    ),
+  ]);
+  return paginated(res, rows, { page, limit, total: Number(count[0].total) });
+}));
+
 router.get("/:id", asyncHandler(async (req, res) => {
   const id = parsePositiveId(req.params.id);
   if (!id) return fail(res, 400, "Invalid review ID");
