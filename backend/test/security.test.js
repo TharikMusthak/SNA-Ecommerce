@@ -28,7 +28,7 @@ const {
   normalizeProductName,
   productNameExists,
 } = await import("../src/security/productValidation.js");
-const { resolveUploadPath } = await import(
+const { isVercelBlobUrl, resolveUploadPath } = await import(
   "../src/services/uploadFiles.js"
 );
 const { splitMigration } = await import(
@@ -191,6 +191,27 @@ test("upload paths stay inside their configured image folder", () => {
   assert.equal(
     resolveUploadPath("/uploads/banners/example.jpg", "products"),
     null,
+  );
+});
+
+test("Vercel Blob URLs are limited to the expected storage folder", () => {
+  const productBlob =
+    "https://store.public.blob.vercel-storage.com/products/example.jpg";
+  assert.equal(isVercelBlobUrl(productBlob, "products"), true);
+  assert.equal(isVercelBlobUrl(productBlob, "banners"), false);
+  assert.equal(
+    isVercelBlobUrl(
+      "http://store.public.blob.vercel-storage.com/products/example.jpg",
+      "products",
+    ),
+    false,
+  );
+  assert.equal(
+    isVercelBlobUrl(
+      "https://blob.vercel-storage.com.example.invalid/products/example.jpg",
+      "products",
+    ),
+    false,
   );
 });
 

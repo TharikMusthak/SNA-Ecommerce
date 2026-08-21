@@ -1,6 +1,11 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileTypeFromFile } from "file-type";
+import {
+  blobStorageEnabled,
+  safelyDeleteUpload,
+  uploadFileToBlob,
+} from "../services/uploadFiles.js";
 
 export const ALLOWED_IMAGE_TYPES = new Map([
   ["image/jpeg", "jpg"],
@@ -43,21 +48,70 @@ export function uploadedFiles(req) {
   return Object.values(req.files).flat();
 }
 
+async function deleteTemporaryFile(file) {
+  if (!file?.path) return;
+
+  try {
+    await fs.unlink(file.path);
+  } catch (error) {
+    if (error?.code !== "ENOENT") {
+      console.error("Temporary upload cleanup failed", {
+        code: error?.code,
+        message: error?.message,
+      });
+    }
+  }
+}
+
 export async function deleteUploadedFiles(files) {
   await Promise.all(
     files.filter(Boolean).map(async (file) => {
-      try {
-        await fs.unlink(file.path);
-      } catch (error) {
-        if (error?.code !== "ENOENT") {
-          console.error("Rejected upload cleanup failed", {
-            code: error?.code,
-            message: error?.message,
-          });
-        }
+      if (file.blobUrl && file.blobFolder) {
+        await safelyDeleteUpload(file.blobUrl, file.blobFolder);
       }
+      await deleteTemporaryFile(file);
     }),
   );
+}
+
+export function persistUploadedFilesToBlob(expectedFolder) {
+  if (!/^[a-z0-9_-]+$/i.test(expectedFolder)) {
+    throw new Error("Invalid Blob upload folder");
+  }
+
+  return async function persistUploads(req, _res, next) {
+    const files = uploadedFiles(req);
+    if (files.length === 0) return next();
+
+    if (!blobStorageEnabled()) {
+      if (process.env.VERCEL === "1") {
+        await deleteUploadedFiles(files);
+        const error = new Error(
+          "File storage is not configured. Connect Vercel Blob and provide BLOB_READ_WRITE_TOKEN.",
+        );
+        error.code = "BLOB_STORAGE_NOT_CONFIGURED";
+        error.status = 500;
+        return next(error);
+      }
+      return next();
+    }
+
+    try {
+      for (const file of files) {
+        file.blobUrl = await uploadFileToBlob(file, expectedFolder);
+        file.blobFolder = expectedFolder;
+        await deleteTemporaryFile(file);
+      }
+      next();
+    } catch (cause) {
+      await deleteUploadedFiles(files);
+      const error = new Error("Persistent file upload failed");
+      error.code = "BLOB_UPLOAD_FAILED";
+      error.status = 502;
+      error.cause = cause;
+      next(error);
+    }
+  };
 }
 
 export async function verifyUploadedImages(req, res, next) {

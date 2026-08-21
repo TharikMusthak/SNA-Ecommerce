@@ -10,6 +10,7 @@ import {
   ALLOWED_VIDEO_TYPES,
   deleteUploadedFiles,
   imageFileFilter,
+  persistUploadedFilesToBlob,
   productMediaFileFilter,
   uploadedFiles,
   verifyUploadedImages,
@@ -162,7 +163,12 @@ router.get("/:id", async (req, res) => {
   res.json({ ...product, images, variants });
 });
 
-router.post("/", productUploadWithVideo, verifyProductMedia, async (req, res) => {
+router.post(
+  "/",
+  productUploadWithVideo,
+  verifyProductMedia,
+  persistUploadedFilesToBlob("products"),
+  async (req, res) => {
   const input = parseProduct(req.body);
   const newFiles = uploadedFiles(req);
 
@@ -242,9 +248,15 @@ router.post("/", productUploadWithVideo, verifyProductMedia, async (req, res) =>
   } finally {
     connection?.release();
   }
-});
+  },
+);
 
-router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) => {
+router.put(
+  "/:id",
+  productUploadWithVideo,
+  verifyProductMedia,
+  persistUploadedFilesToBlob("products"),
+  async (req, res) => {
   const id = parsePositiveId(req.params.id);
   const input = parseProduct(req.body);
   const newFiles = uploadedFiles(req);
@@ -391,7 +403,8 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
   } finally {
     connection?.release();
   }
-});
+  },
+);
 
 router.put("/:id/status", async (req, res) => {
   const id = parsePositiveId(req.params.id);
@@ -460,6 +473,7 @@ router.post(
   "/:id/images",
   upload.array("images", 8),
   verifyUploadedImages,
+  persistUploadedFilesToBlob("products"),
   async (req, res) => {
     const id = parsePositiveId(req.params.id);
     const files = uploadedFiles(req);
@@ -585,6 +599,7 @@ router.put(
   "/:productId/images/:imageId",
   upload.single("image"),
   verifyUploadedImages,
+  persistUploadedFilesToBlob("products"),
   async (req, res) => {
     const productId = parsePositiveId(req.params.productId);
     const imageId = parsePositiveId(req.params.imageId);
@@ -714,7 +729,7 @@ router.delete("/:id", async (req, res) => {
 });
 
 function imageUrl(file) {
-  return `/uploads/products/${file.filename}`;
+  return file.blobUrl || `/uploads/products/${file.filename}`;
 }
 
 function parseProduct(body) {

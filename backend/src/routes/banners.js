@@ -9,6 +9,7 @@ import {
   ALLOWED_IMAGE_TYPES,
   deleteUploadedFiles,
   imageFileFilter,
+  persistUploadedFilesToBlob,
   uploadedFiles,
   verifyUploadedImages,
 } from "../middleware/uploadSecurity.js";
@@ -89,6 +90,7 @@ router.post(
   "/",
   upload.single("image"),
   verifyUploadedImages,
+  persistUploadedFilesToBlob("banners"),
   async (req, res) => {
     const input = parseBanner(req.body);
     const files = uploadedFiles(req);
@@ -133,6 +135,7 @@ router.put(
   "/:id",
   upload.single("image"),
   verifyUploadedImages,
+  persistUploadedFilesToBlob("banners"),
   async (req, res) => {
     const bannerId = parsePositiveId(req.params.id);
     const input = parseBanner(req.body);
@@ -292,7 +295,7 @@ function safeButtonLink(value) {
 }
 
 function imageUrl(file) {
-  return `/uploads/banners/${file.filename}`;
+  return file.blobUrl || `/uploads/banners/${file.filename}`;
 }
 
 export default router;

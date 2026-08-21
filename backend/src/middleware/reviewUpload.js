@@ -5,6 +5,7 @@ import { reviewUploadsDir } from "../config/paths.js";
 import {
   ALLOWED_IMAGE_TYPES,
   ALLOWED_VIDEO_TYPES,
+  persistUploadedFilesToBlob,
   productMediaFileFilter,
   verifyProductMedia,
 } from "./uploadSecurity.js";
@@ -31,8 +32,9 @@ export const reviewUpload = [
     { name: "video", maxCount: 1 },
   ]),
   verifyProductMedia,
+  persistUploadedFilesToBlob("reviews"),
 ];
 
 export function reviewFileUrl(file) {
-  return file ? `/uploads/reviews/${file.filename}` : null;
+  return file ? file.blobUrl || `/uploads/reviews/${file.filename}` : null;
 }
