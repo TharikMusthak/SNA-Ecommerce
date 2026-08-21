@@ -39,6 +39,11 @@ const emptyPassword = {
   confirm_password: "",
 };
 
+const phoneRegex = /^[0-9+\-\s()]{7,15}$/;
+const pinCodeRegex = /^\d{6}$/;
+const strongPasswordRegex =
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+
 const Profile = () => {
   const { user, refreshUser } = useAuth();
   const queryClient = useQueryClient();
@@ -53,6 +58,9 @@ const Profile = () => {
   const [password, setPassword] = useState(emptyPassword);
   const [showProfileForm, setShowProfileForm] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [profileErrors, setProfileErrors] = useState({});
+  const [addressErrors, setAddressErrors] = useState({});
+  const [passwordErrors, setPasswordErrors] = useState({});
 
   const addresses = useQuery({
     queryKey: QUERY_KEYS.addresses,
@@ -131,10 +139,12 @@ const Profile = () => {
 
   const fieldClass =
     "mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm outline-none transition focus:border-[#079447] focus:ring-4 focus:ring-emerald-50";
+  const inlineErrorClass = "mt-0.5 min-h-4 text-[11px] leading-4 text-red-600";
   const closeAddressForm = () => {
     setAddress(emptyAddress);
     setEditingAddressId(null);
     setShowAddressForm(false);
+    setAddressErrors({});
   };
   const startEditingAddress = (item) => {
     const { id, ...addressValues } = item;
@@ -187,6 +197,14 @@ const Profile = () => {
           <form
             onSubmit={(event) => {
               event.preventDefault();
+              const nextErrors = {};
+              if (!profile.first_name.trim()) nextErrors.first_name = "Enter a first name.";
+              if (!profile.last_name.trim()) nextErrors.last_name = "Enter a last name.";
+              if (profile.phone && !phoneRegex.test(profile.phone.trim())) {
+                nextErrors.phone = "Enter a valid mobile number.";
+              }
+              setProfileErrors(nextErrors);
+              if (Object.keys(nextErrors).length) return;
               saveProfile.mutate();
             }}
             className="mt-6 space-y-4"
@@ -195,24 +213,33 @@ const Profile = () => {
               <label className="text-sm font-medium">
                 First name
                 <input
-                  required
                   value={profile.first_name}
                   onChange={(event) =>
-                    setProfile({ ...profile, first_name: event.target.value })
+                    {
+                      setProfile({ ...profile, first_name: event.target.value });
+                      if (profileErrors.first_name) setProfileErrors((prev) => ({ ...prev, first_name: "" }));
+                    }
                   }
+                                    maxLength={90}
+
                   className={fieldClass}
                 />
+                <p className={inlineErrorClass}>{profileErrors.first_name || " "}</p>
               </label>
               <label className="text-sm font-medium">
                 Last name
                 <input
-                  required
                   value={profile.last_name}
                   onChange={(event) =>
-                    setProfile({ ...profile, last_name: event.target.value })
+                    {
+                      setProfile({ ...profile, last_name: event.target.value });
+                      if (profileErrors.last_name) setProfileErrors((prev) => ({ ...prev, last_name: "" }));
+                    }
                   }
+                  maxLength={90}
                   className={fieldClass}
                 />
+                <p className={inlineErrorClass}>{profileErrors.last_name || " "}</p>
               </label>
             </div>
             <label className="block text-sm font-medium">
@@ -228,10 +255,14 @@ const Profile = () => {
               <input
                 value={profile.phone}
                 onChange={(event) =>
-                  setProfile({ ...profile, phone: event.target.value })
+                  {
+                    setProfile({ ...profile, phone: event.target.value });
+                    if (profileErrors.phone) setProfileErrors((prev) => ({ ...prev, phone: "" }));
+                  }
                 }
                 className={fieldClass}
               />
+              <p className={inlineErrorClass}>{profileErrors.phone || " "}</p>
             </label>
             <button
               disabled={saveProfile.isPending}
@@ -351,6 +382,17 @@ const Profile = () => {
             <form
               onSubmit={(event) => {
                 event.preventDefault();
+                const nextErrors = {};
+                if (!address.full_name.trim()) nextErrors.full_name = "Enter a full name.";
+                if (!address.phone.trim()) nextErrors.phone = "Enter a mobile number.";
+                else if (!phoneRegex.test(address.phone.trim())) nextErrors.phone = "Enter a valid mobile number.";
+                if (!address.postal_code.trim()) nextErrors.postal_code = "Enter a PIN code.";
+                else if (!pinCodeRegex.test(address.postal_code.trim())) nextErrors.postal_code = "Enter a 6-digit PIN code.";
+                if (!address.address_line_1.trim()) nextErrors.address_line_1 = "Enter address line 1.";
+                if (!address.city.trim()) nextErrors.city = "Enter a city.";
+                if (!address.state.trim()) nextErrors.state = "Enter a state.";
+                setAddressErrors(nextErrors);
+                if (Object.keys(nextErrors).length) return;
                 if (editingAddressId) editAddress.mutate();
                 else addAddress.mutate();
               }}
@@ -361,26 +403,38 @@ const Profile = () => {
                 name="full_name"
                 value={address}
                 setValue={setAddress}
+                error={addressErrors.full_name}
                 className="sm:col-span-2"
+                maxLength={30}
+
               />
               <AddressInput
                 label="Mobile"
                 name="phone"
                 value={address}
                 setValue={setAddress}
+                error={addressErrors.phone}
+                maxLength={10}
+
               />
               <AddressInput
                 label="PIN code"
                 name="postal_code"
                 value={address}
                 setValue={setAddress}
+                error={addressErrors.postal_code}
+                maxLength={6}
+
               />
               <AddressInput
                 label="Address line 1"
                 name="address_line_1"
                 value={address}
                 setValue={setAddress}
+                error={addressErrors.address_line_1}
                 className="sm:col-span-2"
+                maxLength={70}
+
               />
               <AddressInput
                 label="Address line 2"
@@ -389,12 +443,17 @@ const Profile = () => {
                 setValue={setAddress}
                 className="sm:col-span-2"
                 required={false}
+                maxLength={70}
+
               />
               <AddressInput
                 label="City"
                 name="city"
                 value={address}
                 setValue={setAddress}
+                error={addressErrors.city}
+                maxLength={50}
+
               />
               <AddressInput
                 label="District"
@@ -402,13 +461,18 @@ const Profile = () => {
                 value={address}
                 setValue={setAddress}
                 required={false}
+                maxLength={50}
+
               />
               <AddressInput
                 label="State"
                 name="state"
                 value={address}
                 setValue={setAddress}
+                error={addressErrors.state}
                 className="sm:col-span-2"
+                 maxLength={50}
+
               />
               <label className="flex items-center gap-2 text-sm sm:col-span-2">
                 <input
@@ -449,8 +513,16 @@ const Profile = () => {
         <form
           onSubmit={(event) => {
             event.preventDefault();
+            const nextErrors = {};
+            if (!password.current_password.trim()) nextErrors.current_password = "Enter your current password.";
+            if (!password.new_password.trim()) nextErrors.new_password = "Enter a new password.";
+            else if (!strongPasswordRegex.test(password.new_password)) nextErrors.new_password = "Use 8+ characters with upper, lower, number, and symbol.";
+            if (!password.confirm_password.trim()) nextErrors.confirm_password = "Confirm your password.";
             if (password.new_password !== password.confirm_password) {
-              toast.error("New passwords do not match");
+              nextErrors.confirm_password = "Passwords do not match.";
+            }
+            setPasswordErrors(nextErrors);
+            if (Object.keys(nextErrors).length) {
               return;
             }
             changePassword.mutate(password);
@@ -462,18 +534,21 @@ const Profile = () => {
             name="current_password"
             value={password}
             setValue={setPassword}
+            error={passwordErrors.current_password}
           />
           <PasswordInput
             label="New password"
             name="new_password"
             value={password}
             setValue={setPassword}
+            error={passwordErrors.new_password}
           />
           <PasswordInput
             label="Confirm new password"
             name="confirm_password"
             value={password}
             setValue={setPassword}
+            error={passwordErrors.confirm_password}
           />
           <button
             disabled={changePassword.isPending}
@@ -559,8 +634,10 @@ const AddressInput = ({
   name,
   value,
   setValue,
+  error,
   className = "",
   required = true,
+  maxLength
 }) => (
   <label className={`text-sm font-medium ${className}`}>
     {label}
@@ -568,12 +645,17 @@ const AddressInput = ({
       required={required}
       value={value[name]}
       onChange={(event) => setValue({ ...value, [name]: event.target.value })}
-      className="mt-1.5 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-[#079447]"
+      className="mt-1.5 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm outline-none transition focus:border-[#079447] focus:ring-4 focus:ring-emerald-50"
+    maxLength={maxLength}
+
     />
+    <p className="mt-0.5 min-h-4 text-[11px] leading-4 text-red-600">
+      {error || " "}
+    </p>
   </label>
 );
 
-const PasswordInput = ({ label, name, value, setValue }) => {
+const PasswordInput = ({ label, name, value, setValue, error }) => {
   const [isVisible, setIsVisible] = useState(false);
 
   return (
@@ -581,8 +663,6 @@ const PasswordInput = ({ label, name, value, setValue }) => {
       {label}
       <span className="relative mt-1.5 block">
         <input
-          required
-          minLength={8}
           type={isVisible ? "text" : "password"}
           autoComplete={name === "current_password" ? "current-password" : "new-password"}
           value={value[name]}
@@ -598,6 +678,9 @@ const PasswordInput = ({ label, name, value, setValue }) => {
           {isVisible ? <EyeOff size={19} /> : <Eye size={19} />}
         </button>
       </span>
+      <p className="mt-0.5 min-h-4 text-[11px] leading-4 text-red-600">
+        {error || " "}
+      </p>
     </label>
   );
 };
