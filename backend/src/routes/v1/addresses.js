@@ -6,6 +6,7 @@ import { validate } from "../../middleware/validate.js";
 import { addressSchema } from "../../validators/customer.js";
 import { parsePositiveId } from "../../security/validation.js";
 import { fail, ok } from "../../utils/apiResponse.js";
+import { verifyAddressPincode } from "../../services/pincodeVerification.js";
 
 const router = Router();
 router.use(requireCustomer);
@@ -15,7 +16,18 @@ router.get("/", asyncHandler(async (req, res) => {
   return ok(res, rows);
 }));
 
+router.get("/verify-pincode", asyncHandler(async (req, res) => {
+  const result = await verifyAddressPincode({
+    postal_code: req.query.postal_code,
+    city: req.query.city,
+    state: req.query.state,
+    country: req.query.country || "India",
+  });
+  return ok(res, result, "PIN code and city verified");
+}));
+
 router.post("/", validate(addressSchema), asyncHandler(async (req, res) => {
+  await verifyAddressPincode(req.body);
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
@@ -33,6 +45,7 @@ router.put("/:id", validate(addressSchema), asyncHandler(async (req, res) => {
   const id = parsePositiveId(req.params.id);
   if (!id) return fail(res, 400, "Invalid address ID");
   const value = req.body;
+  await verifyAddressPincode(value);
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
