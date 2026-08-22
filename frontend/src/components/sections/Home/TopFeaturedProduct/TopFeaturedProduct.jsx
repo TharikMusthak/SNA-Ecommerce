@@ -86,10 +86,10 @@ const TopFeaturedProduct = () => {
     : product || {};
 
   const productImage = assetUrl(
-    product?.future_image ||
+    product?.main_image ||
+      product?.future_image ||
       product?.image ||
-      product?.thumbnail ||
-      product?.future_image,
+      product?.thumbnail,
     fallbackImage,
   );
 
