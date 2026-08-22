@@ -347,6 +347,37 @@ button:disabled {
   background: var(--color-primary-700);
 }
 
+.cod-payment-note {
+  display: block;
+  margin-top: 6px;
+  color: #9a3412;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.modal footer .cod-collected-button {
+  width: auto;
+  min-width: 178px;
+  margin: 0;
+  padding: 10px 16px;
+  color: #fff;
+  background: #c2410c;
+  border: 1px solid #9a3412;
+  border-radius: var(--radius-md);
+  box-shadow: 0 5px 14px rgb(154 52 18 / 22%);
+  font-weight: 800;
+}
+
+.modal footer .cod-collected-button:hover:not(:disabled) {
+  background: #9a3412;
+}
+
+.modal footer .cod-collected-button:focus-visible {
+  outline: 3px solid rgb(251 146 60 / 40%);
+  outline-offset: 2px;
+}
+
 .secondary-button {
   color: var(--color-text-primary);
   background: var(--color-surface);
