@@ -26,20 +26,20 @@ import {
   productNameExists,
 } from "../security/productValidation.js";
 import {
-  cleanupProductImageUploads,
   safelyDeleteUpload,
   safelyDeleteUploads,
-  uploadProductImages,
 } from "../services/uploadFiles.js";
 import { paginated } from "../utils/apiResponse.js";
 import { parsePagination } from "../utils/pagination.js";
 
 const router = Router();
 const PRODUCT_STATUSES = ["Active", "Draft"];
+const FUTURE_PRODUCT_CONFLICT_MESSAGE =
+  "Another future product is already active. Set that product to Draft or publish it before activating this one.";
 
 fs.mkdirSync(productUploadsDir, { recursive: true });
 
-const videoStorage = multer.diskStorage({
+const storage = multer.diskStorage({
   destination: productUploadsDir,
   filename: (_req, file, callback) => {
     const extension =
@@ -49,30 +49,8 @@ const videoStorage = multer.diskStorage({
   },
 });
 
-const memoryStorage = multer.memoryStorage();
-const imageStorage = {
-  _handleFile(req, file, callback) {
-    memoryStorage._handleFile(req, file, (error, info) => {
-      if (error) return callback(error);
-      const extension = ALLOWED_IMAGE_TYPES.get(file.mimetype);
-      callback(null, { ...info, filename: `${randomUUID()}.${extension}` });
-    });
-  },
-  _removeFile: memoryStorage._removeFile.bind(memoryStorage),
-};
-const productMediaStorage = {
-  _handleFile(req, file, callback) {
-    const target = file.fieldname === "video" ? videoStorage : imageStorage;
-    target._handleFile(req, file, callback);
-  },
-  _removeFile(req, file, callback) {
-    const target = file.fieldname === "video" ? videoStorage : imageStorage;
-    target._removeFile(req, file, callback);
-  },
-};
-
 const upload = multer({
-  storage: imageStorage,
+  storage,
   limits: { fileSize: 5 * 1024 * 1024, files: 9 },
   fileFilter: imageFileFilter,
 });
@@ -83,7 +61,7 @@ const productUpload = upload.fields([
 ]);
 
 const productMediaUpload = multer({
-  storage: productMediaStorage,
+  storage,
   limits: { fileSize: 50 * 1024 * 1024, files: 11 },
   fileFilter: productMediaFileFilter,
 });
@@ -196,7 +174,6 @@ router.post("/", productUploadWithVideo, verifyProductMedia, async (req, res) =>
   }
 
   let connection;
-  let committed = false;
 
   try {
     connection = await pool.getConnection();
@@ -210,14 +187,20 @@ router.post("/", productUploadWithVideo, verifyProductMedia, async (req, res) =>
       });
     }
 
+    if (await activeFutureProductExists(connection, input.value)) {
+      await connection.rollback();
+      await deleteUploadedFiles(newFiles);
+      return res.status(409).json({
+        message: FUTURE_PRODUCT_CONFLICT_MESSAGE,
+      });
+    }
+
     const category = await resolveCategory(connection, input.value);
     if (!category) {
       await connection.rollback();
       await deleteUploadedFiles(newFiles);
       return res.status(400).json({ message: "Selected category not found" });
     }
-
-    await uploadProductImages(productImageFiles(newFiles));
 
     const mainImage = req.files?.main_image?.[0]
       ? imageUrl(req.files.main_image[0])
@@ -261,11 +244,9 @@ router.post("/", productUploadWithVideo, verifyProductMedia, async (req, res) =>
     }
 
     await connection.commit();
-    committed = true;
     res.status(201).json({ id: result.insertId });
   } catch (error) {
     if (connection) await connection.rollback();
-    if (!committed) await cleanupNewProductImages(newFiles);
     await deleteUploadedFiles(newFiles);
     throw error;
   } finally {
@@ -289,7 +270,6 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
   let oldMainImage = null;
   let oldVideo = null;
   let oldFutureImage = null;
-  let committed = false;
 
   try {
     connection = await pool.getConnection();
@@ -316,6 +296,14 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
       });
     }
 
+    if (await activeFutureProductExists(connection, input.value, id)) {
+      await connection.rollback();
+      await deleteUploadedFiles(newFiles);
+      return res.status(409).json({
+        message: FUTURE_PRODUCT_CONFLICT_MESSAGE,
+      });
+    }
+
     const category = await resolveCategory(connection, input.value);
     if (!category) {
       await connection.rollback();
@@ -328,10 +316,25 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
     oldFutureImage = existingProduct.future_image;
     const newMainFile = req.files?.main_image?.[0];
     const removeMainImage = req.body.remove_main_image === "1" && !newMainFile;
+    const mainImage = newMainFile
+      ? imageUrl(newMainFile)
+      : removeMainImage
+        ? null
+        : existingProduct.main_image;
     const newVideoFile = req.files?.video?.[0];
     const removeVideo = req.body.remove_video === "1" && !newVideoFile;
+    const video = newVideoFile
+      ? imageUrl(newVideoFile)
+      : removeVideo
+        ? null
+        : existingProduct.video_url;
     const newFutureImageFile = req.files?.future_image?.[0];
     const removeFutureImage = req.body.remove_future_image === "1" && !newFutureImageFile;
+    const futureImage = newFutureImageFile
+      ? imageUrl(newFutureImageFile)
+      : removeFutureImage
+        ? null
+        : existingProduct.future_image;
     const slug = req.body.slug
       ? await resolveProductSlug(connection, req.body.slug, id)
       : existingProduct.slug ||
@@ -349,24 +352,6 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
         message: "A product can contain a maximum of 8 gallery images",
       });
     }
-
-    await uploadProductImages(productImageFiles(newFiles));
-
-    const mainImage = newMainFile
-      ? imageUrl(newMainFile)
-      : removeMainImage
-        ? null
-        : existingProduct.main_image;
-    const video = newVideoFile
-      ? imageUrl(newVideoFile)
-      : removeVideo
-        ? null
-        : existingProduct.video_url;
-    const futureImage = newFutureImageFile
-      ? imageUrl(newFutureImageFile)
-      : removeFutureImage
-        ? null
-        : existingProduct.future_image;
 
     await connection.query(
       `UPDATE products
@@ -405,7 +390,6 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
     }
 
     await connection.commit();
-    committed = true;
 
     if ((newMainFile || removeMainImage) && oldMainImage !== mainImage) {
       await safelyDeleteUpload(oldMainImage, "products");
@@ -420,7 +404,6 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
     res.json({ message: "Product updated" });
   } catch (error) {
     if (connection) await connection.rollback();
-    if (!committed) await cleanupNewProductImages(newFiles);
     await deleteUploadedFiles(newFiles);
     throw error;
   } finally {
@@ -507,7 +490,6 @@ router.post(
     }
 
     const connection = await pool.getConnection();
-    let committed = false;
 
     try {
       await connection.beginTransaction();
@@ -533,8 +515,6 @@ router.post(
         });
       }
 
-      await uploadProductImages(productImageFiles(files));
-
       const created = [];
       for (const [index, file] of files.entries()) {
         const image = imageUrl(file);
@@ -552,11 +532,9 @@ router.post(
       }
 
       await connection.commit();
-      committed = true;
       res.status(201).json(created);
     } catch (error) {
       await connection.rollback();
-      if (!committed) await cleanupNewProductImages(files);
       await deleteUploadedFiles(files);
       throw error;
     } finally {
@@ -642,7 +620,6 @@ router.put(
 
     const connection = await pool.getConnection();
     let oldImage;
-    let committed = false;
     try {
       await connection.beginTransaction();
       const [[image]] = await connection.query(
@@ -655,19 +632,16 @@ router.put(
         return res.status(404).json({ message: "Image not found" });
       }
       oldImage = image.image;
-      await uploadProductImages(productImageFiles(files));
       const replacement = imageUrl(file);
       await connection.query(
         "UPDATE product_images SET image = ? WHERE id = ? AND product_id = ?",
         [replacement, imageId, productId],
       );
       await connection.commit();
-      committed = true;
       await safelyDeleteUpload(oldImage, "products");
       res.json({ id: imageId, product_id: productId, image: replacement });
     } catch (error) {
       await connection.rollback();
-      if (!committed) await cleanupNewProductImages(files);
       await deleteUploadedFiles(files);
       throw error;
     } finally {
@@ -758,17 +732,7 @@ router.delete("/:id", async (req, res) => {
 });
 
 function imageUrl(file) {
-  return file.fieldname === "video"
-    ? `/uploads/products/${file.filename}`
-    : file.blobUrl;
-}
-
-function productImageFiles(files) {
-  return files.filter((file) => file?.fieldname !== "video");
-}
-
-async function cleanupNewProductImages(files) {
-  await cleanupProductImageUploads(productImageFiles(files));
+  return `/uploads/products/${file.filename}`;
 }
 
 function parseProduct(body) {
@@ -839,6 +803,26 @@ function parsePublishedAt(value) {
   return Number.isNaN(date.getTime())
     ? null
     : date.toISOString().slice(0, 19).replace("T", " ");
+}
+
+async function activeFutureProductExists(queryable, product, excludeId = null) {
+  if (product.status !== "Active" || !product.publishedAt) return false;
+  const publishTime = Date.parse(`${product.publishedAt.replace(" ", "T")}Z`);
+  if (!Number.isFinite(publishTime) || publishTime <= Date.now()) return false;
+
+  const [rows] = await queryable.query(
+    `SELECT id
+       FROM products
+      WHERE status = 'Active'
+        AND deleted_at IS NULL
+        AND published_at > UTC_TIMESTAMP()
+        ${excludeId ? "AND id <> ?" : ""}
+      LIMIT 1
+      FOR UPDATE`,
+    excludeId ? [excludeId] : [],
+  );
+
+  return rows.length > 0;
 }
 
 async function resolveProductSlug(queryable, value, excludeId = null) {
