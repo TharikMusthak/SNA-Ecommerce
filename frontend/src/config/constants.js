@@ -1,4 +1,4 @@
-export const BASE_URL = "https://hinttechnologies.com/sna-api/api/v1";
+export const BASE_URL = "https://sna-ecommerce-api.vercel.app/api/v1";
 
 
  export const QUERY_KEYS = Object.freeze({
