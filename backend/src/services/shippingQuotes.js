@@ -27,16 +27,18 @@ export async function createShippingQuote({ userId, addressId, paymentMethod }) 
   if (!address) throw Object.assign(new Error("Delivery address not found"), { status: 404 });
   const settings = settingsRows[0];
   if (!settings || !Number(settings.provider_enabled)) throw Object.assign(new Error("Live shipping rates are disabled"), { status: 503 });
-  if (!/^\d{6}$/.test(String(address.postal_code || "")) || !/^\d{6}$/.test(String(settings.pickup_pincode || ""))) {
-    throw Object.assign(new Error("A valid 6-digit pickup and delivery pincode is required"), { status: 422 });
-  }
+  const deliveryPincode = String(address.postal_code || address.pincode || "").replace(/\D/g, "");
+  const pickupPincode = String(settings.pickup_pincode || "").replace(/\D/g, "");
+  if (!/^\d{6}$/.test(pickupPincode)) throw Object.assign(new Error("The pickup pincode in Shipping Settings must contain exactly 6 digits"), { status: 422 });
+  if (!/^\d{6}$/.test(deliveryPincode)) throw Object.assign(new Error("The selected delivery address must contain exactly 6 pincode digits"), { status: 422 });
+  address.postal_code = deliveryPincode;
   const cart = await getCart(pool, userId);
   if (!cart.items.length) throw Object.assign(new Error("Cart is empty"), { status: 409 });
   const quantity = cart.items.reduce((sum, item) => sum + Number(item.quantity), 0);
   const weight = Math.max(0.001, number(settings.default_weight_grams, 500) * quantity / 1000);
   const couriers = await getShiprocketRates({
-    pickup_postcode: settings.pickup_pincode,
-    delivery_postcode: address.postal_code,
+    pickup_postcode: pickupPincode,
+    delivery_postcode: deliveryPincode,
     cod: paymentMethod === "cod" ? 1 : 0,
     weight: weight.toFixed(3),
     length: number(settings.default_length_cm, 10), breadth: number(settings.default_width_cm, 10), height: number(settings.default_height_cm, 10),
@@ -59,7 +61,7 @@ export async function createShippingQuote({ userId, addressId, paymentMethod }) 
   const [result] = await pool.query(
     `INSERT INTO shipping_rate_quotes(user_id,address_id,provider,delivery_pincode,payment_method,package_hash,options_json,selected_courier_id,selected_rate,expires_at)
      VALUES (?,?,?,?,?,?,?,?,?,DATE_ADD(UTC_TIMESTAMP(), INTERVAL 15 MINUTE))`,
-    [userId, address.id, "shiprocket", address.postal_code, paymentMethod, packageHash, JSON.stringify(payload), selected.courier_id, customerRate],
+    [userId, address.id, "shiprocket", deliveryPincode, paymentMethod, packageHash, JSON.stringify(payload), selected.courier_id, customerRate],
   );
   return { quote_id: result.insertId, provider: "shiprocket", courier: selected, shipping_charge: customerRate, actual_shipping_cost: selected.rate, free_shipping: free, expires_in_seconds: 900, summary };
 }
