@@ -34,8 +34,6 @@ import { parsePagination } from "../utils/pagination.js";
 
 const router = Router();
 const PRODUCT_STATUSES = ["Active", "Draft"];
-const FUTURE_PRODUCT_CONFLICT_MESSAGE =
-  "Another future product is already active. Set that product to Draft or publish it before activating this one.";
 
 fs.mkdirSync(productUploadsDir, { recursive: true });
 
@@ -187,14 +185,6 @@ router.post("/", productUploadWithVideo, verifyProductMedia, async (req, res) =>
       });
     }
 
-    if (await activeFutureProductExists(connection, input.value)) {
-      await connection.rollback();
-      await deleteUploadedFiles(newFiles);
-      return res.status(409).json({
-        message: FUTURE_PRODUCT_CONFLICT_MESSAGE,
-      });
-    }
-
     const category = await resolveCategory(connection, input.value);
     if (!category) {
       await connection.rollback();
@@ -209,6 +199,9 @@ router.post("/", productUploadWithVideo, verifyProductMedia, async (req, res) =>
       connection,
       req.body.slug || input.value.name,
     );
+    if (input.value.isFeatured) {
+      await connection.query("UPDATE products SET is_featured = 0 WHERE is_featured = 1");
+    }
     const [result] = await connection.query(
       `INSERT INTO products
           (name, category, category_id, price, stock, low_stock_threshold,
@@ -296,14 +289,6 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
       });
     }
 
-    if (await activeFutureProductExists(connection, input.value, id)) {
-      await connection.rollback();
-      await deleteUploadedFiles(newFiles);
-      return res.status(409).json({
-        message: FUTURE_PRODUCT_CONFLICT_MESSAGE,
-      });
-    }
-
     const category = await resolveCategory(connection, input.value);
     if (!category) {
       await connection.rollback();
@@ -351,6 +336,13 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
       return res.status(400).json({
         message: "A product can contain a maximum of 8 gallery images",
       });
+    }
+
+    if (input.value.isFeatured) {
+      await connection.query(
+        "UPDATE products SET is_featured = 0 WHERE is_featured = 1 AND id <> ?",
+        [id],
+      );
     }
 
     await connection.query(
@@ -441,23 +433,39 @@ router.put("/:id/featured", async (req, res) => {
     });
   }
 
-  const [[product]] = await pool.query(
-    "SELECT id FROM products WHERE id = ? LIMIT 1",
-    [id],
-  );
-  if (!product) {
-    return res.status(404).json({ message: "Product not found" });
-  }
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [[product]] = await connection.query(
+      "SELECT id FROM products WHERE id = ? AND deleted_at IS NULL LIMIT 1 FOR UPDATE",
+      [id],
+    );
+    if (!product) {
+      await connection.rollback();
+      return res.status(404).json({ message: "Product not found" });
+    }
 
-  await pool.query("UPDATE products SET is_featured = ? WHERE id = ?", [
-    isFeatured ? 1 : 0,
-    id,
-  ]);
-  res.json({
-    success: true,
-    message: isFeatured ? "Product featured" : "Product unfeatured",
-    product: { id, is_featured: isFeatured },
-  });
+    if (isFeatured) {
+      await connection.query("UPDATE products SET is_featured = 0 WHERE is_featured = 1");
+    }
+    await connection.query("UPDATE products SET is_featured = ? WHERE id = ?", [
+      isFeatured ? 1 : 0,
+      id,
+    ]);
+    await connection.commit();
+    res.json({
+      success: true,
+      message: isFeatured
+        ? "Product featured; previous featured product was removed"
+        : "Product unfeatured",
+      product: { id, is_featured: isFeatured },
+    });
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 });
 
 router.get("/:id/images", async (req, res) => {
@@ -803,26 +811,6 @@ function parsePublishedAt(value) {
   return Number.isNaN(date.getTime())
     ? null
     : date.toISOString().slice(0, 19).replace("T", " ");
-}
-
-async function activeFutureProductExists(queryable, product, excludeId = null) {
-  if (product.status !== "Active" || !product.publishedAt) return false;
-  const publishTime = Date.parse(`${product.publishedAt.replace(" ", "T")}Z`);
-  if (!Number.isFinite(publishTime) || publishTime <= Date.now()) return false;
-
-  const [rows] = await queryable.query(
-    `SELECT id
-       FROM products
-      WHERE status = 'Active'
-        AND deleted_at IS NULL
-        AND published_at > UTC_TIMESTAMP()
-        ${excludeId ? "AND id <> ?" : ""}
-      LIMIT 1
-      FOR UPDATE`,
-    excludeId ? [excludeId] : [],
-  );
-
-  return rows.length > 0;
 }
 
 async function resolveProductSlug(queryable, value, excludeId = null) {
