@@ -404,7 +404,9 @@ function OrderDialog({ order, saving, onCollectCod, onClose }) {
   const summary = order.summary || {};
   const payment = order.payment || order.payments?.[0] || null;
   const paymentProvider = payment?.provider || order.payment_provider || "";
-  const canCollectCod = paymentProvider === "cod" && order.payment_status !== "paid";
+  const canCollectCod =
+    order.payment_status !== "paid" &&
+    !["razorpay", "stripe"].includes(paymentProvider);
   return (
     <Dialog
       title={`Order ${order.order_number || order.order_code}`}
@@ -417,7 +419,7 @@ function OrderDialog({ order, saving, onCollectCod, onClose }) {
           <h3>Order summary</h3>
           <dl className="commerce-detail">
             <div><dt>Status</dt><dd><Badge value={order.status} /></dd></div>
-            <div><dt>Payment</dt><dd><Badge value={order.payment_status} />{paymentProvider && <small>{label(paymentProvider)}</small>}</dd></div>
+            <div><dt>Payment</dt><dd><Badge value={order.payment_status} /><small>{paymentProvider ? label(paymentProvider) : "COD / legacy order"}</small></dd></div>
             <div><dt>Customer</dt><dd>{order.customer_details?.name || order.customer}<small>{order.customer_details?.email}</small><small>{order.customer_details?.phone || order.phone}</small></dd></div>
             <div><dt>Delivery</dt><dd>{fullAddress(address)}</dd></div>
             <div><dt>Shipment</dt><dd>{order.shipment ? `${order.shipment.courier_name || order.shipment.provider} · ${order.shipment.awb_code || label(order.shipment.status)}` : "Not dispatched"}</dd></div>
