@@ -20,12 +20,13 @@ export function quoteFingerprint(cart, address, paymentMethod) {
 }
 
 export async function createShippingQuote({ userId, addressId, paymentMethod }) {
-  const [[address], [settingsRows]] = await Promise.all([
+  const [addressResult, settingsResult] = await Promise.all([
     pool.query("SELECT * FROM user_addresses WHERE id=? AND user_id=? LIMIT 1", [addressId, userId]),
     pool.query("SELECT * FROM shipping_settings WHERE id=1 LIMIT 1"),
   ]);
+  const address = addressResult[0][0];
+  const settings = settingsResult[0][0];
   if (!address) throw Object.assign(new Error("Delivery address not found"), { status: 404 });
-  const settings = settingsRows[0];
   if (!settings || !Number(settings.provider_enabled)) throw Object.assign(new Error("Live shipping rates are disabled"), { status: 503 });
   const deliveryPincode = String(address.postal_code || address.pincode || "").replace(/\D/g, "");
   const pickupPincode = String(settings.pickup_pincode || "").replace(/\D/g, "");
