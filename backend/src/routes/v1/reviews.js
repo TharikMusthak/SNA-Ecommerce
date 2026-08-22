@@ -61,10 +61,10 @@ router.post("/", requireCustomer, ...reviewUpload, asyncHandler(async (req, res)
   const [[purchase]] = await pool.query(`SELECT oi.id FROM order_items oi JOIN orders o ON o.id=oi.order_id WHERE o.user_id=? AND oi.product_id=? AND o.status='delivered' ORDER BY oi.id DESC LIMIT 1`, [req.user.id, input.productId]);
   try {
     const [result] = await pool.query(
-      "INSERT INTO reviews(user_id,product_id,order_item_id,rating,title,review_text,image_url,video_url,is_verified_purchase) VALUES (?,?,?,?,?,?,?,?,?)",
+      "INSERT INTO reviews(user_id,product_id,order_item_id,rating,title,review_text,image_url,video_url,is_verified_purchase,status) VALUES (?,?,?,?,?,?,?,?,?,'approved')",
       [req.user.id, input.productId, purchase?.id || null, input.rating, input.title, input.reviewText, reviewFileUrl(req.files?.image?.[0]), reviewFileUrl(req.files?.video?.[0]), Boolean(purchase)],
     );
-    return ok(res, { id: result.insertId }, "Review submitted for moderation", 201);
+    return ok(res, { id: result.insertId, status: "approved" }, "Review published successfully", 201);
   } catch (error) {
     await deleteUploadedFiles(files);
     if (error.code === "ER_DUP_ENTRY") return fail(res, 409, "You have already reviewed this product");
@@ -87,10 +87,10 @@ router.put("/:id", requireCustomer, ...reviewUpload, asyncHandler(async (req, re
   }
   const imageUrl = reviewFileUrl(req.files?.image?.[0]) || (req.body.remove_image === "1" ? null : existing.image_url);
   const videoUrl = reviewFileUrl(req.files?.video?.[0]) || (req.body.remove_video === "1" ? null : existing.video_url);
-  await pool.query("UPDATE reviews SET rating=?,title=?,review_text=?,image_url=?,video_url=?,status='pending' WHERE id=? AND user_id=?", [input.rating, input.title, input.reviewText, imageUrl, videoUrl, id, req.user.id]);
+  await pool.query("UPDATE reviews SET rating=?,title=?,review_text=?,image_url=?,video_url=?,status='approved' WHERE id=? AND user_id=?", [input.rating, input.title, input.reviewText, imageUrl, videoUrl, id, req.user.id]);
   if (existing.image_url !== imageUrl) await safelyDeleteUpload(existing.image_url, "reviews");
   if (existing.video_url !== videoUrl) await safelyDeleteUpload(existing.video_url, "reviews");
-  return ok(res, null, "Review updated and submitted for moderation");
+  return ok(res, { status: "approved" }, "Review updated and published successfully");
 }));
 
 router.delete("/:id", requireCustomer, asyncHandler(async (req, res) => {
