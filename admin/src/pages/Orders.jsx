@@ -419,7 +419,7 @@ function OrderDialog({ order, saving, onCollectCod, onClose }) {
           <h3>Order summary</h3>
           <dl className="commerce-detail">
             <div><dt>Status</dt><dd><Badge value={order.status} /></dd></div>
-            <div><dt>Payment</dt><dd><Badge value={order.payment_status} /><small>{paymentProvider ? label(paymentProvider) : "COD / legacy order"}</small></dd></div>
+            <div><dt>Payment</dt><dd><Badge value={order.payment_status} /><small className={canCollectCod ? "cod-payment-note" : ""}>{canCollectCod ? "Cash on Delivery — mark paid only after collecting cash" : paymentProvider ? label(paymentProvider) : "Payment method unavailable"}</small></dd></div>
             <div><dt>Customer</dt><dd>{order.customer_details?.name || order.customer}<small>{order.customer_details?.email}</small><small>{order.customer_details?.phone || order.phone}</small></dd></div>
             <div><dt>Delivery</dt><dd>{fullAddress(address)}</dd></div>
             <div><dt>Shipment</dt><dd>{order.shipment ? `${order.shipment.courier_name || order.shipment.provider} · ${order.shipment.awb_code || label(order.shipment.status)}` : "Not dispatched"}</dd></div>
@@ -458,7 +458,7 @@ function OrderDialog({ order, saving, onCollectCod, onClose }) {
         </div>
       </section>
       <footer className="modal-actions-footer">
-        {canCollectCod && <button className="primary-button" type="button" disabled={saving} onClick={() => onCollectCod(order)}>{saving ? "Updating…" : "Mark COD collected"}</button>}
+        {canCollectCod && <button className="cod-collected-button" type="button" disabled={saving} onClick={() => onCollectCod(order)}>{saving ? "Updating…" : "Mark COD collected"}</button>}
         <button className="secondary-button" type="button" onClick={() => downloadInvoice(order)}><Download size={14} /> Download invoice</button>
         <button className="secondary-button" type="button" onClick={onClose}>Close</button>
       </footer>
