@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Banknote, CheckCircle2, CreditCard, MapPin, Minus, Pencil, Plus, Trash2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
@@ -9,6 +9,7 @@ import { apiErrorMessage } from "@api/axios";
 import { getAddresses } from "@api/address.api";
 import { createOrder } from "@api/order.api";
 import { createRazorpayPaymentOrder, verifyRazorpayPayment } from "@api/payment.api";
+import { getShippingQuote } from "@api/shipping.api";
 import Spinner from "@components/ui/Spinner/Spinner";
 import { QUERY_KEYS } from "@config/constants";
 import { useCart } from "@hooks/useCart";
@@ -23,6 +24,9 @@ const Cart = () => {
   const [addressId, setAddressId] = useState("");
   const [checkingOut, setCheckingOut] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("razorpay");
+  const [shippingQuote, setShippingQuote] = useState(null);
+  const [shippingError, setShippingError] = useState("");
+  const [shippingLoading, setShippingLoading] = useState(false);
   const addresses = useQuery({
     queryKey: QUERY_KEYS.addresses,
     queryFn: async () => {
@@ -33,6 +37,30 @@ const Cart = () => {
       }));
     },
   });
+  const selectedAddressId = addressId || addresses.data?.find((item) => item.is_default)?.id || "";
+  const cartFingerprint = useMemo(() => JSON.stringify({
+    coupon: cart.coupon_code || null,
+    items: cart.items.map((item) => [item.product_id, item.variant_id, item.quantity, item.unit_price]),
+  }), [cart]);
+
+  useEffect(() => {
+    if (!selectedAddressId || !cart.items.length) {
+      return;
+    }
+    let active = true;
+    Promise.resolve().then(() => {
+      if (!active) return null;
+      setShippingLoading(true);
+      setShippingError("");
+      return getShippingQuote({ address_id: Number(selectedAddressId), payment_method: paymentMethod });
+    })
+      .then((response) => { if (active && response) setShippingQuote(response.data.data || response.data); })
+      .catch((error) => { if (active) { setShippingQuote(null); setShippingError(apiErrorMessage(error, "Shipping rate could not be calculated")); } })
+      .finally(() => { if (active) setShippingLoading(false); });
+    return () => { active = false; };
+  }, [selectedAddressId, paymentMethod, cartFingerprint, cart.items.length]);
+
+  const displaySummary = shippingQuote?.summary || cart.summary;
 
   const run = async (operation, successMessage) => {
     try {
@@ -50,16 +78,19 @@ const Cart = () => {
   };
 
   const checkout = async () => {
-    const selectedAddress =
-      addressId || addresses.data?.find((item) => item.is_default)?.id;
+    const selectedAddress = selectedAddressId;
     if (!selectedAddress) {
       toast.error("Select or add a delivery address");
+      return;
+    }
+    if (!shippingQuote?.quote_id) {
+      toast.error(shippingError || "Wait for the shipping rate to load");
       return;
     }
     try {
       setCheckingOut(true);
       const response = await createOrder(
-        { address_id: Number(selectedAddress), payment_method: paymentMethod },
+        { address_id: Number(selectedAddress), payment_method: paymentMethod, shipping_quote_id: shippingQuote.quote_id },
         crypto.randomUUID(),
       );
       const order = response.data.data || response.data;
@@ -248,12 +279,12 @@ const Cart = () => {
               Order summary
             </h2>
             <div className="mt-5 space-y-3 text-sm">
-              <Summary label="Subtotal" value={cart.summary.subtotal} />
-              <Summary label="Tax" value={cart.summary.tax} />
-              <Summary label="Shipping" value={cart.summary.shipping} />
-              <Summary label="Discount" value={-cart.summary.discount} />
+              <Summary label="Subtotal" value={displaySummary.subtotal} />
+              <Summary label="Tax" value={displaySummary.tax} />
+              <Summary label="Shipping" value={displaySummary.shipping} />
+              <Summary label="Discount" value={-displaySummary.discount} />
               <div className="border-t border-gray-300 pt-4">
-                <Summary label="Total" value={cart.summary.total} strong />
+                <Summary label="Total" value={displaySummary.total} strong />
               </div>
             </div>
             <form onSubmit={submitCoupon} className="mt-6 flex gap-2">
@@ -297,9 +328,12 @@ const Cart = () => {
                 <label className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition ${paymentMethod === "cod" ? "border-[#079447] bg-white" : "border-transparent bg-white/60"}`}><input type="radio" name="payment-method" value="cod" checked={paymentMethod === "cod"} onChange={() => setPaymentMethod("cod")} className="accent-[#079447]" /><Banknote size={17} className="text-[#079447]" aria-hidden="true" /><span className="text-sm font-medium text-gray-800">Cash on delivery</span></label>
               </div>
             </section>
+            <div className={`mt-4 rounded-xl px-3 py-2 text-xs ${shippingError ? "bg-red-50 text-red-700" : "bg-white text-gray-600"}`}>
+              {shippingLoading ? "Checking Shiprocket delivery charge…" : shippingError || (shippingQuote ? `${shippingQuote.courier.courier_name} · ${shippingQuote.free_shipping ? "Free shipping" : formatCurrency(shippingQuote.shipping_charge)}${shippingQuote.courier.estimated_delivery_days ? ` · about ${shippingQuote.courier.estimated_delivery_days} days` : ""}` : "Select an address to calculate delivery.")}
+            </div>
             <button
               onClick={checkout}
-              disabled={checkingOut || !addresses.data?.length}
+              disabled={checkingOut || shippingLoading || !shippingQuote?.quote_id || !addresses.data?.length}
               className="mt-5 w-full rounded-xl bg-[#079447] px-5 py-3 font-semibold text-white hover:bg-[#057a3a] disabled:bg-gray-300"
             >
               {checkingOut ? "Processing…" : paymentMethod === "razorpay" ? "Pay with Razorpay" : "Place order"}
