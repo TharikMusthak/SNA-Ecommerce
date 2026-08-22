@@ -15,7 +15,7 @@ const { default: app } = await import("../src/app.js");
 const { pool } = await import("../src/config/db.js");
 const { productUploadsDir } = await import("../src/config/paths.js");
 const { allowRoles } = await import("../src/middleware/auth.js");
-const { imageFileFilter } = await import(
+const { imageFileFilter, verifyProductMedia } = await import(
   "../src/middleware/uploadSecurity.js"
 );
 const {
@@ -28,7 +28,14 @@ const {
   normalizeProductName,
   productNameExists,
 } = await import("../src/security/productValidation.js");
-const { resolveUploadPath } = await import(
+const {
+  cleanupProductImageUploads,
+  deleteUploadByUrl,
+  isProductBlobUrl,
+  resolveUploadPath,
+  uploadProductImage,
+  uploadProductImages,
+} = await import(
   "../src/services/uploadFiles.js"
 );
 const { splitMigration } = await import(
@@ -240,6 +247,130 @@ test("upload filter blocks SVG and allows supported raster images", () => {
     accepted = allowed;
   });
   assert.equal(accepted, true);
+});
+
+test("product image validation accepts a valid memory-backed image", async () => {
+  const file = {
+    buffer: Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+      "base64",
+    ),
+    fieldname: "main_image",
+    filename: "validated.png",
+    mimetype: "image/png",
+    size: 68,
+  };
+  let nextCalled = false;
+  await verifyProductMedia(
+    { files: { main_image: [file] } },
+    { status: () => ({ json: () => assert.fail("valid image was rejected") }) },
+    () => { nextCalled = true; },
+  );
+  assert.equal(nextCalled, true);
+});
+
+test("product Blob upload uses validated metadata and persists its absolute URL", async () => {
+  const file = {
+    buffer: Buffer.from("image"),
+    filename: "unique.jpg",
+    mimetype: "image/jpeg",
+  };
+  let call;
+  const url = await uploadProductImage(file, async (...args) => {
+    call = args;
+    return { url: "https://store.public.blob.vercel-storage.com/products/unique.jpg" };
+  });
+  assert.equal(call[0], "products/unique.jpg");
+  assert.equal(call[1], file.buffer);
+  assert.deepEqual(call[2], { access: "public", contentType: "image/jpeg" });
+  assert.equal(file.blobUrl, url);
+  assert.equal(isProductBlobUrl(url), true);
+});
+
+test("partial product Blob upload failure deletes newly-created blobs", async () => {
+  const files = [
+    { buffer: Buffer.from("one"), filename: "one.jpg", mimetype: "image/jpeg" },
+    { buffer: Buffer.from("two"), filename: "two.jpg", mimetype: "image/jpeg" },
+  ];
+  const deleted = [];
+  let calls = 0;
+  await assert.rejects(
+    uploadProductImages(
+      files,
+      async () => {
+        calls += 1;
+        if (calls === 2) throw new Error("Blob unavailable");
+        return { url: "https://store.public.blob.vercel-storage.com/products/one.jpg" };
+      },
+      async (url) => { deleted.push(url); },
+    ),
+    /Blob unavailable/,
+  );
+  assert.deepEqual(deleted, [
+    "https://store.public.blob.vercel-storage.com/products/one.jpg",
+  ]);
+  assert.equal(files[0].blobUrl, undefined);
+});
+
+test("database rollback cleanup deletes all newly-persisted product Blob URLs", async () => {
+  const files = [
+    { buffer: Buffer.from("main"), filename: "main.jpg", mimetype: "image/jpeg" },
+    { buffer: Buffer.from("future"), filename: "future.webp", mimetype: "image/webp" },
+  ];
+  await uploadProductImages(files, async (pathname) => ({
+    url: `https://store.public.blob.vercel-storage.com/${pathname}`,
+  }));
+  const deleted = [];
+  await cleanupProductImageUploads(files, async (url) => deleted.push(url));
+  assert.deepEqual(deleted, [
+    "https://store.public.blob.vercel-storage.com/products/main.jpg",
+    "https://store.public.blob.vercel-storage.com/products/future.webp",
+  ]);
+  assert.equal(files.every((file) => file.blobUrl === undefined), true);
+});
+
+test("product image deletion supports Blob URLs and legacy local paths", async () => {
+  const blobUrl = "https://store.public.blob.vercel-storage.com/products/old.webp";
+  const deleted = [];
+  assert.equal(
+    await deleteUploadByUrl(blobUrl, "products", async (url) => deleted.push(url)),
+    true,
+  );
+  assert.deepEqual(deleted, [blobUrl]);
+
+  const fileName = `legacy-delete-${process.pid}.jpg`;
+  const filePath = path.join(productUploadsDir, fileName);
+  await fs.mkdir(productUploadsDir, { recursive: true });
+  await fs.writeFile(filePath, "legacy");
+  assert.equal(
+    await deleteUploadByUrl(`/uploads/products/${fileName}`, "products"),
+    true,
+  );
+  await assert.rejects(fs.access(filePath), { code: "ENOENT" });
+});
+
+test("product Blob replacement uploads the new image before deleting the old one", async () => {
+  const events = [];
+  const oldUrl = "https://store.public.blob.vercel-storage.com/products/old.jpg";
+  const file = {
+    buffer: Buffer.from("replacement"),
+    filename: "replacement.jpg",
+    mimetype: "image/jpeg",
+  };
+  const replacement = await uploadProductImage(file, async (pathname) => {
+    events.push(`upload:${pathname}`);
+    return {
+      url: "https://store.public.blob.vercel-storage.com/products/replacement.jpg",
+    };
+  });
+  assert.equal(file.blobUrl, replacement);
+  await deleteUploadByUrl(oldUrl, "products", async (url) => {
+    events.push(`delete:${url}`);
+  });
+  assert.deepEqual(events, [
+    "upload:products/replacement.jpg",
+    `delete:${oldUrl}`,
+  ]);
 });
 
 test("health endpoint has security headers and hides Express", async () => {

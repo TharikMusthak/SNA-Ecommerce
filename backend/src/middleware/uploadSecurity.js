@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { fileTypeFromFile } from "file-type";
+import { fileTypeFromBuffer, fileTypeFromFile } from "file-type";
 
 export const ALLOWED_IMAGE_TYPES = new Map([
   ["image/jpeg", "jpg"],
@@ -47,7 +47,7 @@ export async function deleteUploadedFiles(files) {
   await Promise.all(
     files.filter(Boolean).map(async (file) => {
       try {
-        await fs.unlink(file.path);
+        if (file.path) await fs.unlink(file.path);
       } catch (error) {
         if (error?.code !== "ENOENT") {
           console.error("Rejected upload cleanup failed", {
@@ -60,12 +60,18 @@ export async function deleteUploadedFiles(files) {
   );
 }
 
+async function detectUploadedFileType(file) {
+  return file.buffer
+    ? fileTypeFromBuffer(file.buffer)
+    : fileTypeFromFile(file.path);
+}
+
 export async function verifyUploadedImages(req, res, next) {
   const files = uploadedFiles(req);
 
   try {
     for (const file of files) {
-      const detected = await fileTypeFromFile(file.path);
+      const detected = await detectUploadedFileType(file);
 
       if (
         !detected ||
@@ -98,7 +104,7 @@ export async function verifyProductMedia(req, res, next) {
   const files = uploadedFiles(req);
   try {
     for (const file of files) {
-      const detected = await fileTypeFromFile(file.path);
+      const detected = await detectUploadedFileType(file);
       const isVideo = file.fieldname === "video";
       const allowedTypes = isVideo ? ALLOWED_VIDEO_TYPES : ALLOWED_IMAGE_TYPES;
       const sizeLimit = isVideo ? 50 * 1024 * 1024 : 5 * 1024 * 1024;

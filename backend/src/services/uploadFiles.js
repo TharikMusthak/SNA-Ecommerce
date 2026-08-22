@@ -1,6 +1,51 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { del, put } from "@vercel/blob";
 import { uploadsRoot } from "../config/paths.js";
+
+const PRODUCT_BLOB_HOST_SUFFIX = ".public.blob.vercel-storage.com";
+
+export function isProductBlobUrl(value) {
+  if (typeof value !== "string") return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" &&
+      url.hostname.endsWith(PRODUCT_BLOB_HOST_SUFFIX) &&
+      url.pathname.startsWith("/products/");
+  } catch {
+    return false;
+  }
+}
+
+export async function uploadProductImage(file, blobPut = put) {
+  if (!file?.buffer || !file.filename || !file.mimetype) {
+    throw new Error("A validated memory-backed product image is required");
+  }
+  const blob = await blobPut(`products/${file.filename}`, file.buffer, {
+    access: "public",
+    contentType: file.mimetype,
+  });
+  file.blobUrl = blob.url;
+  return blob.url;
+}
+
+export async function uploadProductImages(files, blobPut = put, blobDelete = del) {
+  try {
+    for (const file of files) {
+      await uploadProductImage(file, blobPut);
+    }
+    return files.map((file) => file.blobUrl);
+  } catch (error) {
+    await cleanupProductImageUploads(files, blobDelete);
+    throw error;
+  }
+}
+
+export async function cleanupProductImageUploads(files, blobDelete = del) {
+  const urls = files.map((file) => file?.blobUrl).filter(isProductBlobUrl);
+  await Promise.allSettled(urls.map((url) => blobDelete(url)));
+  for (const file of files) delete file.blobUrl;
+}
 
 export function resolveUploadPath(uploadUrl, expectedFolder) {
   if (
@@ -19,7 +64,11 @@ export function resolveUploadPath(uploadUrl, expectedFolder) {
   return resolvedPath.startsWith(expectedPrefix) ? resolvedPath : null;
 }
 
-export async function deleteUploadByUrl(uploadUrl, expectedFolder) {
+export async function deleteUploadByUrl(uploadUrl, expectedFolder, blobDelete = del) {
+  if (expectedFolder === "products" && isProductBlobUrl(uploadUrl)) {
+    await blobDelete(uploadUrl);
+    return true;
+  }
   const filePath = resolveUploadPath(uploadUrl, expectedFolder);
   if (!filePath) return false;
 
