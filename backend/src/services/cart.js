@@ -45,7 +45,7 @@ export async function getCart(queryable, userId, { lock = false } = {}) {
       coupon = validCoupon;
     }
   }
-  return { id: cart.id, coupon_code: coupon?.code || null, coupon_id: coupon?.id || null, invalid_coupon: Boolean(cart.coupon_code && !coupon), items: normalized, summary: { subtotal, tax, shipping, discount, total: money(subtotal + tax + shipping - discount), currency: "INR" } };
+  return { id: cart.id, coupon_code: coupon?.code || null, coupon_id: coupon?.id || null, free_shipping: coupon?.discount_type === "free_shipping", invalid_coupon: Boolean(cart.coupon_code && !coupon), items: normalized, summary: { subtotal, tax, shipping, discount, total: money(subtotal + tax + shipping - discount), currency: "INR" } };
 }
 
 export const money = (value) => Math.round((Number(value) + Number.EPSILON) * 100) / 100;
