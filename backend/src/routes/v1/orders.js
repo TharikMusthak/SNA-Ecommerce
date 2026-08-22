@@ -5,6 +5,7 @@ import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { requireCustomer } from "../../middleware/customerAuth.js";
 import { parsePositiveId } from "../../security/validation.js";
 import { getCart } from "../../services/cart.js";
+import { validateShippingQuote } from "../../services/shippingQuotes.js";
 import { reservationExpiryDate } from "../../services/orderExpiry.js";
 import { env } from "../../config/env.js";
 import { queueUserEvent } from "../../integrations/notifications/notification.service.js";
@@ -22,16 +23,18 @@ router.post(
     const paymentMethod = String(
       req.body.payment_method || "cod",
     ).toLowerCase();
+    const shippingQuoteId = parsePositiveId(req.body.shipping_quote_id);
     const idempotencyKey = String(req.get("idempotency-key") || "").trim();
     if (
       !addressId ||
+      !shippingQuoteId ||
       !["cod", "razorpay"].includes(paymentMethod) ||
       idempotencyKey.length < 8 ||
       idempotencyKey.length > 190
     )
       return fail(res, 422, "Validation failed", {
         checkout: [
-          "A valid address, payment method, and Idempotency-Key (8-190 characters) are required",
+          "A valid address, shipping quote, payment method, and Idempotency-Key (8-190 characters) are required",
         ],
       });
     if (paymentMethod !== "cod" && !env.onlinePaymentsEnabled)
@@ -90,6 +93,10 @@ router.post(
           return fail(res, 409, `${item.name} does not have enough stock`);
         }
       }
+      const shippingQuote = await validateShippingQuote(connection, {
+        quoteId: shippingQuoteId, userId: req.user.id, address, paymentMethod, cart,
+      });
+      const finalSummary = shippingQuote.summary;
       const code = orderCode();
       const displayProduct =
         cart.items.length === 1
@@ -104,14 +111,14 @@ router.post(
           customer,
           address.phone,
           displayProduct,
-          cart.summary.total,
+          finalSummary.total,
           req.user.id,
           address.id,
           "pending",
           "pending",
           cart.summary.subtotal,
           cart.summary.tax,
-          cart.summary.shipping,
+          finalSummary.shipping,
           cart.summary.discount,
           "INR",
           JSON.stringify(address),
@@ -172,7 +179,7 @@ router.post(
         [
           result.insertId,
           paymentMethod,
-          Math.round(cart.summary.total * 100),
+          Math.round(finalSummary.total * 100),
           "INR",
           `checkout:${req.user.id}:${idempotencyKey}`.slice(0, 190),
         ],
@@ -190,7 +197,7 @@ router.post(
         cart.id,
       ]);
       await connection.commit();
-      await queueUserEvent({ userId:req.user.id,event:"order_created",entityType:"order",entityId:result.insertId,payload:{ orderNumber:code,total:cart.summary.total,paymentMethod } }).catch(() => []);
+      await queueUserEvent({ userId:req.user.id,event:"order_created",entityType:"order",entityId:result.insertId,payload:{ orderNumber:code,total:finalSummary.total,paymentMethod } }).catch(() => []);
       return ok(
         res,
         {
@@ -198,7 +205,7 @@ router.post(
           order_number: code,
           payment_id: payment.insertId,
           payment_method: paymentMethod,
-          summary: cart.summary,
+          summary: finalSummary,
         },
         "Order created successfully",
         201,
