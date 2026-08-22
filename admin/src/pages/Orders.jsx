@@ -38,7 +38,7 @@ export default function Orders({ onStageChange }) {
     from: "",
     to: "",
     page: 1,
-    limit: 20,
+    limit: 10,
   });
   const [search, setSearch] = useState("");
   const [pagination, setPagination] = useState({
@@ -275,7 +275,7 @@ export default function Orders({ onStageChange }) {
               from: "",
               to: "",
               page: 1,
-              limit: 20,
+              limit: 10,
             });
           }}
         >
