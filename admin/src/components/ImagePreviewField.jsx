@@ -1,6 +1,14 @@
 import { useEffect, useId, useState } from "react";
 import { assetUrl } from "../api";
 
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_IMAGE_COUNT = 8;
+const ALLOWED_IMAGE_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+
 export default function ImagePreviewField({
   name,
   label,
@@ -13,8 +21,10 @@ export default function ImagePreviewField({
 }) {
   const inputId = useId();
   const helpId = `${inputId}-help`;
+  const errorId = `${inputId}-error`;
   const [selectedPreviews, setSelectedPreviews] = useState([]);
   const [removedImage, setRemovedImage] = useState(null);
+  const [validationError, setValidationError] = useState("");
   const removeExisting = Boolean(existingImage && removedImage === existingImage);
 
   useEffect(() => {
@@ -34,6 +44,17 @@ export default function ImagePreviewField({
 
   function handleChange(event) {
     const files = Array.from(event.target.files || []);
+
+    const error = validateImages(files, multiple);
+    event.target.setCustomValidity(error);
+    setValidationError(error);
+    if (error) {
+      event.target.value = "";
+      setSelectedPreviews([]);
+      onChange?.([]);
+      return;
+    }
+
     setSelectedPreviews(files.map((file) => URL.createObjectURL(file)));
     setRemovedImage(null);
     onChange?.(files);
@@ -45,6 +66,8 @@ export default function ImagePreviewField({
       .closest(".image-field")
       .querySelector("input[type=file]");
     input.value = "";
+    input.setCustomValidity("");
+    setValidationError("");
     setSelectedPreviews([]);
     onChange?.([]);
 
@@ -76,12 +99,18 @@ export default function ImagePreviewField({
           multiple={multiple}
           required={required && previews.length === 0}
           onChange={handleChange}
-          aria-describedby={helpId}
+          aria-describedby={`${helpId}${validationError ? ` ${errorId}` : ""}`}
+          aria-invalid={validationError ? "true" : undefined}
         />
         <small id={helpId}>
           JPG, PNG or WebP · Maximum 5 MB
           {multiple ? " · Up to 8 images" : ""}
         </small>
+        {validationError && (
+          <small id={errorId} className="field-validation-error" role="alert">
+            {validationError}
+          </small>
+        )}
       </div>
 
       {previews.length > 0 && (
@@ -104,4 +133,19 @@ export default function ImagePreviewField({
       )}
     </div>
   );
+}
+
+function validateImages(files, multiple) {
+  if (multiple && files.length > MAX_IMAGE_COUNT) {
+    return `Select no more than ${MAX_IMAGE_COUNT} images.`;
+  }
+  const invalidType = files.find((file) => !ALLOWED_IMAGE_TYPES.has(file.type));
+  if (invalidType) {
+    return `${invalidType.name} is not supported. Select a JPG, PNG or WebP image.`;
+  }
+  const oversized = files.find((file) => file.size > MAX_IMAGE_BYTES);
+  if (oversized) {
+    return `${oversized.name} is larger than 5 MB. Select a smaller image.`;
+  }
+  return "";
 }
