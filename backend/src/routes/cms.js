@@ -108,7 +108,13 @@ router.get("/dashboard", async (req, res) => {
   }
 
   if (req.admin.role !== "Product Manager") {
-    const [orders] = await pool.query("SELECT * FROM orders ORDER BY id DESC");
+    const [orders] = await pool.query(
+      `SELECT o.*,
+              (SELECT p.provider FROM payments p WHERE p.order_id=o.id ORDER BY p.id DESC LIMIT 1) AS payment_provider,
+              (SELECT p.status FROM payments p WHERE p.order_id=o.id ORDER BY p.id DESC LIMIT 1) AS provider_payment_status
+         FROM orders o
+        ORDER BY o.id DESC`,
+    );
     dashboard.orders = orders;
   }
 
