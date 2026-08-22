@@ -111,6 +111,36 @@ export default function Orders({ onStageChange }) {
     }
   }
 
+  async function openOrder(order) {
+    setSelected(order);
+    setError("");
+    try {
+      const response = await api(`/v1/admin/orders/${order.id}`);
+      setSelected(response.data || response);
+    } catch {
+      try {
+        setSelected(await api(`/cms/orders/${order.id}/details`));
+      } catch (requestError) {
+        setError(requestError.message);
+      }
+    }
+  }
+
+  async function markCodCollected(order) {
+    if (saving) return;
+    setSaving(true);
+    setError("");
+    try {
+      await api(`/cms/orders/${order.id}/cod-collected`, { method: "POST" });
+      await load();
+      await openOrder(order);
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const hasFilters =
     Object.entries(query).some(
       ([key, value]) =>
@@ -238,7 +268,7 @@ export default function Orders({ onStageChange }) {
               order={order}
               saving={saving}
               onStatusChange={changeStatus}
-              onView={() => setSelected(order)}
+              onView={() => void openOrder(order)}
             />
           ))}
         </div>
@@ -263,7 +293,12 @@ export default function Orders({ onStageChange }) {
       </div>
 
       {selected && (
-        <OrderDialog order={selected} onClose={() => setSelected(null)} />
+        <OrderDialog
+          order={selected}
+          saving={saving}
+          onCollectCod={markCodCollected}
+          onClose={() => setSelected(null)}
+        />
       )}
     </section>
   );
@@ -364,9 +399,12 @@ function OrderCard({ order, saving, onStatusChange, onView }) {
   );
 }
 
-function OrderDialog({ order, onClose }) {
+function OrderDialog({ order, saving, onCollectCod, onClose }) {
   const address = order.shipping_address || safeJson(order.shipping_address_json);
   const summary = order.summary || {};
+  const payment = order.payment || order.payments?.[0] || null;
+  const paymentProvider = payment?.provider || order.payment_provider || "";
+  const canCollectCod = paymentProvider === "cod" && order.payment_status !== "paid";
   return (
     <Dialog
       title={`Order ${order.order_number || order.order_code}`}
@@ -379,7 +417,7 @@ function OrderDialog({ order, onClose }) {
           <h3>Order summary</h3>
           <dl className="commerce-detail">
             <div><dt>Status</dt><dd><Badge value={order.status} /></dd></div>
-            <div><dt>Payment</dt><dd><Badge value={order.payment_status} /></dd></div>
+            <div><dt>Payment</dt><dd><Badge value={order.payment_status} />{paymentProvider && <small>{label(paymentProvider)}</small>}</dd></div>
             <div><dt>Customer</dt><dd>{order.customer_details?.name || order.customer}<small>{order.customer_details?.email}</small><small>{order.customer_details?.phone || order.phone}</small></dd></div>
             <div><dt>Delivery</dt><dd>{fullAddress(address)}</dd></div>
             <div><dt>Shipment</dt><dd>{order.shipment ? `${order.shipment.courier_name || order.shipment.provider} · ${order.shipment.awb_code || label(order.shipment.status)}` : "Not dispatched"}</dd></div>
@@ -418,6 +456,7 @@ function OrderDialog({ order, onClose }) {
         </div>
       </section>
       <footer className="modal-actions-footer">
+        {canCollectCod && <button className="primary-button" type="button" disabled={saving} onClick={() => onCollectCod(order)}>{saving ? "Updating…" : "Mark COD collected"}</button>}
         <button className="secondary-button" type="button" onClick={() => downloadInvoice(order)}><Download size={14} /> Download invoice</button>
         <button className="secondary-button" type="button" onClick={onClose}>Close</button>
       </footer>
