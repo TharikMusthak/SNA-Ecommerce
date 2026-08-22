@@ -115,6 +115,84 @@ router.get("/dashboard", async (req, res) => {
   res.json(dashboard);
 });
 
+router.get("/orders/:id/details", manageOrders, async (req, res) => {
+  const id = parsePositiveId(req.params.id);
+  if (!id) return res.status(400).json({ message: "Invalid order ID" });
+
+  const [[orderRows], [items], [payments]] = await Promise.all([
+    pool.query("SELECT * FROM orders WHERE id=? LIMIT 1", [id]),
+    pool.query(
+      `SELECT oi.*,p.main_image AS product_image,p.slug AS product_slug
+         FROM order_items oi
+         LEFT JOIN products p ON p.id=oi.product_id
+        WHERE oi.order_id=?
+        ORDER BY oi.id`,
+      [id],
+    ),
+    pool.query(
+      "SELECT id,provider,provider_payment_id,amount_minor,currency,status,created_at,updated_at FROM payments WHERE order_id=? ORDER BY id DESC",
+      [id],
+    ),
+  ]);
+
+  const order = orderRows[0];
+  if (!order) return res.status(404).json({ message: "Order not found" });
+  res.json({
+    ...order,
+    order_number: order.order_code,
+    items,
+    item_count: items.reduce((total, item) => total + Number(item.quantity || 0), 0),
+    payments,
+    payment: payments[0] || null,
+  });
+});
+
+router.post("/orders/:id/cod-collected", manageOrders, async (req, res) => {
+  const id = parsePositiveId(req.params.id);
+  if (!id) return res.status(400).json({ message: "Invalid order ID" });
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [[record]] = await connection.query(
+      `SELECT o.id,o.status,o.payment_status,p.id AS payment_id,p.status AS provider_status
+         FROM orders o
+         JOIN payments p ON p.order_id=o.id AND p.provider='cod'
+        WHERE o.id=?
+        ORDER BY p.id DESC
+        LIMIT 1
+        FOR UPDATE`,
+      [id],
+    );
+    if (!record) {
+      await connection.rollback();
+      return res.status(409).json({ message: "This order is not Cash on Delivery" });
+    }
+    if (record.payment_status === "paid") {
+      await connection.rollback();
+      return res.json({ message: "COD payment was already collected" });
+    }
+    if (["cancelled", "returned", "refunded", "failed"].includes(record.status)) {
+      await connection.rollback();
+      return res.status(409).json({ message: "Payment cannot be collected for this order status" });
+    }
+
+    await connection.query("UPDATE payments SET status='paid' WHERE id=?", [record.payment_id]);
+    await connection.query("UPDATE orders SET payment_status='paid' WHERE id=?", [id]);
+    await connection.query(
+      "INSERT INTO order_status_history(order_id,status,note,actor_type,actor_id) VALUES (?,?,?,'admin',?)",
+      [id, record.status, "Cash on Delivery payment collected", req.admin.id],
+    );
+    await connection.commit();
+    res.json({ message: "COD payment marked as collected", payment_status: "paid" });
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+});
+
 router.post("/variants", manageContent, async (req, res) => {
   const input = parseVariant(req.body);
   if (input.error) return res.status(400).json({ message: input.error });
