@@ -183,10 +183,23 @@ export const env = Object.freeze({
     timeoutMs: positiveInteger(process.env.WATI_REQUEST_TIMEOUT_MS, 10_000),
     maxRetries: positiveInteger(process.env.WATI_MAX_RETRIES, 3),
   }),
+  msg91: Object.freeze({
+    enabled: booleanValue(process.env.MSG91_ENABLED),
+    authKey: String(process.env.MSG91_AUTH_KEY || "").trim(),
+    templateId: String(process.env.MSG91_OTP_TEMPLATE_ID || "").trim(),
+    countryCode: String(process.env.MSG91_COUNTRY_CODE || "91").replace(/\D/g, ""),
+    timeoutMs: positiveInteger(process.env.MSG91_REQUEST_TIMEOUT_MS, 10_000),
+  }),
   razorpay: Object.freeze({
     keyId: String(process.env.RAZORPAY_KEY_ID || ""),
     keySecret: String(process.env.RAZORPAY_KEY_SECRET || ""),
     webhookSecret: String(process.env.RAZORPAY_WEBHOOK_SECRET || ""),
+  }),
+  shiprocket: Object.freeze({
+    email: String(process.env.SHIPROCKET_EMAIL || "").trim(),
+    password: String(process.env.SHIPROCKET_PASSWORD || ""),
+    token: String(process.env.SHIPROCKET_TOKEN || "").trim(),
+    timeoutMs: positiveInteger(process.env.SHIPROCKET_TIMEOUT_MS, 12_000),
   }),
 });
 
@@ -207,6 +220,10 @@ if (env.wati.enabled && (!env.wati.apiBaseUrl || !env.wati.accessToken)) {
   throw new Error(
     "WATI_ENABLED requires WATI_API_BASE_URL and WATI_ACCESS_TOKEN",
   );
+}
+
+if (env.msg91.enabled && (!env.msg91.authKey || !env.msg91.templateId)) {
+  throw new Error("MSG91_ENABLED requires MSG91_AUTH_KEY and MSG91_OTP_TEMPLATE_ID");
 }
 
 export function isTrustedFrontendOrigin(origin) {
