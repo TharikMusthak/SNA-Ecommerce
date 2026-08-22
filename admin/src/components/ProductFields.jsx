@@ -37,7 +37,7 @@ export default function ProductFields({ form, setForm, item, field, onNotice, ca
             <small>Promote this product in the storefront featured-products section.</small>
           </span>
         </label>
-        <label>Future publish date<input type="datetime-local" value={toLocalDateTime(form.published_at)} onChange={(event) => setForm({ ...form, published_at: event.target.value })} /><small>Leave empty to publish immediately. Future products remain hidden from the public product API until this time.</small></label>
+        <label>Future publish date<input type="datetime-local" value={toLocalDateTime(form.published_at)} onChange={(event) => setForm({ ...form, published_at: event.target.value })} /><small>Leave empty to publish immediately. Only one future product can be Active at a time; set the current one to Draft before activating another.</small></label>
       </fieldset>
 
       <fieldset className="form-section">
