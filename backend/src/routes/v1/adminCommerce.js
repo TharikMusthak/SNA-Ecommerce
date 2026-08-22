@@ -572,6 +572,88 @@ router.delete(
 );
 
 router.get(
+  "/shipping/settings",
+  allowRoles("Super Admin"),
+  asyncHandler(async (_req, res) => {
+    await pool.query("INSERT IGNORE INTO shipping_settings(id) VALUES (1)");
+    const [[settings]] = await pool.query(
+      `SELECT provider_enabled,pickup_location,pickup_pincode,
+              default_weight_grams,default_length_cm,default_width_cm,
+              default_height_cm,free_shipping_threshold,pincode_cache_minutes,
+              default_courier_strategy,allow_cod,require_serviceable_address,
+              updated_at
+         FROM shipping_settings
+        WHERE id=1`,
+    );
+    return ok(res, {
+      ...settings,
+      provider_enabled: Boolean(settings.provider_enabled),
+      allow_cod: Boolean(settings.allow_cod),
+      require_serviceable_address: Boolean(settings.require_serviceable_address),
+      pickupLocation: settings.pickup_location || "",
+      pickupPincode: settings.pickup_pincode || "",
+      defaultWeight: Number(settings.default_weight_grams || 500),
+      defaultDimensions: {
+        length: Number(settings.default_length_cm || 10),
+        width: Number(settings.default_width_cm || 10),
+        height: Number(settings.default_height_cm || 10),
+      },
+      shiprocketConfigured: shiprocketConfigured(),
+    });
+  }),
+);
+
+router.put(
+  "/shipping/settings",
+  allowRoles("Super Admin"),
+  asyncHandler(async (req, res) => {
+    const input = shippingSettingsInput(req.body);
+    if (input.error) return fail(res, 422, input.error);
+    if (input.value.providerEnabled && !shiprocketConfigured()) {
+      return fail(res, 409, "Configure Shiprocket credentials before enabling the provider");
+    }
+    const value = input.value;
+    await pool.query(
+      `INSERT INTO shipping_settings
+        (id,provider_enabled,pickup_location,pickup_pincode,
+         default_weight_grams,default_length_cm,default_width_cm,
+         default_height_cm,free_shipping_threshold,pincode_cache_minutes,
+         default_courier_strategy,allow_cod,require_serviceable_address,updated_by)
+       VALUES (1,?,?,?,?,?,?,?,?,?,?,?,?,?)
+       ON DUPLICATE KEY UPDATE
+         provider_enabled=VALUES(provider_enabled),
+         pickup_location=VALUES(pickup_location),pickup_pincode=VALUES(pickup_pincode),
+         default_weight_grams=VALUES(default_weight_grams),
+         default_length_cm=VALUES(default_length_cm),
+         default_width_cm=VALUES(default_width_cm),
+         default_height_cm=VALUES(default_height_cm),
+         free_shipping_threshold=VALUES(free_shipping_threshold),
+         pincode_cache_minutes=VALUES(pincode_cache_minutes),
+         default_courier_strategy=VALUES(default_courier_strategy),
+         allow_cod=VALUES(allow_cod),
+         require_serviceable_address=VALUES(require_serviceable_address),
+         updated_by=VALUES(updated_by)`,
+      [
+        value.providerEnabled,
+        value.pickupLocation,
+        value.pickupPincode,
+        value.defaultWeight,
+        value.length,
+        value.width,
+        value.height,
+        value.freeShippingThreshold,
+        value.cacheMinutes,
+        value.courierStrategy,
+        value.allowCod,
+        value.requireServiceable,
+        req.admin.id,
+      ],
+    );
+    return ok(res, null, "Shipping settings updated");
+  }),
+);
+
+router.get(
   "/orders",
   orderRoles,
   asyncHandler(async (req, res) => {
@@ -804,6 +886,48 @@ async function logAudit(admin, action, entityType, entityId, metadata = null) {
 }
 function validDate(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""));
+}
+function shiprocketConfigured() {
+  return Boolean(
+    String(process.env.SHIPROCKET_TOKEN || "").trim() ||
+      (String(process.env.SHIPROCKET_EMAIL || "").trim() &&
+        String(process.env.SHIPROCKET_PASSWORD || "").trim()),
+  );
+}
+function shippingSettingsInput(body) {
+  const value = {
+    providerEnabled: Boolean(body.provider_enabled),
+    pickupLocation: String(body.pickup_location || "").trim().slice(0, 190) || null,
+    pickupPincode: String(body.pickup_pincode || "").trim(),
+    defaultWeight: Number(body.default_weight_grams),
+    length: Number(body.default_length_cm),
+    width: Number(body.default_width_cm),
+    height: Number(body.default_height_cm),
+    freeShippingThreshold: Number(body.free_shipping_threshold || 0),
+    cacheMinutes: Number(body.pincode_cache_minutes),
+    courierStrategy: body.default_courier_strategy,
+    allowCod: Boolean(body.allow_cod),
+    requireServiceable: Boolean(body.require_serviceable_address),
+  };
+  if (value.pickupPincode && !/^\d{6}$/.test(value.pickupPincode)) {
+    return { error: "Pickup pincode must contain exactly 6 digits" };
+  }
+  if (!Number.isSafeInteger(value.defaultWeight) || value.defaultWeight < 1) {
+    return { error: "Default package weight must be a positive whole number" };
+  }
+  if (![value.length, value.width, value.height].every((number) => Number.isFinite(number) && number > 0)) {
+    return { error: "Package length, width and height must be positive numbers" };
+  }
+  if (!Number.isFinite(value.freeShippingThreshold) || value.freeShippingThreshold < 0) {
+    return { error: "Free shipping threshold must be zero or more" };
+  }
+  if (!Number.isSafeInteger(value.cacheMinutes) || value.cacheMinutes < 5 || value.cacheMinutes > 10080) {
+    return { error: "Pincode cache must be between 5 and 10080 minutes" };
+  }
+  if (!["cheapest", "fastest"].includes(value.courierStrategy)) {
+    return { error: "Invalid courier strategy" };
+  }
+  return { value };
 }
 function positive(value) {
   const n = Number(value);
