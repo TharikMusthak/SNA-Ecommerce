@@ -39,6 +39,7 @@ import ticketRoutes from "./routes/v1/tickets.js";
 import { publicRouter, searchRouter, analyticsRouter } from "./routes/v1/public.js";
 import adminCommerceRoutes from "./routes/v1/adminCommerce.js";
 import adminReturnRoutes from "./routes/v1/adminReturns.js";
+import adminDispatchRoutes from "./routes/v1/adminDispatch.js";
 import webhookRoutes from "./routes/v1/webhooks.js";
 
 const app = express();
@@ -154,6 +155,7 @@ app.use("/api/v1/admin/banners", bannerRoutes);
 app.use("/api/v1/admin/users", userRoutes);
 app.use("/api/v1/admin/dashboard", dashboardRoutes);
 app.use("/api/v1/admin", adminReturnRoutes);
+app.use("/api/v1/admin", adminDispatchRoutes);
 app.use("/api/v1/admin", adminCommerceRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/cms", cmsRoutes);
