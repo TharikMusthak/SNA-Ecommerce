@@ -67,25 +67,43 @@ export default function Orders({ onStageChange }) {
         Object.entries(query).filter(([, value]) => value !== ""),
       );
       const response = await api(`/v1/admin/orders?${params}`);
+      const responsePagination = response.pagination || {
+        page: 1,
+        totalPages: 1,
+        total: 0,
+      };
+      if (
+        responsePagination.total > 0 &&
+        query.page > Math.max(responsePagination.totalPages, 1)
+      ) {
+        setQuery((current) => ({
+          ...current,
+          page: Math.max(responsePagination.totalPages, 1),
+        }));
+        return;
+      }
       setRows(response.data || []);
-      setPagination(
-        response.pagination || { page: 1, totalPages: 1, total: 0 },
-      );
+      setPagination(responsePagination);
     } catch (requestError) {
       try {
         const dashboard = await api("/cms/dashboard");
         const filtered = filterLegacyOrders(dashboard.orders || [], query);
-        const start = (query.page - 1) * query.limit;
-        const pageRows = filtered.slice(start, start + query.limit);
         const totalPages = Math.max(Math.ceil(filtered.length / query.limit), 1);
+        const currentPage = Math.min(Math.max(query.page, 1), totalPages);
+        if (currentPage !== query.page) {
+          setQuery((current) => ({ ...current, page: currentPage }));
+          return;
+        }
+        const start = (currentPage - 1) * query.limit;
+        const pageRows = filtered.slice(start, start + query.limit);
         setRows(pageRows);
         setPagination({
-          page: query.page,
+          page: currentPage,
           limit: query.limit,
           total: filtered.length,
           totalPages,
-          hasNext: query.page < totalPages,
-          hasPrevious: query.page > 1,
+          hasNext: currentPage < totalPages,
+          hasPrevious: currentPage > 1,
         });
       } catch {
         setError(requestError.message);
@@ -146,6 +164,16 @@ export default function Orders({ onStageChange }) {
       ([key, value]) =>
         !["page", "limit", "scope"].includes(key) && Boolean(value),
     ) || search;
+
+  function goToPage(page) {
+    const nextPage = Math.min(
+      Math.max(Number(page) || 1, 1),
+      Math.max(pagination.totalPages, 1),
+    );
+    setQuery((current) =>
+      current.page === nextPage ? current : { ...current, page: nextPage },
+    );
+  }
 
   return (
     <section className="orders-page">
@@ -276,8 +304,9 @@ export default function Orders({ onStageChange }) {
 
       <div className="commerce-pagination">
         <button
+          type="button"
           disabled={loading || pagination.page <= 1}
-          onClick={() => setQuery({ ...query, page: query.page - 1 })}
+          onClick={() => goToPage(pagination.page - 1)}
         >
           Previous
         </button>
@@ -285,8 +314,9 @@ export default function Orders({ onStageChange }) {
           Page {pagination.page} of {Math.max(pagination.totalPages, 1)}
         </span>
         <button
+          type="button"
           disabled={loading || !pagination.hasNext}
-          onClick={() => setQuery({ ...query, page: query.page + 1 })}
+          onClick={() => goToPage(pagination.page + 1)}
         >
           Next
         </button>
