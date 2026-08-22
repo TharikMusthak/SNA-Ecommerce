@@ -5,6 +5,7 @@ export * from "./category.api";
 export * from "./cart.api";
 export * from "./wishlist.api";
 export * from "./order.api";
+export * from "./payment.api";
 export * from "./review.api";
 export * from "./address.api";
 export * from "./user.api";
