@@ -201,6 +201,12 @@ export const env = Object.freeze({
     token: String(process.env.SHIPROCKET_TOKEN || "").trim(),
     timeoutMs: positiveInteger(process.env.SHIPROCKET_TIMEOUT_MS, 12_000),
   }),
+  pincodeVerification: Object.freeze({
+    enabled: booleanValue(process.env.PINCODE_VERIFICATION_ENABLED, true),
+    apiUrl: String(process.env.PINCODE_API_URL || "https://api.postalpincode.in/pincode").replace(/\/$/, ""),
+    timeoutMs: positiveInteger(process.env.PINCODE_API_TIMEOUT_MS, 8_000),
+    cacheMinutes: positiveInteger(process.env.PINCODE_CACHE_MINUTES, 1440),
+  }),
 });
 
 if (
