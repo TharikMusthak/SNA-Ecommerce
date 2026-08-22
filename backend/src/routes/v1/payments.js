@@ -5,101 +5,14 @@ import { env } from "../../config/env.js";
 import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { requireCustomer } from "../../middleware/customerAuth.js";
 import { parsePositiveId } from "../../security/validation.js";
-import { createRazorpayOrder,verifyCheckoutSignature,verifyWebhookSignature } from "../../integrations/payments/razorpay.js";
+import { createRazorpayOrder,getRazorpayPayment,verifyCheckoutSignature,verifyWebhookSignature } from "../../integrations/payments/razorpay.js";
 import { fail,ok } from "../../utils/apiResponse.js";
 
-const router = Router();
-const onlinePayments = (req, res, next) =>
-  env.onlinePaymentsEnabled
-    ? next()
-    : fail(res, 503, "Online payments are currently unavailable", {
-        code: "ONLINE_PAYMENTS_DISABLED",
-      });
+const router=Router();
+const onlinePayments=(req,res,next)=>env.onlinePaymentsEnabled?next():fail(res,503,"Online payments are currently unavailable",{code:"ONLINE_PAYMENTS_DISABLED"});
 router.use(onlinePayments);
-router.post(
-  "/create-order",
-  requireCustomer,
-  asyncHandler(async (req, res) => {
-    const paymentId = parsePositiveId(req.body.payment_id);
-    if (!paymentId)
-      return fail(res, 422, "Validation failed", {
-        payment_id: ["A valid payment ID is required"],
-      });
-
-    const [[payment]] = await pool.query(
-      `SELECT p.*,o.order_code,o.status AS order_status
-       FROM payments p JOIN orders o ON o.id=p.order_id
-       WHERE p.id=? AND o.user_id=? AND p.provider='razorpay'`,
-      [paymentId, req.user.id],
-    );
-    if (!payment) return fail(res, 404, "Payment not found");
-    if (["cancelled", "failed", "refunded"].includes(payment.order_status))
-      return fail(res, 409, "Payment cannot be created for this order");
-    if (payment.provider_order_id)
-      return ok(res, checkoutResponse(payment, payment.provider_order_id));
-
-    try {
-      const provider = await createRazorpayOrder({
-        amountMinor: Number(payment.amount_minor),
-        currency: payment.currency,
-        receipt: payment.order_code,
-      });
-      if (
-        !provider.id ||
-        Number(provider.amount) !== Number(payment.amount_minor) ||
-        provider.currency !== payment.currency
-      )
-        throw Object.assign(
-          new Error("Payment provider returned a mismatched order"),
-          { status: 502 },
-        );
-
-      const [updated] = await pool.query(
-        "UPDATE payments SET provider_order_id=? WHERE id=? AND provider_order_id IS NULL",
-        [provider.id, payment.id],
-      );
-      if (!updated.affectedRows) {
-        const [[current]] = await pool.query(
-          "SELECT provider_order_id FROM payments WHERE id=?",
-          [payment.id],
-        );
-        if (current?.provider_order_id)
-          return ok(res, checkoutResponse(payment, current.provider_order_id));
-        throw Object.assign(new Error("Unable to link the payment order"), {
-          status: 502,
-        });
-      }
-
-      return ok(
-        res,
-        checkoutResponse(payment, provider.id, provider.amount, provider.currency),
-        "Payment order created",
-        201,
-      );
-    } catch (error) {
-      return fail(res, error.status || 502, error.message, error.code ? {
-        code: error.code,
-      } : undefined);
-    }
-  }),
-);
-
-function checkoutResponse(
-  payment,
-  razorpayOrderId,
-  amount = payment.amount_minor,
-  currency = payment.currency,
-) {
-  return {
-    order_id: payment.order_id,
-    payment_id: payment.id,
-    razorpay_order_id: razorpayOrderId,
-    key_id: env.razorpay.keyId,
-    amount: Number(amount),
-    currency,
-  };
-}
-router.post("/verify",requireCustomer,asyncHandler(async(req,res)=>{const paymentId=parsePositiveId(req.body.payment_id),providerPayment=String(req.body.razorpay_payment_id||""),signature=String(req.body.razorpay_signature||"");if(!paymentId||!providerPayment||!signature)return fail(res,422,"Validation failed");const connection=await pool.getConnection();try{await connection.beginTransaction();const [[payment]]=await connection.query(`SELECT p.*,o.user_id,o.status AS order_status FROM payments p JOIN orders o ON o.id=p.order_id WHERE p.id=? FOR UPDATE`,[paymentId]);if(!payment||Number(payment.user_id)!==Number(req.user.id)){await connection.rollback();return fail(res,404,"Payment not found");}if(payment.status==="paid"){await connection.rollback();return ok(res,{verified:true},"Payment already verified");}if(!payment.provider_order_id||["cancelled","failed","refunded"].includes(payment.order_status)){await connection.rollback();return fail(res,409,"Payment is not eligible for verification");}if(!verifyCheckoutSignature(payment.provider_order_id,providerPayment,signature)){await connection.rollback();return fail(res,400,"Payment signature is invalid");}await connection.query("UPDATE payments SET provider_payment_id=?,status='authorized' WHERE id=?",[providerPayment,payment.id]);await connection.query(`INSERT INTO payment_transactions(payment_id,event_type,amount_minor,payload_hash) VALUES (?,'checkout.signature_verified',?,?)`,[payment.id,payment.amount_minor,createHash("sha256").update(signature).digest("hex")]);await connection.commit();return ok(res,{verified:true,captured:false},"Payment signature verified; awaiting provider capture");}catch(error){await connection.rollback();if(error.code==="ER_DUP_ENTRY")return ok(res,{verified:true},"Payment already processed");throw error;}finally{connection.release();}}));
+router.post("/create-order",requireCustomer,asyncHandler(async(req,res)=>{const paymentId=parsePositiveId(req.body.payment_id);if(!paymentId)return fail(res,400,"Invalid payment ID");const [[payment]]=await pool.query(`SELECT p.*,o.order_code,o.status AS order_status FROM payments p JOIN orders o ON o.id=p.order_id WHERE p.id=? AND o.user_id=? AND p.provider='razorpay'`,[paymentId,req.user.id]);if(!payment)return fail(res,404,"Payment not found");if(["cancelled","failed","refunded"].includes(payment.order_status))return fail(res,409,"Payment cannot be created for this order");if(payment.provider_order_id)return ok(res,{provider_order_id:payment.provider_order_id,key_id:env.razorpay.keyId,amount:payment.amount_minor,currency:payment.currency});try{const provider=await createRazorpayOrder({amountMinor:Number(payment.amount_minor),currency:payment.currency,receipt:payment.order_code});if(Number(provider.amount)!==Number(payment.amount_minor)||provider.currency!==payment.currency)throw Object.assign(new Error("Payment provider returned a mismatched amount or currency"),{status:502});await pool.query("UPDATE payments SET provider_order_id=? WHERE id=? AND provider_order_id IS NULL",[provider.id,payment.id]);return ok(res,{provider_order_id:provider.id,key_id:env.razorpay.keyId,amount:provider.amount,currency:provider.currency},"Payment order created",201);}catch(error){return fail(res,error.status||502,error.message);}}));
+router.post("/verify",requireCustomer,asyncHandler(async(req,res)=>{const paymentId=parsePositiveId(req.body.payment_id),providerPayment=String(req.body.razorpay_payment_id||""),signature=String(req.body.razorpay_signature||"");if(!paymentId||!providerPayment||!signature)return fail(res,422,"Validation failed");const connection=await pool.getConnection();try{await connection.beginTransaction();const [[payment]]=await connection.query(`SELECT p.*,o.user_id,o.status AS order_status FROM payments p JOIN orders o ON o.id=p.order_id WHERE p.id=? FOR UPDATE`,[paymentId]);if(!payment||Number(payment.user_id)!==Number(req.user.id)){await connection.rollback();return fail(res,404,"Payment not found");}if(payment.status==="paid"){await connection.rollback();return ok(res,{verified:true,captured:true},"Payment already verified");}if(!payment.provider_order_id||["cancelled","failed","refunded"].includes(payment.order_status)){await connection.rollback();return fail(res,409,"Payment is not eligible for verification");}if(!verifyCheckoutSignature(payment.provider_order_id,providerPayment,signature)){await connection.rollback();return fail(res,400,"Payment signature is invalid");}const provider=await getRazorpayPayment(providerPayment);if(provider.order_id!==payment.provider_order_id||Number(provider.amount)!==Number(payment.amount_minor)||String(provider.currency||"").toUpperCase()!==payment.currency){await connection.rollback();return fail(res,409,"Razorpay payment details do not match this order");}const captured=provider.status==="captured";await connection.query("UPDATE payments SET provider_payment_id=?,status=? WHERE id=?",[providerPayment,captured?"paid":"authorized",payment.id]);await connection.query(`INSERT INTO payment_transactions(payment_id,event_type,amount_minor,payload_hash) VALUES (?,'checkout.signature_verified',?,?)`,[payment.id,payment.amount_minor,createHash("sha256").update(signature).digest("hex")]);if(captured){await connection.query("UPDATE orders SET payment_status='paid',status=IF(status='pending','confirmed',status) WHERE id=?",[payment.order_id]);await connection.query(`INSERT INTO order_status_history(order_id,status,note,actor_type) SELECT ?,'confirmed','Razorpay payment captured','system' WHERE NOT EXISTS (SELECT 1 FROM order_status_history WHERE order_id=? AND status='confirmed')`,[payment.order_id,payment.order_id]);}else{await connection.query("UPDATE orders SET payment_status='authorized' WHERE id=?",[payment.order_id]);}await connection.commit();return ok(res,{verified:true,captured},captured?"Payment captured and order confirmed":"Payment authorized; awaiting Razorpay capture");}catch(error){await connection.rollback();if(error.code==="ER_DUP_ENTRY")return ok(res,{verified:true},"Payment already processed");throw error;}finally{connection.release();}}));
 router.post("/webhook/:provider",asyncHandler(async(req,res)=>{if(req.params.provider!=="razorpay")return fail(res,404,"Payment provider not supported");const signature=req.get("x-razorpay-signature")||"";if(!Buffer.isBuffer(req.rawBody))return fail(res,400,"Raw webhook body unavailable");if(!verifyWebhookSignature(req.rawBody,signature))return fail(res,401,"Invalid webhook signature");const entity=req.body?.payload?.payment?.entity;const eventId=String(entity?.id||"");const providerOrderId=String(entity?.order_id||"");const type=String(req.body?.event||"");if(!eventId||!providerOrderId||!type)return fail(res,400,"Invalid webhook payload");const connection=await pool.getConnection();try{await connection.beginTransaction();const [[payment]]=await connection.query("SELECT p.*,o.status AS order_status FROM payments p JOIN orders o ON o.id=p.order_id WHERE p.provider='razorpay' AND p.provider_order_id=? LIMIT 1 FOR UPDATE",[providerOrderId]);if(!payment){await connection.rollback();return ok(res,null,"Webhook accepted");}if(Number(entity.amount)!==Number(payment.amount_minor)||String(entity.currency||"").toUpperCase()!==payment.currency){await connection.rollback();return fail(res,409,"Webhook amount or currency mismatch");}try{await connection.query("INSERT INTO payment_transactions(payment_id,provider_event_id,event_type,amount_minor,payload_hash) VALUES (?,?,?,?,?)",[payment.id,`${type}:${eventId}`,type,payment.amount_minor,createHash("sha256").update(req.rawBody).digest("hex")]);}catch(error){if(error.code==="ER_DUP_ENTRY"){await connection.rollback();return ok(res,null,"Webhook already processed");}throw error;}if(type==="payment.captured"&&!['cancelled','failed','refunded'].includes(payment.order_status)){await connection.query("UPDATE payments SET provider_payment_id=?,status='paid' WHERE id=?",[eventId,payment.id]);await connection.query("UPDATE orders SET payment_status='paid',status=IF(status='pending','confirmed',status) WHERE id=?",[payment.order_id]);await connection.query(`INSERT INTO order_status_history(order_id,status,note,actor_type) SELECT ?,'confirmed','Payment captured','system' WHERE NOT EXISTS (SELECT 1 FROM order_status_history WHERE order_id=? AND status='confirmed')`,[payment.order_id,payment.order_id]);}else if(type==="payment.failed"&&payment.status!=="paid"){await connection.query("UPDATE payments SET provider_payment_id=?,status='failed' WHERE id=?",[eventId,payment.id]);if(payment.order_status==="pending"){const [items]=await connection.query("SELECT product_id,variant_id,quantity FROM order_items WHERE order_id=?",[payment.order_id]);for(const item of items){if(item.variant_id)await connection.query("UPDATE product_variants SET stock=stock+? WHERE id=?",[item.quantity,item.variant_id]);else await connection.query("UPDATE products SET stock=stock+? WHERE id=?",[item.quantity,item.product_id]);}await connection.query("UPDATE orders SET payment_status='failed',status='failed' WHERE id=?",[payment.order_id]);await connection.query(`INSERT INTO order_status_history(order_id,status,note,actor_type) VALUES (?,'failed','Payment failed; reserved stock released','system')`,[payment.order_id]);}else{await connection.query("UPDATE orders SET payment_status='failed' WHERE id=?",[payment.order_id]);}}await connection.commit();return ok(res,null,"Webhook processed");}catch(error){await connection.rollback();throw error;}finally{connection.release();}}));
 router.get("/history",requireCustomer,asyncHandler(async(req,res)=>{const [rows]=await pool.query(`SELECT p.id,p.order_id,p.provider,p.amount_minor,p.currency,p.status,p.created_at FROM payments p JOIN orders o ON o.id=p.order_id WHERE o.user_id=? ORDER BY p.id DESC`,[req.user.id]);return ok(res,rows);}));
 router.get("/:id",requireCustomer,asyncHandler(async(req,res)=>{const id=parsePositiveId(req.params.id);if(!id)return fail(res,400,"Invalid payment ID");const [[row]]=await pool.query(`SELECT p.id,p.order_id,p.provider,p.amount_minor,p.currency,p.status,p.created_at FROM payments p JOIN orders o ON o.id=p.order_id WHERE p.id=? AND o.user_id=?`,[id,req.user.id]);if(!row)return fail(res,404,"Payment not found");return ok(res,row);}));
