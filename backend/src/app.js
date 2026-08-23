@@ -192,7 +192,7 @@ app.use((error, _req, res, _next) => {
       message: DUPLICATE_PRODUCT_MESSAGE,
     });
   }
-
+  
   if (error?.code === "ER_DUP_ENTRY") {
     return res.status(409).json({
       message: "A record with the same unique value already exists",
