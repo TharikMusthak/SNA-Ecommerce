@@ -4,7 +4,7 @@ import Badge from "../components/Badge";
 import DataTable from "../components/DataTable";
 import { ConfirmDialog, Dialog } from "../components/Dialog";
 
-const statuses = ["ready_to_dispatch", "shipment_created", "awb_assigned", "pickup_scheduled", "picked_up", "in_transit", "out_for_delivery", "delivered", "delivery_failed", "rto_initiated", "rto_delivered", "cancelled"];
+const statuses = ["pending", "confirmed", "processing", "packed", "ready_to_dispatch", "shipment_created", "awb_assigned", "pickup_scheduled", "picked_up", "in_transit", "out_for_delivery", "delivered", "delivery_failed", "rto_initiated", "rto_delivered", "cancelled"];
 
 export default function Dispatch({ onNotice }) {
   const [rows, setRows] = useState([]);
