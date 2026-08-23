@@ -15,7 +15,7 @@ router.get("/dispatch", asyncHandler(async (req, res) => {
   const p = parsePagination(req.query, ["created_at", "amount", "status"], "created_at");
   const where = ["(o.status IN ('packed','ready_to_dispatch','shipped','out_for_delivery','delivered') OR s.id IS NOT NULL)"];
   const params = [];
-  if (p.search) { where.push("(o.order_code LIKE ? OR o.customer LIKE ? OR o.phone LIKE ? OR s.awb_code LIKE ? OR s.courier_name LIKE ? OR o.delivery_pincode LIKE ?)"); params.push(...Array(6).fill(`%${p.search}%`)); }
+  if (p.search) { where.push("(o.order_code LIKE ? OR o.customer LIKE ? OR o.phone LIKE ? OR s.awb_code LIKE ? OR s.courier_name LIKE ? OR o.shipping_address_json LIKE ?)"); params.push(...Array(6).fill(`%${p.search}%`)); }
   if (req.query.status) { where.push("COALESCE(s.status,'ready_to_dispatch')=?"); params.push(req.query.status); }
   if (/^\d{4}-\d{2}-\d{2}$/.test(req.query.from || "")) { where.push("o.created_at>=?"); params.push(req.query.from); }
   if (/^\d{4}-\d{2}-\d{2}$/.test(req.query.to || "")) { where.push("o.created_at<DATE_ADD(?,INTERVAL 1 DAY)"); params.push(req.query.to); }
@@ -23,7 +23,7 @@ router.get("/dispatch", asyncHandler(async (req, res) => {
   const sort = p.sort === "status" ? "COALESCE(s.status,'ready_to_dispatch')" : `o.${p.sort}`;
   const [[count], [rows]] = await Promise.all([
     pool.query(`SELECT COUNT(*) total FROM orders o LEFT JOIN shipments s ON s.order_id=o.id ${clause}`, params),
-    pool.query(`SELECT o.id order_id,o.order_code,o.customer,o.phone,o.amount,o.payment_status,o.shipping_amount,o.shipping_address_json,o.delivery_pincode,o.created_at,COALESCE(s.status,'ready_to_dispatch') shipment_status,s.id shipment_id,s.courier_name,s.awb_code FROM orders o LEFT JOIN shipments s ON s.order_id=o.id ${clause} ORDER BY ${sort} ${p.order} LIMIT ? OFFSET ?`, [...params, p.limit, p.offset]),
+    pool.query(`SELECT o.id order_id,o.order_code,o.customer,o.phone,o.amount,o.payment_status,o.shipping_amount,o.shipping_address_json,NULL AS delivery_pincode,o.created_at,COALESCE(s.status,'ready_to_dispatch') shipment_status,s.id shipment_id,s.courier_name,s.awb_code FROM orders o LEFT JOIN shipments s ON s.order_id=o.id ${clause} ORDER BY ${sort} ${p.order} LIMIT ? OFFSET ?`, [...params, p.limit, p.offset]),
   ]);
   return paginated(res, rows, { ...p, total: Number(count[0].total) });
 }));
@@ -37,7 +37,7 @@ router.get("/dispatch/:orderId", asyncHandler(async (req, res) => {
   const [timeline] = shipment ? await pool.query("SELECT id,status,description,location,event_time,created_at FROM shipment_events WHERE shipment_id=? ORDER BY event_time,id", [shipment.id]) : [[]];
   const address = parseJson(order.shipping_address_json);
   order.delivery_address = [address.address_line_1, address.address_line_2, address.city, address.state, address.postal_code].filter(Boolean).join(", ");
-  order.delivery_pincode ||= address.postal_code || null;
+  order.delivery_pincode = order.delivery_pincode || address.postal_code || null;
   return ok(res, { order, shipment: shipment || null, tracking: { timeline }, shiprocketEnabled: shiprocketConfigured() });
 }));
 
