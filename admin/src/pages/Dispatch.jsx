@@ -75,7 +75,7 @@ export default function Dispatch({ onNotice }) {
           <tr key={row.order_id}>
             <td><b>{row.order_code}</b><small>{formatDate(row.created_at)}</small></td>
             <td>{row.customer}<small>{row.phone}</small></td>
-            <td>{destination(row.shipping_address_json)}<small>{row.delivery_pincode || "—"}</small></td>
+            <td>{destination(row.shipping_address_json)}<small>{row.delivery_pincode || addressPincode(row.shipping_address_json) || "—"}</small></td>
             <td>₹{Number(row.amount).toFixed(2)}</td>
             <td><Badge value={row.payment_status} /></td>
             <td>₹{Number(row.shipping_amount || 0).toFixed(2)}</td>
@@ -131,4 +131,10 @@ function destination(value) {
     const address = typeof value === "string" ? JSON.parse(value) : value;
     return [address?.city, address?.state].filter(Boolean).join(", ") || "—";
   } catch { return "—"; }
+}
+function addressPincode(value) {
+  try {
+    const address = typeof value === "string" ? JSON.parse(value) : value;
+    return address?.postal_code || address?.pincode || "";
+  } catch { return ""; }
 }
