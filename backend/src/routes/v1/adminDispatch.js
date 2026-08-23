@@ -13,17 +13,17 @@ router.use(requireAdmin, allowRoles("Super Admin", "Order Manager"));
 
 router.get("/dispatch", asyncHandler(async (req, res) => {
   const p = parsePagination(req.query, ["created_at", "amount", "status"], "created_at");
-  const where = ["(o.status IN ('packed','ready_to_dispatch','shipped','out_for_delivery','delivered') OR s.id IS NOT NULL)"];
+  const where = ["o.status NOT IN ('cancelled','failed','refunded','returned')"];
   const params = [];
   if (p.search) { where.push("(o.order_code LIKE ? OR o.customer LIKE ? OR o.phone LIKE ? OR s.awb_code LIKE ? OR s.courier_name LIKE ? OR o.shipping_address_json LIKE ?)"); params.push(...Array(6).fill(`%${p.search}%`)); }
-  if (req.query.status) { where.push("COALESCE(s.status,'ready_to_dispatch')=?"); params.push(req.query.status); }
+  if (req.query.status) { where.push("COALESCE(s.status,o.status)=?"); params.push(req.query.status); }
   if (/^\d{4}-\d{2}-\d{2}$/.test(req.query.from || "")) { where.push("o.created_at>=?"); params.push(req.query.from); }
   if (/^\d{4}-\d{2}-\d{2}$/.test(req.query.to || "")) { where.push("o.created_at<DATE_ADD(?,INTERVAL 1 DAY)"); params.push(req.query.to); }
   const clause = `WHERE ${where.join(" AND ")}`;
-  const sort = p.sort === "status" ? "COALESCE(s.status,'ready_to_dispatch')" : `o.${p.sort}`;
+  const sort = p.sort === "status" ? "COALESCE(s.status,o.status)" : `o.${p.sort}`;
   const [[count], [rows]] = await Promise.all([
     pool.query(`SELECT COUNT(*) total FROM orders o LEFT JOIN shipments s ON s.order_id=o.id ${clause}`, params),
-    pool.query(`SELECT o.id order_id,o.order_code,o.customer,o.phone,o.amount,o.payment_status,o.shipping_amount,o.shipping_address_json,NULL AS delivery_pincode,o.created_at,COALESCE(s.status,'ready_to_dispatch') shipment_status,s.id shipment_id,s.courier_name,s.awb_code FROM orders o LEFT JOIN shipments s ON s.order_id=o.id ${clause} ORDER BY ${sort} ${p.order} LIMIT ? OFFSET ?`, [...params, p.limit, p.offset]),
+    pool.query(`SELECT o.id order_id,o.order_code,o.customer,o.phone,o.amount,o.status order_status,o.payment_status,o.shipping_amount,o.shipping_address_json,NULL AS delivery_pincode,o.created_at,COALESCE(s.status,o.status) shipment_status,s.id shipment_id,s.courier_name,s.awb_code FROM orders o LEFT JOIN shipments s ON s.order_id=o.id ${clause} ORDER BY ${sort} ${p.order} LIMIT ? OFFSET ?`, [...params, p.limit, p.offset]),
   ]);
   return paginated(res, rows, { ...p, total: Number(count[0].total) });
 }));
