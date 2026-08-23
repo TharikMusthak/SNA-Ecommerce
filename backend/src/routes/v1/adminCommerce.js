@@ -669,7 +669,9 @@ router.get(
         ],
         "id",
       ),
-      where = [],
+      where = [
+        "(o.payment_status='paid' OR EXISTS (SELECT 1 FROM payments valid_payment WHERE valid_payment.order_id=o.id AND valid_payment.provider='cod'))",
+      ],
       params = [];
     if (p.search) {
       where.push(
