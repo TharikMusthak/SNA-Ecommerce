@@ -37,6 +37,8 @@ export default function Orders({ onStageChange }) {
     payment_status: "",
     from: "",
     to: "",
+    sort: "created_at",
+    order: "desc",
     page: 1,
     limit: 10,
   });
@@ -274,6 +276,8 @@ export default function Orders({ onStageChange }) {
               payment_status: "",
               from: "",
               to: "",
+              sort: "created_at",
+              order: "desc",
               page: 1,
               limit: 10,
             });
@@ -343,6 +347,8 @@ function OrderCard({ order, saving, onStatusChange, onView }) {
     total: Number(order.amount || 0),
     currency: order.currency || "INR",
   };
+  const paymentProvider = order.payment?.provider || order.payments?.[0]?.provider || order.payment_provider || "";
+  const isCod = paymentProvider === "cod";
 
   return (
     <article className="order-card">
@@ -392,7 +398,7 @@ function OrderCard({ order, saving, onStatusChange, onView }) {
         <div>
           <span>Total</span>
           <b>{currency(summary.total, summary.currency)}</b>
-          <small><Badge value={order.payment_status} /></small>
+          <small><Badge value={order.payment_status} /> {isCod && <Badge value="cod" />}</small>
         </div>
       </div>
 
@@ -523,6 +529,8 @@ function filterLegacyOrders(orders, query) {
   const to = query.to ? new Date(`${query.to}T23:59:59.999`) : null;
 
   return orders.filter((order) => {
+    const provider = order.payment?.provider || order.payments?.[0]?.provider || order.payment_provider || "";
+    if (["razorpay", "stripe"].includes(provider) && order.payment_status !== "paid") return false;
     if (query.scope === "current" && ["delivered", "cancelled", "returned", "refunded", "failed"].includes(order.status)) return false;
     if (query.scope === "unpaid" && ["paid", "refunded"].includes(order.payment_status)) return false;
     if (query.status && order.status !== query.status) return false;
@@ -538,7 +546,7 @@ function filterLegacyOrders(orders, query) {
       if (!text.includes(search)) return false;
     }
     return true;
-  });
+  }).sort((left, right) => new Date(right.created_at || 0) - new Date(left.created_at || 0));
 }
 function variantLabel(item) {
   return [item.variant_brand, item.variant_color, item.variant_size]
