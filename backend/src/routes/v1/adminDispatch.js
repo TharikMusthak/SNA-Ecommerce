@@ -13,7 +13,10 @@ router.use(requireAdmin, allowRoles("Super Admin", "Order Manager"));
 
 router.get("/dispatch", asyncHandler(async (req, res) => {
   const p = parsePagination(req.query, ["created_at", "amount", "status"], "created_at");
-  const where = ["o.status NOT IN ('cancelled','failed','refunded','returned')"];
+  const where = [
+    "o.status NOT IN ('cancelled','failed','refunded','returned')",
+    "(o.payment_status='paid' OR EXISTS (SELECT 1 FROM payments valid_payment WHERE valid_payment.order_id=o.id AND valid_payment.provider='cod'))",
+  ];
   const params = [];
   if (p.search) { where.push("(o.order_code LIKE ? OR o.customer LIKE ? OR o.phone LIKE ? OR s.awb_code LIKE ? OR s.courier_name LIKE ? OR o.shipping_address_json LIKE ?)"); params.push(...Array(6).fill(`%${p.search}%`)); }
   if (req.query.status) { where.push("COALESCE(s.status,o.status)=?"); params.push(req.query.status); }
