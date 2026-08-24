@@ -242,15 +242,34 @@ router.get(
   asyncHandler(async (req, res) => {
     const page = Math.max(Number(req.query.page) || 1, 1),
       limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
+    const where = [
+      "o.user_id=?",
+      "(o.payment_status='paid' OR EXISTS (SELECT 1 FROM payments valid_payment WHERE valid_payment.order_id=o.id AND valid_payment.provider='cod'))",
+    ];
+    const params = [req.user.id];
+    if (req.query.scope === "current") where.push("o.status NOT IN ('delivered','cancelled','returned','refunded','failed')");
+    if (req.query.scope === "unpaid") where.push("o.payment_status<>'paid' AND EXISTS (SELECT 1 FROM payments cod_payment WHERE cod_payment.order_id=o.id AND cod_payment.provider='cod')");
+    const clause = `WHERE ${where.join(" AND ")}`;
     const [[counts], [rowsResult]] = await Promise.all([
-      pool.query("SELECT COUNT(*) AS total FROM orders WHERE user_id=?", [
-        req.user.id,
-      ]),
+      pool.query(`SELECT COUNT(*) AS total FROM orders o ${clause}`, params),
       pool.query(
-        "SELECT id,order_code,amount,status,payment_status,currency,created_at FROM orders WHERE user_id=? ORDER BY id DESC LIMIT ? OFFSET ?",
-        [req.user.id, limit, (page - 1) * limit],
+        `SELECT o.id,o.order_code,o.amount,o.status,o.payment_status,o.currency,o.shipping_address_json,o.created_at,
+                (SELECT provider FROM payments payment_method WHERE payment_method.order_id=o.id ORDER BY payment_method.id DESC LIMIT 1) AS payment_method
+           FROM orders o ${clause} ORDER BY o.created_at DESC,o.id DESC LIMIT ? OFFSET ?`,
+        [...params, limit, (page - 1) * limit],
       ),
     ]);
+    const orderIds = rowsResult.map((order) => order.id);
+    if (orderIds.length) {
+      const placeholders = orderIds.map(() => "?").join(",");
+      const [items] = await pool.query(
+        `SELECT oi.id,oi.order_id,oi.product_id,oi.product_name,oi.sku,oi.unit_price,oi.quantity,oi.total_amount,p.main_image AS product_image
+           FROM order_items oi LEFT JOIN products p ON p.id=oi.product_id
+          WHERE oi.order_id IN (${placeholders}) ORDER BY oi.id`,
+        orderIds,
+      );
+      for (const order of rowsResult) order.items = items.filter((item) => Number(item.order_id) === Number(order.id));
+    }
     return paginated(res, rowsResult, {
       page,
       limit,
