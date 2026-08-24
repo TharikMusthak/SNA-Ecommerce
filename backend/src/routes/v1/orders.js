@@ -248,7 +248,7 @@ router.get(
     ];
     const params = [req.user.id];
     if (req.query.scope === "current") where.push("o.status NOT IN ('delivered','cancelled','returned','refunded','failed')");
-    if (req.query.scope === "unpaid") where.push("o.payment_status<>'paid' AND EXISTS (SELECT 1 FROM payments cod_payment WHERE cod_payment.order_id=o.id AND cod_payment.provider='cod')");
+    if (req.query.scope === "cod") where.push("EXISTS (SELECT 1 FROM payments cod_payment WHERE cod_payment.order_id=o.id AND cod_payment.provider='cod')");
     const clause = `WHERE ${where.join(" AND ")}`;
     const [[counts], [rowsResult]] = await Promise.all([
       pool.query(`SELECT COUNT(*) AS total FROM orders o ${clause}`, params),
