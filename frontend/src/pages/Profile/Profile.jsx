@@ -71,6 +71,9 @@ const Profile = () => {
     queryKey: [...QUERY_KEYS.orders, orderScope],
     queryFn: () => listOrders({ page: 1, limit: 10, scope: orderScope }),
   });
+  const visibleOrders = (orders.data?.items || []).filter((order) =>
+    orderScope !== "cod" || String(order.payment_method || order.payment?.provider || "").toLowerCase() === "cod",
+  );
   const saveProfile = useMutation({
     mutationFn: () =>
       updateProfileRequest({ ...profile, phone: profile.phone || null }),
@@ -500,13 +503,13 @@ const Profile = () => {
           <div className="py-12">
             <Spinner />
           </div>
-        ) : !orders.data?.items?.length ? (
+        ) : !visibleOrders.length ? (
           <p className="py-10 text-center text-gray-500">
             You have not placed any orders yet.
           </p>
         ) : (
           <div className="mt-5 space-y-4">
-            {orders.data.items.map((order) => <CustomerOrderCard key={order.id} order={order} />)}
+            {visibleOrders.map((order) => <CustomerOrderCard key={order.id} order={order} />)}
           </div>
         )}
       </section>
