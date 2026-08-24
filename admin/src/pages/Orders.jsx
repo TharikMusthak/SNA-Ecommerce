@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  ChevronDown,
-  ChevronUp,
   Download,
   Eye,
   RotateCcw,
@@ -339,9 +337,7 @@ export default function Orders({ onStageChange }) {
 }
 
 function OrderCard({ order, saving, onStatusChange, onView }) {
-  const [expanded, setExpanded] = useState(false);
   const items = order.items || [];
-  const visibleItems = expanded ? items : items.slice(0, 4);
   const address = order.shipping_address || safeJson(order.shipping_address_json);
   const summary = order.summary || {
     total: Number(order.amount || 0),
@@ -403,7 +399,7 @@ function OrderCard({ order, saving, onStatusChange, onView }) {
       </div>
 
       <div className="order-product-grid">
-        {visibleItems.map((item) => (
+        {items.map((item) => (
           <div className="order-product" key={item.id}>
             <TableImage
               src={item.product_image ? assetUrl(item.product_image) : ""}
@@ -412,25 +408,16 @@ function OrderCard({ order, saving, onStatusChange, onView }) {
             <span>
               <b>{item.product_name || `Product #${item.product_id}`}</b>
               <small>
-                Quantity: {item.quantity} × {currency(item.unit_price, order.currency)}
+                SKU: {item.sku || "—"} · Quantity: {item.quantity} × {currency(item.unit_price, order.currency)}
               </small>
               <small>{variantLabel(item)}</small>
+              <small>Tax: {currency(item.tax_amount || 0, order.currency)} · Line total: {currency(item.total_amount, order.currency)}</small>
             </span>
             <strong>{currency(item.total_amount, order.currency)}</strong>
           </div>
         ))}
       </div>
 
-      {items.length > 4 && (
-        <button
-          className="order-card__expand"
-          type="button"
-          onClick={() => setExpanded((current) => !current)}
-        >
-          {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-          {expanded ? "Show fewer products" : `Show ${items.length - 4} more products`}
-        </button>
-      )}
     </article>
   );
 }
@@ -477,8 +464,9 @@ function OrderDialog({ order, saving, onCollectCod, onClose }) {
         {order.items?.length ? (
           <div className="detail-items">
             {order.items.map((item) => (
-              <div key={item.id}>
-                <span><b>{item.product_name || `Product #${item.product_id}`}</b><small>Quantity {item.quantity} · {variantLabel(item)}</small></span>
+              <div key={item.id} className="order-product-detail-row">
+                <TableImage src={item.product_image ? assetUrl(item.product_image) : ""} alt={item.product_name} />
+                <span><b>{item.product_name || `Product #${item.product_id}`}</b><small>SKU: {item.sku || "—"} · {variantLabel(item)}</small><small>Quantity: {item.quantity} × {currency(item.unit_price, order.currency)}</small><small>Tax: {currency(item.tax_amount || 0, order.currency)}</small></span>
                 <b>{currency(item.total_amount, order.currency)}</b>
               </div>
             ))}
