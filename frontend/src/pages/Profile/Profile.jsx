@@ -17,6 +17,8 @@ import { QUERY_KEYS } from "@config/constants";
 import { useAuth } from "@context/AuthProvider";
 import { listOrders } from "@services/order.service";
 import formatCurrency from "@utils/formatCurrency";
+import { assetUrl } from "@utils/helpers";
+import fallbackImage from "@assets/images/product1.png";
 
 const emptyAddress = {
   full_name: "",
@@ -39,11 +41,6 @@ const emptyPassword = {
   confirm_password: "",
 };
 
-const phoneRegex = /^[0-9+\-\s()]{7,15}$/;
-const pinCodeRegex = /^\d{6}$/;
-const strongPasswordRegex =
-  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
-
 const Profile = () => {
   const { user, refreshUser } = useAuth();
   const queryClient = useQueryClient();
@@ -58,9 +55,7 @@ const Profile = () => {
   const [password, setPassword] = useState(emptyPassword);
   const [showProfileForm, setShowProfileForm] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
-  const [profileErrors, setProfileErrors] = useState({});
-  const [addressErrors, setAddressErrors] = useState({});
-  const [passwordErrors, setPasswordErrors] = useState({});
+  const [orderScope, setOrderScope] = useState("current");
 
   const addresses = useQuery({
     queryKey: QUERY_KEYS.addresses,
@@ -73,10 +68,9 @@ const Profile = () => {
     },
   });
   const orders = useQuery({
-    queryKey: QUERY_KEYS.orders,
-    queryFn: () => listOrders({ page: 1, limit: 10 }),
+    queryKey: [...QUERY_KEYS.orders, orderScope],
+    queryFn: () => listOrders({ page: 1, limit: 10, scope: orderScope }),
   });
- 
   const saveProfile = useMutation({
     mutationFn: () =>
       updateProfileRequest({ ...profile, phone: profile.phone || null }),
@@ -139,12 +133,10 @@ const Profile = () => {
 
   const fieldClass =
     "mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm outline-none transition focus:border-[#079447] focus:ring-4 focus:ring-emerald-50";
-  const inlineErrorClass = "mt-0.5 min-h-4 text-[11px] leading-4 text-red-600";
   const closeAddressForm = () => {
     setAddress(emptyAddress);
     setEditingAddressId(null);
     setShowAddressForm(false);
-    setAddressErrors({});
   };
   const startEditingAddress = (item) => {
     const { id, ...addressValues } = item;
@@ -197,14 +189,6 @@ const Profile = () => {
           <form
             onSubmit={(event) => {
               event.preventDefault();
-              const nextErrors = {};
-              if (!profile.first_name.trim()) nextErrors.first_name = "Enter a first name.";
-              if (!profile.last_name.trim()) nextErrors.last_name = "Enter a last name.";
-              if (profile.phone && !phoneRegex.test(profile.phone.trim())) {
-                nextErrors.phone = "Enter a valid mobile number.";
-              }
-              setProfileErrors(nextErrors);
-              if (Object.keys(nextErrors).length) return;
               saveProfile.mutate();
             }}
             className="mt-6 space-y-4"
@@ -213,33 +197,24 @@ const Profile = () => {
               <label className="text-sm font-medium">
                 First name
                 <input
+                  required
                   value={profile.first_name}
                   onChange={(event) =>
-                    {
-                      setProfile({ ...profile, first_name: event.target.value });
-                      if (profileErrors.first_name) setProfileErrors((prev) => ({ ...prev, first_name: "" }));
-                    }
+                    setProfile({ ...profile, first_name: event.target.value })
                   }
-                  axLength={50}
-
                   className={fieldClass}
                 />
-                <p className={inlineErrorClass}>{profileErrors.first_name || " "}</p>
               </label>
               <label className="text-sm font-medium">
                 Last name
                 <input
+                  required
                   value={profile.last_name}
                   onChange={(event) =>
-                    {
-                      setProfile({ ...profile, last_name: event.target.value });
-                      if (profileErrors.last_name) setProfileErrors((prev) => ({ ...prev, last_name: "" }));
-                    }
+                    setProfile({ ...profile, last_name: event.target.value })
                   }
-                  maxLength={50}
                   className={fieldClass}
                 />
-                <p className={inlineErrorClass}>{profileErrors.last_name || " "}</p>
               </label>
             </div>
             <label className="block text-sm font-medium">
@@ -248,8 +223,6 @@ const Profile = () => {
                 disabled
                 value={user?.email || ""}
                 className={`${fieldClass} bg-gray-50 text-gray-500`}
-                 maxLength={50}
-
               />
             </label>
             <label className="block text-sm font-medium">
@@ -257,16 +230,10 @@ const Profile = () => {
               <input
                 value={profile.phone}
                 onChange={(event) =>
-                  {
-                    setProfile({ ...profile, phone: event.target.value });
-                    if (profileErrors.phone) setProfileErrors((prev) => ({ ...prev, phone: "" }));
-                  }
+                  setProfile({ ...profile, phone: event.target.value })
                 }
-                                 maxLength={10}
-
                 className={fieldClass}
               />
-              <p className={inlineErrorClass}>{profileErrors.phone || " "}</p>
             </label>
             <button
               disabled={saveProfile.isPending}
@@ -386,17 +353,6 @@ const Profile = () => {
             <form
               onSubmit={(event) => {
                 event.preventDefault();
-                const nextErrors = {};
-                if (!address.full_name.trim()) nextErrors.full_name = "Enter a full name.";
-                if (!address.phone.trim()) nextErrors.phone = "Enter a mobile number.";
-                else if (!phoneRegex.test(address.phone.trim())) nextErrors.phone = "Enter a valid mobile number.";
-                if (!address.postal_code.trim()) nextErrors.postal_code = "Enter a PIN code.";
-                else if (!pinCodeRegex.test(address.postal_code.trim())) nextErrors.postal_code = "Enter a 6-digit PIN code.";
-                if (!address.address_line_1.trim()) nextErrors.address_line_1 = "Enter address line 1.";
-                if (!address.city.trim()) nextErrors.city = "Enter a city.";
-                if (!address.state.trim()) nextErrors.state = "Enter a state.";
-                setAddressErrors(nextErrors);
-                if (Object.keys(nextErrors).length) return;
                 if (editingAddressId) editAddress.mutate();
                 else addAddress.mutate();
               }}
@@ -407,38 +363,26 @@ const Profile = () => {
                 name="full_name"
                 value={address}
                 setValue={setAddress}
-                error={addressErrors.full_name}
                 className="sm:col-span-2"
-                maxLength={30}
-
               />
               <AddressInput
                 label="Mobile"
                 name="phone"
                 value={address}
                 setValue={setAddress}
-                error={addressErrors.phone}
-                maxLength={10}
-
               />
               <AddressInput
                 label="PIN code"
                 name="postal_code"
                 value={address}
                 setValue={setAddress}
-                error={addressErrors.postal_code}
-                maxLength={6}
-
               />
               <AddressInput
                 label="Address line 1"
                 name="address_line_1"
                 value={address}
                 setValue={setAddress}
-                error={addressErrors.address_line_1}
                 className="sm:col-span-2"
-                maxLength={70}
-
               />
               <AddressInput
                 label="Address line 2"
@@ -447,17 +391,12 @@ const Profile = () => {
                 setValue={setAddress}
                 className="sm:col-span-2"
                 required={false}
-                maxLength={70}
-
               />
               <AddressInput
                 label="City"
                 name="city"
                 value={address}
                 setValue={setAddress}
-                error={addressErrors.city}
-                maxLength={50}
-
               />
               <AddressInput
                 label="District"
@@ -465,18 +404,13 @@ const Profile = () => {
                 value={address}
                 setValue={setAddress}
                 required={false}
-                maxLength={50}
-
               />
               <AddressInput
                 label="State"
                 name="state"
                 value={address}
                 setValue={setAddress}
-                error={addressErrors.state}
                 className="sm:col-span-2"
-                 maxLength={50}
-
               />
               <label className="flex items-center gap-2 text-sm sm:col-span-2">
                 <input
@@ -517,16 +451,8 @@ const Profile = () => {
         <form
           onSubmit={(event) => {
             event.preventDefault();
-            const nextErrors = {};
-            if (!password.current_password.trim()) nextErrors.current_password = "Enter your current password.";
-            if (!password.new_password.trim()) nextErrors.new_password = "Enter a new password.";
-            else if (!strongPasswordRegex.test(password.new_password)) nextErrors.new_password = "Use 8+ characters with upper, lower, number, and symbol.";
-            if (!password.confirm_password.trim()) nextErrors.confirm_password = "Confirm your password.";
             if (password.new_password !== password.confirm_password) {
-              nextErrors.confirm_password = "Passwords do not match.";
-            }
-            setPasswordErrors(nextErrors);
-            if (Object.keys(nextErrors).length) {
+              toast.error("New passwords do not match");
               return;
             }
             changePassword.mutate(password);
@@ -538,21 +464,18 @@ const Profile = () => {
             name="current_password"
             value={password}
             setValue={setPassword}
-            error={passwordErrors.current_password}
           />
           <PasswordInput
             label="New password"
             name="new_password"
             value={password}
             setValue={setPassword}
-            error={passwordErrors.new_password}
           />
           <PasswordInput
             label="Confirm new password"
             name="confirm_password"
             value={password}
             setValue={setPassword}
-            error={passwordErrors.confirm_password}
           />
           <button
             disabled={changePassword.isPending}
@@ -570,6 +493,9 @@ const Profile = () => {
 
       <section className="mt-7 rounded-[1.75rem] border border-gray-100 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex items-center gap-3"><div className="rounded-xl bg-emerald-50 p-2.5 text-[#079447]"><ShoppingBag size={20} /></div><div><h2 className="text-2xl font-semibold text-gray-900">Recent orders</h2><p className="mt-1 text-sm text-gray-500">Your latest purchases at a glance.</p></div></div>
+        <div className="mt-5 inline-flex rounded-xl bg-gray-100 p-1">
+          {[['current','Current'],['unpaid','Unpaid COD'],['all','All orders']].map(([value,label]) => <button key={value} type="button" onClick={() => setOrderScope(value)} className={`rounded-lg px-4 py-2 text-xs font-semibold transition ${orderScope === value ? 'bg-white text-[#079447] shadow-sm' : 'text-gray-500'}`}>{label}</button>)}
+        </div>
         {orders.isLoading ? (
           <div className="py-12">
             <Spinner />
@@ -579,37 +505,8 @@ const Profile = () => {
             You have not placed any orders yet.
           </p>
         ) : (
-          <div className="mt-5 overflow-x-auto">
-            <table className="w-full min-w-[620px] text-left text-sm">
-              <thead className="border-b text-gray-500">
-                <tr>
-                  <th className="py-3">Order</th>
-                  <th>Date</th>
-                  <th>Status</th>
-                  <th>Payment</th>
-                  <th className="text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.data.items.map((order) => (
-                  <tr key={order.id} className="border-b border-gray-100">
-                    <td className="py-4 font-semibold text-gray-900">
-                      {order.order_code}
-                    </td>
-                    <td>
-                      {new Date(order.created_at).toLocaleDateString("en-IN")}
-                    </td>
-                    <td className="capitalize">
-                      {String(order.status).replaceAll("_", " ")}
-                    </td>
-                    <td className="capitalize">{order.payment_status}</td>
-                    <td className="text-right font-semibold">
-                      {formatCurrency(order.amount)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="mt-5 space-y-4">
+            {orders.data.items.map((order) => <CustomerOrderCard key={order.id} order={order} />)}
           </div>
         )}
       </section>
@@ -617,6 +514,33 @@ const Profile = () => {
     </main>
   );
 };
+
+function CustomerOrderCard({ order }) {
+  const address = parseAddress(order.shipping_address_json);
+  const isCod = String(order.payment_method).toLowerCase() === "cod";
+  return (
+    <article className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+      <header className="flex flex-col gap-3 border-b border-gray-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div><h3 className="font-bold text-gray-900">Order #: {order.order_code}</h3><p className="mt-1 text-xs text-gray-500">{order.items?.length || 0} products · {new Date(order.created_at).toLocaleString("en-IN")}</p></div>
+        <span className={`w-fit rounded-full px-3 py-1 text-xs font-bold ${isCod ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-700"}`}>{isCod ? "Cash on Delivery (COD)" : "Online payment · Paid"}</span>
+      </header>
+      <div className="grid gap-3 bg-gray-50/60 px-5 py-4 text-sm sm:grid-cols-4">
+        <div><span className="block text-[11px] font-bold uppercase text-gray-400">Status</span><b className="mt-1 block capitalize text-gray-800">{String(order.status).replaceAll("_", " ")}</b></div>
+        <div><span className="block text-[11px] font-bold uppercase text-gray-400">Date of delivery</span><b className="mt-1 block text-gray-800">Not scheduled</b></div>
+        <div><span className="block text-[11px] font-bold uppercase text-gray-400">Delivered to</span><b className="mt-1 block text-gray-800">{[address.city,address.state,address.postal_code].filter(Boolean).join(", ") || "Not recorded"}</b></div>
+        <div><span className="block text-[11px] font-bold uppercase text-gray-400">Total</span><b className="mt-1 block text-gray-900">{formatCurrency(order.amount)}</b><small className="capitalize text-gray-500">{isCod ? `COD · ${order.payment_status}` : order.payment_status}</small></div>
+      </div>
+      <div className="grid gap-3 p-5 sm:grid-cols-2">
+        {(order.items || []).map((item) => <div key={item.id} className="flex items-center gap-3 rounded-xl border border-gray-100 p-3"><img src={assetUrl(item.product_image, fallbackImage)} alt={item.product_name} className="h-14 w-14 rounded-lg bg-gray-50 object-contain p-1" /><div className="min-w-0 flex-1"><b className="block truncate text-sm text-gray-900">{item.product_name}</b><small className="block text-gray-500">Quantity: {item.quantity} · {formatCurrency(item.unit_price)}</small><small className="block text-gray-400">{item.sku || "Standard product"}</small></div><strong className="text-sm text-gray-900">{formatCurrency(item.total_amount)}</strong></div>)}
+      </div>
+    </article>
+  );
+}
+
+function parseAddress(value) {
+  try { return typeof value === "string" ? JSON.parse(value) : value || {}; }
+  catch { return {}; }
+}
 
 const Modal = ({ title, onClose, children }) => (
   <div className="fixed inset-0 z-50 flex min-h-[100dvh] items-end bg-gray-950/45 p-0 backdrop-blur-sm sm:items-center sm:justify-center sm:p-6">
@@ -638,10 +562,8 @@ const AddressInput = ({
   name,
   value,
   setValue,
-  error,
   className = "",
   required = true,
-  maxLength
 }) => (
   <label className={`text-sm font-medium ${className}`}>
     {label}
@@ -649,17 +571,12 @@ const AddressInput = ({
       required={required}
       value={value[name]}
       onChange={(event) => setValue({ ...value, [name]: event.target.value })}
-      className="mt-1.5 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm outline-none transition focus:border-[#079447] focus:ring-4 focus:ring-emerald-50"
-    maxLength={maxLength}
-
+      className="mt-1.5 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-[#079447]"
     />
-    <p className="mt-0.5 min-h-4 text-[11px] leading-4 text-red-600">
-      {error || " "}
-    </p>
   </label>
 );
 
-const PasswordInput = ({ label, name, value, setValue, error }) => {
+const PasswordInput = ({ label, name, value, setValue }) => {
   const [isVisible, setIsVisible] = useState(false);
 
   return (
@@ -667,6 +584,8 @@ const PasswordInput = ({ label, name, value, setValue, error }) => {
       {label}
       <span className="relative mt-1.5 block">
         <input
+          required
+          minLength={8}
           type={isVisible ? "text" : "password"}
           autoComplete={name === "current_password" ? "current-password" : "new-password"}
           value={value[name]}
@@ -682,9 +601,6 @@ const PasswordInput = ({ label, name, value, setValue, error }) => {
           {isVisible ? <EyeOff size={19} /> : <Eye size={19} />}
         </button>
       </span>
-      <p className="mt-0.5 min-h-4 text-[11px] leading-4 text-red-600">
-        {error || " "}
-      </p>
     </label>
   );
 };
