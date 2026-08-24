@@ -55,7 +55,7 @@ const Profile = () => {
   const [password, setPassword] = useState(emptyPassword);
   const [showProfileForm, setShowProfileForm] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
-  const [orderScope, setOrderScope] = useState("current");
+  const [orderScope, setOrderScope] = useState("all");
 
   const addresses = useQuery({
     queryKey: QUERY_KEYS.addresses,
@@ -494,7 +494,7 @@ const Profile = () => {
       <section className="mt-7 rounded-[1.75rem] border border-gray-100 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex items-center gap-3"><div className="rounded-xl bg-emerald-50 p-2.5 text-[#079447]"><ShoppingBag size={20} /></div><div><h2 className="text-2xl font-semibold text-gray-900">Recent orders</h2><p className="mt-1 text-sm text-gray-500">Your latest purchases at a glance.</p></div></div>
         <div className="mt-5 inline-flex rounded-xl bg-gray-100 p-1">
-          {[['current','Current'],['unpaid','Unpaid COD'],['all','All orders']].map(([value,label]) => <button key={value} type="button" onClick={() => setOrderScope(value)} className={`rounded-lg px-4 py-2 text-xs font-semibold transition ${orderScope === value ? 'bg-white text-[#079447] shadow-sm' : 'text-gray-500'}`}>{label}</button>)}
+          {[['all','All orders'],['current','Current'],['cod','COD orders']].map(([value,label]) => <button key={value} type="button" onClick={() => setOrderScope(value)} className={`rounded-lg px-4 py-2 text-xs font-semibold transition ${orderScope === value ? 'bg-white text-[#079447] shadow-sm' : 'text-gray-500'}`}>{label}</button>)}
         </div>
         {orders.isLoading ? (
           <div className="py-12">
