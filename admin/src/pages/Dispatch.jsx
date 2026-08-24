@@ -8,8 +8,8 @@ const statuses = ["pending", "confirmed", "processing", "packed", "ready_to_disp
 
 export default function Dispatch({ onNotice }) {
   const [rows, setRows] = useState([]);
-  const [query, setQuery] = useState({ search: "", status: "", from: "", to: "", sort: "created_at", order: "desc", page: 1, limit: 20 });
-  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [query, setQuery] = useState({ search: "", status: "", from: "", to: "", sort: "created_at", order: "desc", page: 1, limit: 10 });
+  const [pagination, setPagination] = useState({ page: 1, limit: 10, totalPages: 1, total: 0, hasNext: false, hasPrevious: false });
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -21,8 +21,14 @@ export default function Dispatch({ onNotice }) {
     try {
       const params = new URLSearchParams(Object.entries(query).filter(([, value]) => value !== ""));
       const response = await api(`/v1/admin/dispatch?${params}`);
+      const nextPagination = response.pagination || { page: 1, limit: query.limit, totalPages: 1, total: 0, hasNext: false, hasPrevious: false };
+      const totalPages = Math.max(Number(nextPagination.totalPages) || 1, 1);
+      if (Number(query.page) > totalPages) {
+        setQuery((current) => ({ ...current, page: totalPages }));
+        return;
+      }
       setRows(response.data || []);
-      setPagination(response.pagination || { page: 1, totalPages: 1, total: 0 });
+      setPagination({ ...nextPagination, page: Number(nextPagination.page) || 1, totalPages, hasNext: Boolean(nextPagination.hasNext), hasPrevious: Boolean(nextPagination.hasPrevious) });
     } catch (error) { onNotice?.(error.message, "error"); }
     finally { setLoading(false); }
   }, [onNotice, query]);
@@ -68,7 +74,7 @@ export default function Dispatch({ onNotice }) {
           <option value="created_at:desc">Newest</option><option value="created_at:asc">Oldest</option><option value="amount:desc">Highest amount</option><option value="status:asc">Shipment status</option>
         </select>
         <button disabled={loading} onClick={load}>Refresh</button>
-        <button className="secondary-button" disabled={!searchInput && !query.status && !query.from && !query.to} onClick={() => { setSearchInput(""); setQuery({ search: "", status: "", from: "", to: "", sort: "created_at", order: "desc", page: 1, limit: 20 }); }}>Reset</button>
+        <button className="secondary-button" disabled={!searchInput && !query.status && !query.from && !query.to} onClick={() => { setSearchInput(""); setQuery({ search: "", status: "", from: "", to: "", sort: "created_at", order: "desc", page: 1, limit: 10 }); }}>Reset</button>
       </div>
       <DataTable label="Dispatch" headers={["Order", "Customer", "Destination", "Amount", "Payment", "Shipping", "Shipment", "Courier / AWB", "Created", "Actions"]} loading={loading} emptyMessage="No orders are waiting for dispatch." minWidth={1400}>
         {rows.map((row) => (
@@ -87,9 +93,9 @@ export default function Dispatch({ onNotice }) {
         ))}
       </DataTable>
       <div className="commerce-pagination">
-        <button disabled={loading || pagination.page <= 1} onClick={() => setQuery({ ...query, page: query.page - 1 })}>Previous</button>
+        <button disabled={loading || !pagination.hasPrevious} onClick={() => setQuery((current) => ({ ...current, page: Math.max(current.page - 1, 1) }))}>Previous</button>
         <span>Page {pagination.page} of {Math.max(pagination.totalPages, 1)}</span>
-        <button disabled={loading || !pagination.hasNext} onClick={() => setQuery({ ...query, page: query.page + 1 })}>Next</button>
+        <button disabled={loading || !pagination.hasNext} onClick={() => setQuery((current) => ({ ...current, page: Math.min(current.page + 1, pagination.totalPages) }))}>Next</button>
       </div>
       {selected && <DispatchModal data={selected} saving={saving} onClose={() => setSelected(null)} onAction={runAction} onRequestCancel={(shipmentId) => setCancelShipment(shipmentId)} />}
       {cancelShipment && <ConfirmDialog title="Cancel shipment" description="The courier cancellation will be requested and the dispatch record will be updated. This cannot be reversed from this screen." confirmLabel="Cancel shipment" danger busy={saving} onClose={() => !saving && setCancelShipment(null)} onConfirm={async () => { await runAction(`/v1/admin/shipments/${cancelShipment}/cancel`); setCancelShipment(null); }} />}
