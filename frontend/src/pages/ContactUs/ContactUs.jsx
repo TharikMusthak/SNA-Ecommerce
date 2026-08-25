@@ -8,6 +8,7 @@ import {
   ArrowRight,
   CheckCircle2,
   Sparkles,
+  AlertCircle,
 } from "lucide-react";
 
 const contactDetails = [
@@ -54,41 +55,72 @@ const ContactUs = () => {
 
   const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
+
+  const validateField = (name, value) => {
+    switch (name) {
+      case "name":
+        if (!value || !value.trim()) return "Enter your name.";
+        return "";
+      case "email":
+        if (!value || !value.trim()) return "Enter your email.";
+        if (!emailRegex.test(value.trim())) return "Enter a valid email address.";
+        return "";
+      case "phone":
+        if (value && !phoneRegex.test(value.trim())) return "Enter a valid phone number.";
+        return "";
+      case "subject":
+        if (!value) return "Choose a subject.";
+        return "";
+      case "message":
+        if (!value || !value.trim()) return "Enter a message.";
+        return "";
+      default:
+        return "";
+    }
+  };
+
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    setTouched((prev) => ({ ...prev, [name]: true }));
+    const err = validateField(name, value);
+    setErrors((prev) => ({ ...prev, [name]: err }));
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-
     setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
 
-    if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: "" }));
+    if (touched[name]) {
+      const err = validateField(name, value);
+      setErrors((prev) => ({ ...prev, [name]: err }));
     }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const nextErrors = {};
+    const fieldsToValidate = ["name", "email", "subject", "message"];
+    if (formData.phone) fieldsToValidate.push("phone");
 
-    if (!formData.name.trim()) nextErrors.name = "Enter your name.";
-    if (!formData.email.trim()) nextErrors.email = "Enter your email.";
-    else if (!emailRegex.test(formData.email.trim())) {
-      nextErrors.email = "Enter a valid email address.";
-    }
-    if (!formData.message.trim()) nextErrors.message = "Enter a message.";
-    if (!formData.subject) nextErrors.subject = "Choose a subject.";
-    if (formData.phone && !phoneRegex.test(formData.phone.trim())) {
-      nextErrors.phone = "Enter a valid phone number.";
-    }
+    const nextErrors = {};
+    const nextTouched = {};
+
+    fieldsToValidate.forEach((field) => {
+      nextTouched[field] = true;
+      const err = validateField(field, formData[field]);
+      if (err) nextErrors[field] = err;
+    });
+
+    setTouched((prev) => ({ ...prev, ...nextTouched }));
 
     if (Object.keys(nextErrors).length) {
       setErrors(nextErrors);
       return;
     }
 
-    // Connect this with your API later
     setErrors({});
     setSubmitted(true);
     setFormData({
@@ -102,28 +134,18 @@ const ContactUs = () => {
 
   return (
     <main className="relative min-h-screen w-full overflow-hidden bg-[#f4f7f5]">
-      {/* =====================================================
-          BACKGROUND
-      ====================================================== */}
-
+      {/* BACKGROUND */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(7,148,71,0.14),transparent_32%),radial-gradient(circle_at_top_right,rgba(9,107,53,0.1),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.42),transparent_42%)]" />
 
       <section className="relative mx-auto max-w-[1500px] px-5 py-10 sm:px-8 sm:py-14 md:px-10 lg:px-[clamp(42px,5vw,84px)] lg:py-16 xl:px-12">
-        {/* ===================================================
-            HERO
-        ==================================================== */}
-
+        {/* HERO */}
         <div className="relative mb-6 overflow-hidden rounded-[34px] bg-[linear-gradient(135deg,#0f2a1e_0%,#123627_55%,#0b5130_100%)] p-7 text-white shadow-[0_24px_60px_rgba(13,35,25,0.18)] sm:p-10 lg:p-12">
-          {/* Decorative circles */}
-
           <div className="pointer-events-none absolute -right-24 -top-32 h-80 w-80 rounded-full border-[45px] border-white/5" />
-
           <div className="pointer-events-none absolute -bottom-32 -left-24 h-72 w-72 rounded-full border-[40px] border-white/5" />
 
           <div className="relative z-10 max-w-[800px]">
             <div className="mb-5 flex items-center gap-2 text-[#7ee3a8]">
               <Sparkles size={17} />
-
               <p className="text-[12px] font-semibold uppercase tracking-[0.25em]">
                 We'd love to hear from you
               </p>
@@ -160,10 +182,7 @@ const ContactUs = () => {
           </div>
         </div>
 
-        {/* ===================================================
-            CONTACT DETAILS
-        ==================================================== */}
-
+        {/* CONTACT DETAILS */}
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {contactDetails.map((item) => {
             const Icon = item.icon;
@@ -201,15 +220,9 @@ const ContactUs = () => {
           })}
         </div>
 
-        {/* ===================================================
-            MAIN CONTACT SECTION
-        ==================================================== */}
-
+        {/* MAIN CONTACT SECTION */}
         <div className="mt-6 grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
-          {/* =================================================
-              LEFT INFORMATION
-          ================================================= */}
-
+          {/* LEFT INFORMATION */}
           <div className="rounded-[32px] bg-white p-6 shadow-[0_16px_40px_rgba(0,0,0,0.05)] sm:p-8 lg:p-10">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#edf8f1] text-[#079447]">
               <MessageCircle size={21} />
@@ -230,7 +243,6 @@ const ContactUs = () => {
             </p>
 
             {/* RESPONSE TIME */}
-
             <div className="mt-8 rounded-[24px] bg-[#f6faf7] p-5">
               <div className="flex items-start gap-4">
                 <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-[#079447] shadow-sm">
@@ -251,9 +263,8 @@ const ContactUs = () => {
             </div>
 
             {/* WHATSAPP */}
-
             <a
-              href="https://wa.me/91XXXXXXXXXX"
+              href="https://wa.me/918438660669"
               className="mt-4 flex items-center justify-between rounded-[24px] bg-[#079447] px-5 py-4 text-white transition-all duration-300 hover:bg-[#06753a]"
             >
               <div className="flex items-center gap-3">
@@ -274,7 +285,6 @@ const ContactUs = () => {
             </a>
 
             {/* LOCATION */}
-
             <div
               id="location"
               className="mt-8 border-t border-gray-100 pt-7"
@@ -312,10 +322,7 @@ const ContactUs = () => {
             </div>
           </div>
 
-          {/* =================================================
-              CONTACT FORM
-          ================================================= */}
-
+          {/* CONTACT FORM */}
           <div className="rounded-[32px] border border-white/70 bg-white p-6 shadow-[0_16px_40px_rgba(0,0,0,0.05)] sm:p-8 lg:p-10">
             {!submitted ? (
               <>
@@ -336,156 +343,161 @@ const ContactUs = () => {
 
                 <form
                   onSubmit={handleSubmit}
-                  className="mt-8 space-y-5"
+                  className="mt-6 space-y-2.5"
                 >
-                  {/* NAME */}
-
-                  <div className="grid gap-5 sm:grid-cols-2">
+                  {/* NAME + EMAIL */}
+                  <div className="grid gap-2.5 sm:grid-cols-2">
                     <div>
-                      <label
-                        htmlFor="name"
-                        className="mb-2 block text-[13px] font-medium text-[#444]"
-                      >
-                        Your Name
-                      </label>
-
                       <input
                         id="name"
                         name="name"
                         type="text"
                         value={formData.name}
                         onChange={handleChange}
-                      placeholder="Enter your name"
-                       className="w-full rounded-xl border border-gray-200 bg-[#f9faf9] px-4 py-3.5 text-sm text-[#333] outline-none transition-all placeholder:text-gray-400 focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
-                    />
-                      <p className="mt-0.5 min-h-4 text-[11px] leading-4 text-red-600">
-                        {errors.name || " "}
+                        onBlur={handleBlur}
+                        placeholder="Your name"
+                        maxLength={100}
+                        aria-invalid={Boolean(errors.name)}
+                        className={`w-full rounded-xl border ${
+                          errors.name
+                            ? "border-red-400 bg-red-50/20 text-[#333] focus:border-red-500 focus:bg-white focus:ring-4 focus:ring-red-500/10"
+                            : "border-gray-200 bg-[#f9faf9] text-[#333] focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
+                        } px-3.5 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400`}
+                      />
+                      <p className="mt-0.5 flex min-h-[14px] items-center gap-1 text-[11px] font-medium leading-4 text-red-600">
+                        {errors.name && (
+                          <>
+                            <AlertCircle size={12} className="shrink-0 text-red-600" />
+                            <span>{errors.name}</span>
+                          </>
+                        )}
                       </p>
                     </div>
 
-                    {/* EMAIL */}
-
                     <div>
-                      <label
-                        htmlFor="email"
-                        className="mb-2 block text-[13px] font-medium text-[#444]"
-                      >
-                        Email Address
-                      </label>
-
                       <input
                         id="email"
                         name="email"
                         type="text"
                         value={formData.email}
                         onChange={handleChange}
-                        placeholder="you@example.com"
+                        onBlur={handleBlur}
+                        placeholder="Email address (you@example.com)"
+                        maxLength={100}
                         inputMode="email"
-                      className="w-full rounded-xl border border-gray-200 bg-[#f9faf9] px-4 py-3.5 text-sm text-[#333] outline-none transition-all placeholder:text-gray-400 focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
-                    />
-                      <p className="mt-0.5 min-h-4 text-[11px] leading-4 text-red-600">
-                        {errors.email || " "}
+                        aria-invalid={Boolean(errors.email)}
+                        className={`w-full rounded-xl border ${
+                          errors.email
+                            ? "border-red-400 bg-red-50/20 text-[#333] focus:border-red-500 focus:bg-white focus:ring-4 focus:ring-red-500/10"
+                            : "border-gray-200 bg-[#f9faf9] text-[#333] focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
+                        } px-3.5 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400`}
+                      />
+                      <p className="mt-0.5 flex min-h-[14px] items-center gap-1 text-[11px] font-medium leading-4 text-red-600">
+                        {errors.email && (
+                          <>
+                            <AlertCircle size={12} className="shrink-0 text-red-600" />
+                            <span>{errors.email}</span>
+                          </>
+                        )}
                       </p>
                     </div>
                   </div>
 
                   {/* PHONE + SUBJECT */}
-
-                  <div className="grid gap-5 sm:grid-cols-2">
+                  <div className="grid gap-2.5 sm:grid-cols-2">
                     <div>
-                      <label
-                        htmlFor="phone"
-                        className="mb-2 block text-[13px] font-medium text-[#444]"
-                      >
-                        Phone Number
-                      </label>
-
                       <input
                         id="phone"
                         name="phone"
                         type="tel"
                         value={formData.phone}
                         onChange={handleChange}
-                        placeholder="+91 XXXXX XXXXX"
-                        className="w-full rounded-xl border border-gray-200 bg-[#f9faf9] px-4 py-3.5 text-sm text-[#333] outline-none transition-all placeholder:text-gray-400 focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
+                        onBlur={handleBlur}
+                        placeholder="Phone number (+91 XXXXX XXXXX)"
+                        maxLength={15}
+                        aria-invalid={Boolean(errors.phone)}
+                        className={`w-full rounded-xl border ${
+                          errors.phone
+                            ? "border-red-400 bg-red-50/20 text-[#333] focus:border-red-500 focus:bg-white focus:ring-4 focus:ring-red-500/10"
+                            : "border-gray-200 bg-[#f9faf9] text-[#333] focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
+                        } px-3.5 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400`}
                       />
-                      <p className="mt-0.5 min-h-4 text-[11px] leading-4 text-red-600">
-                        {errors.phone || " "}
+                      <p className="mt-0.5 flex min-h-[14px] items-center gap-1 text-[11px] font-medium leading-4 text-red-600">
+                        {errors.phone && (
+                          <>
+                            <AlertCircle size={12} className="shrink-0 text-red-600" />
+                            <span>{errors.phone}</span>
+                          </>
+                        )}
                       </p>
                     </div>
 
                     <div>
-                      <label
-                        htmlFor="subject"
-                        className="mb-2 block text-[13px] font-medium text-[#444]"
-                      >
-                        Subject
-                      </label>
-
                       <select
                         id="subject"
                         name="subject"
                         value={formData.subject}
                         onChange={handleChange}
-                      className="w-full appearance-none rounded-xl border border-gray-200 bg-[#f9faf9] px-4 py-3.5 text-sm text-[#333] outline-none transition-all focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
+                        onBlur={handleBlur}
+                        aria-invalid={Boolean(errors.subject)}
+                        className={`w-full appearance-none rounded-xl border ${
+                          errors.subject
+                            ? "border-red-400 bg-red-50/20 text-[#333] focus:border-red-500 focus:bg-white focus:ring-4 focus:ring-red-500/10"
+                            : "border-gray-200 bg-[#f9faf9] text-[#333] focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
+                        } px-3.5 py-2.5 text-sm outline-none transition-all`}
                       >
-                        <option value="">
-                          Select a subject
-                        </option>
-                        <option value="product">
-                          Product enquiry
-                        </option>
-                        <option value="order">
-                          Order support
-                        </option>
-                        <option value="delivery">
-                          Delivery enquiry
-                        </option>
-                        <option value="feedback">
-                          Feedback
-                        </option>
-                        <option value="other">
-                          Other
-                        </option>
+                        <option value="">Select a subject</option>
+                        <option value="product">Product enquiry</option>
+                        <option value="order">Order support</option>
+                        <option value="delivery">Delivery enquiry</option>
+                        <option value="feedback">Feedback</option>
+                        <option value="other">Other</option>
                       </select>
-                      <p className="mt-0.5 min-h-4 text-[11px] leading-4 text-red-600">
-                        {errors.subject || " "}
+                      <p className="mt-0.5 flex min-h-[14px] items-center gap-1 text-[11px] font-medium leading-4 text-red-600">
+                        {errors.subject && (
+                          <>
+                            <AlertCircle size={12} className="shrink-0 text-red-600" />
+                            <span>{errors.subject}</span>
+                          </>
+                        )}
                       </p>
                     </div>
                   </div>
 
                   {/* MESSAGE */}
-
                   <div>
-                    <label
-                      htmlFor="message"
-                      className="mb-2 block text-[13px] font-medium text-[#444]"
-                    >
-                      Your Message
-                    </label>
-
                     <textarea
                       id="message"
                       name="message"
                       value={formData.message}
                       onChange={handleChange}
+                      onBlur={handleBlur}
                       placeholder="Tell us how we can help..."
-                      rows={6}
-                      className="w-full resize-none rounded-xl border border-gray-200 bg-[#f9faf9] px-4 py-3.5 text-sm leading-6 text-[#333] outline-none transition-all placeholder:text-gray-400 focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
+                      maxLength={1000}
+                      rows={5}
+                      aria-invalid={Boolean(errors.message)}
+                      className={`w-full resize-none rounded-xl border ${
+                        errors.message
+                          ? "border-red-400 bg-red-50/20 text-[#333] focus:border-red-500 focus:bg-white focus:ring-4 focus:ring-red-500/10"
+                          : "border-gray-200 bg-[#f9faf9] text-[#333] focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
+                      } px-3.5 py-2.5 text-sm leading-6 outline-none transition-all placeholder:text-gray-400`}
                     />
-                    <p className="mt-0.5 min-h-4 text-[11px] leading-4 text-red-600">
-                      {errors.message || " "}
+                    <p className="mt-0.5 flex min-h-[14px] items-center gap-1 text-[11px] font-medium leading-4 text-red-600">
+                      {errors.message && (
+                        <>
+                          <AlertCircle size={12} className="shrink-0 text-red-600" />
+                          <span>{errors.message}</span>
+                        </>
+                      )}
                     </p>
                   </div>
 
                   {/* SUBMIT */}
-
                   <button
                     type="submit"
                     className="group flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-[#079447] px-5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(7,148,71,0.18)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#06753a] hover:shadow-[0_12px_25px_rgba(7,148,71,0.25)]"
                   >
                     Send Message
-
                     <ArrowRight
                       size={18}
                       className="transition-transform duration-300 group-hover:translate-x-1"
@@ -494,10 +506,7 @@ const ContactUs = () => {
                 </form>
               </>
             ) : (
-              /* =================================================
-                 SUCCESS STATE
-              ================================================== */
-
+              /* SUCCESS STATE */
               <div className="flex min-h-[500px] flex-col items-center justify-center text-center">
                 <div className="grid h-16 w-16 place-items-center rounded-full bg-[#edf8f1] text-[#079447]">
                   <CheckCircle2 size={30} />
@@ -528,10 +537,7 @@ const ContactUs = () => {
           </div>
         </div>
 
-        {/* ===================================================
-            BOTTOM BRAND STATEMENT
-        ==================================================== */}
-
+        {/* BOTTOM BRAND STATEMENT */}
         <div className="mt-6 rounded-[30px] border border-white/70 bg-white p-6 text-center shadow-[0_16px_40px_rgba(0,0,0,0.05)] sm:p-8">
           <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#079447]">
             SNA Sundaram

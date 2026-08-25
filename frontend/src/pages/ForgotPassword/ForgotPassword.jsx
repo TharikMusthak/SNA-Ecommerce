@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { forgotPasswordRequest } from "@api/auth.api";
-import { ArrowLeft, X, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowLeft, X, ShieldCheck, Sparkles, AlertCircle } from "lucide-react";
 
 const emailRegex = /^\S+@\S+\.\S+$/;
 
@@ -10,20 +10,37 @@ const ForgotPassword = () => {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [touched, setTouched] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const validateEmail = (val) => {
+    if (!val || !val.trim()) return "Enter your email address.";
+    if (!emailRegex.test(val.trim())) return "Enter a valid email address.";
+    return "";
+  };
+
+  const handleBlur = () => {
+    setTouched(true);
+    setError(validateEmail(email));
+  };
+
+  const handleChange = (e) => {
+    const val = e.target.value;
+    setEmail(val);
+    if (message) setMessage("");
+    if (touched) {
+      setError(validateEmail(val));
+    }
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setMessage("");
-    setError("");
+    setTouched(true);
 
-    if (!email.trim()) {
-      setError("Enter your email address.");
-      return;
-    }
-
-    if (!emailRegex.test(email.trim())) {
-      setError("Enter a valid email address.");
+    const err = validateEmail(email);
+    if (err) {
+      setError(err);
       return;
     }
 
@@ -66,44 +83,29 @@ const ForgotPassword = () => {
             </div>
 
             <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#edf8f1] text-[#079447] sm:grid">
-            <Link
-              to="/auth/login"
-              className="inline-flex items-center gap-2 font-semibold text-[#079447] hover:underline"
-            >
-              
-               <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="
-            absolute
-            right-4
-            top-4
-            z-50
-            flex
-            h-9
-            w-9
-            items-center
-            justify-center
-            rounded-full
-            bg-white/80
-            text-gray-500
-            shadow-sm
-            backdrop-blur
-            transition-all
-            duration-300
-            hover:bg-[#079447]
-            hover:text-white
-
-            sm:right-5
-            sm:top-5
-          "
-          aria-label="Close"
-        >
-          <X size={19} />
-        </button>
-            </Link>
-           
-           
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="
+                  flex
+                  h-9
+                  w-9
+                  items-center
+                  justify-center
+                  rounded-full
+                  bg-white/80
+                  text-gray-500
+                  shadow-sm
+                  backdrop-blur
+                  transition-all
+                  duration-300
+                  hover:bg-[#079447]
+                  hover:text-white
+                "
+                aria-label="Close"
+              >
+                <X size={19} />
+              </button>
             </div>
           </div>
 
@@ -114,25 +116,31 @@ const ForgotPassword = () => {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3">
             <div>
-              <label
-                htmlFor="email"
-                className="mb-2 block text-sm font-medium text-gray-700"
-              >
-                Email address
-              </label>
               <input
                 id="email"
                 type="text"
                 value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                onChange={handleChange}
+                onBlur={handleBlur}
                 inputMode="email"
-                placeholder="you@example.com"
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
+                placeholder="Enter your email address"
+                maxLength={100}
+                aria-invalid={Boolean(error)}
+                className={`w-full rounded-xl border ${
+                  error
+                    ? "border-red-400 bg-red-50/20 text-[#333] focus:border-red-500 focus:bg-white focus:ring-4 focus:ring-red-500/10"
+                    : "border-gray-200 bg-gray-50 text-[#333] focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
+                } px-3.5 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400`}
               />
-              <p className="mt-0.5 min-h-4 text-[11px] leading-4 text-red-600">
-                {error || " "}
+              <p className="mt-0.5 flex min-h-[14px] items-center gap-1 text-[11px] font-medium leading-4 text-red-600">
+                {error && (
+                  <>
+                    <AlertCircle size={12} className="shrink-0 text-red-600" />
+                    <span>{error}</span>
+                  </>
+                )}
               </p>
             </div>
 
