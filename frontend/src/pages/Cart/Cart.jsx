@@ -1,6 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Banknote, CheckCircle2, CreditCard, MapPin, Minus, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  Banknote,
+  CheckCircle2,
+  ChevronDown,
+  CreditCard,
+  MapPin,
+  Minus,
+  Plus,
+  ShieldCheck,
+  ShoppingCart,
+  Trash2,
+  Tag,
+} from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
@@ -16,17 +28,30 @@ import { useCart } from "@hooks/useCart";
 import formatCurrency from "@utils/formatCurrency";
 import { assetUrl } from "@utils/helpers";
 
+ function getDeliveryLabel(days) {
+  if (!days) return null;
+  const date = new Date();
+  date.setDate(date.getDate() + Number(days )); //+2 for add 2 days
+  const day = date.toLocaleDateString("en-IN", { weekday: "short" });
+  const month = date.toLocaleDateString("en-IN", { month: "short" });
+  const num = date.getDate();
+  return `Delivery by ${month} ${num}, ${day}`;
+}
+
 const Cart = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { cart, isLoading, updateItem, removeItem, clear, applyCoupon } =
-    useCart();
+  const { cart, isLoading, updateItem, removeItem, clear, applyCoupon } = useCart();
+  console.log("cart",cart);
+  
   const [addressId, setAddressId] = useState("");
   const [checkingOut, setCheckingOut] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("razorpay");
   const [shippingQuote, setShippingQuote] = useState(null);
   const [shippingError, setShippingError] = useState("");
   const [shippingLoading, setShippingLoading] = useState(false);
+  const [showAddressPicker, setShowAddressPicker] = useState(false);
+
   const addresses = useQuery({
     queryKey: QUERY_KEYS.addresses,
     queryFn: async () => {
@@ -37,30 +62,57 @@ const Cart = () => {
       }));
     },
   });
-  const selectedAddressId = addressId || addresses.data?.find((item) => item.is_default)?.id || "";
-  const cartFingerprint = useMemo(() => JSON.stringify({
-    coupon: cart.coupon_code || null,
-    items: cart.items.map((item) => [item.product_id, item.variant_id, item.quantity, item.unit_price]),
-  }), [cart]);
+
+  const selectedAddressId =
+    addressId || addresses.data?.find((item) => item.is_default)?.id || "";
+  const selectedAddress = addresses.data?.find(
+    (a) => String(a.id) === String(selectedAddressId)
+  );
+
+  const cartFingerprint = useMemo(
+    () =>
+      JSON.stringify({
+        coupon: cart.coupon_code || null,
+        items: cart.items.map((item) => [
+          item.product_id,
+          item.variant_id,
+          item.quantity,
+          item.unit_price,
+        ]),
+      }),
+    [cart]
+  );
 
   useEffect(() => {
-    if (!selectedAddressId || !cart.items.length) {
-      return;
-    }
+    if (!selectedAddressId || !cart.items.length) return;
     let active = true;
-    Promise.resolve().then(() => {
-      if (!active) return null;
-      setShippingLoading(true);
-      setShippingError("");
-      return getShippingQuote({ address_id: Number(selectedAddressId), payment_method: paymentMethod });
-    })
-      .then((response) => { if (active && response) setShippingQuote(response.data.data || response.data); })
-      .catch((error) => { if (active) { setShippingQuote(null); setShippingError(apiErrorMessage(error, "Shipping rate could not be calculated")); } })
-      .finally(() => { if (active) setShippingLoading(false); });
+    Promise.resolve()
+      .then(() => {
+        if (!active) return null;
+        setShippingLoading(true);
+        setShippingError("");
+        return getShippingQuote({
+          address_id: Number(selectedAddressId),
+          payment_method: paymentMethod,
+        });
+      })
+      .then((response) => {
+        if (active && response) setShippingQuote(response.data.data || response.data);
+      })
+      .catch((error) => {
+        if (active) {
+          setShippingQuote(null);
+          setShippingError(apiErrorMessage(error, "Shipping rate could not be calculated"));
+        }
+      })
+      .finally(() => {
+        if (active) setShippingLoading(false);
+      });
     return () => { active = false; };
   }, [selectedAddressId, paymentMethod, cartFingerprint, cart.items.length]);
 
   const displaySummary = shippingQuote?.summary || cart.summary;
+
   const pageLoading =
     isLoading ||
     addresses.isLoading ||
@@ -83,8 +135,7 @@ const Cart = () => {
   };
 
   const checkout = async () => {
-    const selectedAddress = selectedAddressId;
-    if (!selectedAddress) {
+    if (!selectedAddressId) {
       toast.error("Select or add a delivery address");
       return;
     }
@@ -95,11 +146,14 @@ const Cart = () => {
     try {
       setCheckingOut(true);
       const response = await createOrder(
-        { address_id: Number(selectedAddress), payment_method: paymentMethod, shipping_quote_id: shippingQuote.quote_id },
-        crypto.randomUUID(),
+        {
+          address_id: Number(selectedAddressId),
+          payment_method: paymentMethod,
+          shipping_quote_id: shippingQuote.quote_id,
+        },
+        crypto.randomUUID()
       );
       const order = response.data.data || response.data;
-
       if (paymentMethod === "razorpay") {
         if (!order.payment_id) throw new Error("The order was created without a payment reference.");
         await loadRazorpayCheckout();
@@ -117,7 +171,7 @@ const Cart = () => {
       toast.success(
         paymentMethod === "razorpay"
           ? `Payment verified for order ${order.order_number}`
-          : `Order ${order.order_number} placed successfully`,
+          : `Order ${order.order_number} placed successfully`
       );
       navigate("/profile");
     } catch (error) {
@@ -134,243 +188,437 @@ const Cart = () => {
       </div>
     );
 
-  return (
-    <main className="mx-auto min-h-[70vh] w-full max-w-[1280px] px-5 py-12 sm:px-8 lg:px-14">
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <div className="mb-2 flex items-center gap-1">
-            <span className="pointer-events-none text-[clamp(22px,1.8vw,27px)] font-bold leading-none text-[#3d3d3d]">
-              Your Health basket
-            </span>
+  /*  Empty Cart  */
+  if (cart.items.length === 0)
+    return (
+      <main className="min-h-[70vh] bg-[#f1f3f6]">
+        <div className="mx-auto flex max-w-[1240px] flex-col items-center justify-center px-4 py-24 text-center h-[100vh]">
+          <div className="mb-6 flex h-32 w-32 items-center justify-center rounded-full bg-white shadow-sm">
+            <ShoppingCart size={56} className="text-[#079447]" strokeWidth={1.3} />
           </div>
-          <h2 className="text-[clamp(43px,3.3vw,56px)] font-regular leading-[1.12] tracking-[-0.025em] text-[#3f3f3f]">
-            Shopping cart
-          </h2>
-        </div>
-        {cart.items.length > 0 && (
-          <button
-            onClick={() => run(() => clear.mutateAsync(), "Cart cleared")}
-            className="rounded-full border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-600 transition hover:border-red-300 hover:bg-red-50"
-          >
-            Clear cart
-          </button>
-        )}
-      </div>
-
-      {cart.items.length === 0 ? (
-        <div className="mt-12 rounded-3xl border border-dashed border-gray-300 px-6 py-20 text-center">
-          <h2 className="text-2xl font-semibold text-gray-800">
-            Your cart is empty
-          </h2>
-          <p className="mt-2 text-gray-500">
-            Explore our traditionally prepared products.
-          </p>
+          <h2 className="text-2xl font-semibold text-gray-800">Your cart is empty!</h2>
+          <p className="mt-2 text-gray-500">Add items to it now.</p>
           <Link
             to="/products"
-            className="mt-6 inline-flex rounded-xl bg-[#079447] px-6 py-3 font-semibold text-white"
+            className="mt-6 inline-flex rounded-sm bg-[#079447] px-10 py-3 text-sm font-semibold uppercase tracking-wide text-white shadow-md transition hover:bg-[#057a3a]"
           >
-            Browse products
+            Shop Now
           </Link>
         </div>
-      ) : (
-        <div className="mt-10 grid gap-8 xl:grid-cols-[minmax(0,1.7fr)_minmax(360px,1fr)]">
-          <section className="rounded-[2rem] border border-gray-200 bg-white p-4 shadow-[0_14px_40px_rgba(15,23,42,0.05)] sm:p-6">
-           
-            <div className="space-y-4">
-              {cart.items.map((item) => (
-                <article
-                  key={item.id}
-                  className="grid grid-cols-[84px_1fr] gap-4 rounded-[1.5rem] border border-gray-200 bg-[#fcfcfb] p-4 transition hover:border-emerald-300 sm:grid-cols-[120px_1fr_auto] sm:items-center sm:p-5"
-                >
-                  <Link
-                    to={`/products/${item.slug || item.product_id}`}
-                    className="aspect-square rounded-2xl bg-[#f5f7f1] p-2"
-                  >
-                    <img
-                      src={assetUrl(item.main_image, fallbackImage)}
-                      alt={item.name}
-                      className="h-full w-full object-contain"
-                    />
-                  </Link>
-                  <div>
-                    <Link
-                      to={`/products/${item.slug || item.product_id}`}
-                      className="font-semibold text-gray-900 hover:text-[#079447]"
-                    >
-                      {item.name}
-                    </Link>
-                    <p className="mt-1 text-sm text-gray-500">
-                      {formatCurrency(item.unit_price)} each
-                    </p>
-                    <div className="mt-3 inline-flex items-center rounded-full border border-gray-200 bg-white px-1 py-1">
-                      <button
-                        disabled={item.quantity <= 1 || updateItem.isPending}
-                        onClick={() =>
-                          run(() =>
-                            updateItem.mutateAsync({
-                              itemId: item.id,
-                              quantity: item.quantity - 1,
-                            }),
-                          )
-                        }
-                        className="rounded-full p-2 hover:bg-gray-100 disabled:opacity-40"
-                        aria-label="Decrease"
-                      >
-                        <Minus size={16} />
-                      </button>
-                      <span className="min-w-10 text-center text-sm font-semibold text-gray-900">
-                        {item.quantity}
+      </main>
+    );
+
+  const itemCount = cart.items.reduce((sum, i) => sum + i.quantity, 0);
+  const subtotal = displaySummary.subtotal ?? 0;
+  const discount = displaySummary.discount ?? 0;
+  const tax = displaySummary.tax ?? 0;
+  const shipping = displaySummary.shipping ?? 0;
+  const total = displaySummary.total ?? 0;
+  const savings = discount;
+  const isFreeShipping = shippingQuote?.free_shipping || shipping === 0;
+
+  return (
+    <main className="min-h-[70vh] bg-[#f1f3f6]">
+      <div className="mx-auto max-w-[1240px] px-3 py-4 sm:px-4 sm:py-6">
+        <div className="flex flex-col gap-0 lg:flex-row lg:items-start lg:gap-4">
+
+          {/*  LEFT COLUMN  */}
+          <div className="min-w-0 flex-1">
+
+            {/*  Delivery Address Banner  */}
+            <div className="bg-white shadow-sm">
+              <div className="flex items-center justify-between px-4 py-4 sm:px-6">
+                <div className="flex min-w-0 items-center gap-3">
+                  <MapPin size={20} className="shrink-0 text-[#079447]" />
+                  <div className="min-w-0">
+                    {selectedAddress ? (
+                      <>
+                        <span className="text-sm font-semibold text-gray-800">
+                          Deliver to:{" "}
+                          <span className="font-bold text-gray-900">{selectedAddress.full_name}</span>,{" "}
+                          <span className="font-bold text-gray-900">{selectedAddress.postal_code}</span>
+                        </span>
+                        <p className="mt-0.5 truncate text-xs text-gray-500">
+                          {selectedAddress.address_line_1}, {selectedAddress.city},{" "}
+                          {selectedAddress.state}
+                        </p>
+                      </>
+                    ) : (
+                      <span className="text-sm font-semibold text-gray-500">
+                        No delivery address selected
                       </span>
-                      <button
-                        disabled={
-                          item.quantity >= item.available_stock ||
-                          updateItem.isPending
-                        }
-                        onClick={() =>
-                          run(() =>
-                            updateItem.mutateAsync({
-                              itemId: item.id,
-                              quantity: item.quantity + 1,
-                            }),
-                          )
-                        }
-                        className="rounded-full p-2 hover:bg-gray-100 disabled:opacity-40"
-                        aria-label="Increase"
+                    )}
+                  </div>
+                </div>
+                <button
+                  id="cart-change-address-btn"
+                  onClick={() => setShowAddressPicker((v) => !v)}
+                  className="ml-4 shrink-0 rounded-sm border border-[#079447] px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-[#079447] transition hover:bg-emerald-50"
+                >
+                  {selectedAddress ? "Change" : "Add Address"}
+                  <ChevronDown
+                    size={12}
+                    className={`ml-1 inline-block transition-transform ${showAddressPicker ? "rotate-180" : ""}`}
+                  />
+                </button>
+              </div>
+
+              {/* Address Picker Dropdown */}
+              {showAddressPicker && (
+                <div className="border-t border-gray-100 px-4 pb-4 sm:px-6">
+                  {addresses.isLoading ? (
+                    <p className="py-4 text-center text-sm text-gray-400">Loading addresses</p>
+                  ) : addresses.data?.length ? (
+                    <div className="mt-3 space-y-2">
+                      {addresses.data.map((addr) => {
+                        const isSel = String(selectedAddressId) === String(addr.id);
+                        return (
+                          <label
+                            key={addr.id}
+                            className={`flex cursor-pointer items-start gap-3 rounded border p-3 transition ${isSel ? "border-[#079447] bg-emerald-50" : "border-gray-200 bg-white hover:border-gray-300"}`}
+                          >
+                            <input
+                              type="radio"
+                              name="delivery-address"
+                              value={addr.id}
+                              checked={isSel}
+                              onChange={(e) => {
+                                setAddressId(e.target.value);
+                                setShowAddressPicker(false);
+                              }}
+                              className="mt-0.5 accent-[#079447]"
+                            />
+                            <div className="min-w-0 flex-1 text-sm">
+                              <p className="font-semibold text-gray-900">
+                                {addr.full_name}
+                                {addr.is_default && (
+                                  <span className="ml-2 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
+                                    DEFAULT
+                                  </span>
+                                )}
+                              </p>
+                              <p className="mt-0.5 text-xs leading-5 text-gray-500">
+                                {addr.address_line_1}
+                                {addr.address_line_2 ? `, ${addr.address_line_2}` : ""},{" "}
+                                {addr.city}, {addr.state}{", "}{addr.postal_code}
+                              </p>
+                              {addr.phone && (
+                                <p className="mt-0.5 text-xs text-gray-400">{addr.phone}</p>
+                              )}
+                            </div>
+                            {isSel && <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-[#079447]" />}
+                          </label>
+                        );
+                      })}
+                      <Link
+                        to="/profile"
+                        className="mt-1 block text-center text-xs font-semibold text-[#079447] underline-offset-2 hover:underline"
                       >
-                        <Plus size={16} />
-                      </button>
+                        + Manage addresses
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="py-4 text-center">
+                      <p className="text-sm text-gray-500">No saved addresses.</p>
+                      <Link
+                        to="/profile"
+                        className="mt-2 inline-block text-sm font-semibold text-[#079447] hover:underline"
+                      >
+                        Add delivery address 
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            {/* END Address Banner */}
+
+            {/*  Cart Items  */}
+            <div className="mt-0 bg-white shadow-sm">
+              <div className="divide-y divide-gray-100">
+                {cart.items.map((item) => (
+                  <div key={item.id} className="px-4 py-5 sm:px-6">
+                    <div className="flex gap-4 sm:gap-6">
+                      {/* Product Image */}
+                      <Link
+                        to={`/products/${item.slug || item.product_id}`}
+                        className="shrink-0"
+                        id={`cart-item-img-${item.id}`}
+                      >
+                        <div className="h-[112px] w-[112px] overflow-hidden rounded bg-[#f0f0f0] p-2 transition hover:opacity-90 sm:h-[130px] sm:w-[130px]">
+                          <img
+                            src={assetUrl(item.main_image, fallbackImage)}
+                            alt={item.name}
+                            className="h-full w-full object-contain"
+                          />
+                        </div>
+                      </Link>
+
+                      {/* Details */}
+                      <div className="min-w-0 flex-1">
+                        <Link
+                          to={`/products/${item.slug || item.product_id}`}
+                          className="line-clamp-2 text-sm font-medium text-gray-800 hover:text-[#079447] sm:text-base"
+                        >
+                          {item.name}
+                        </Link>
+
+                        {/* Pricing row */}
+                        <div className="mt-2 flex flex-wrap items-baseline gap-2">
+                          <span className="text-lg font-bold text-gray-900">
+                            {formatCurrency(item.line_total)}
+                          </span>
+                          <span className="text-sm text-gray-500">
+                           {formatCurrency(item.unit_price)} each
+                          </span>
+                        </div>
+
+                        {/* Shipping info — Delivery date */}
+                        <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs">
+                          {shippingLoading ? (
+                            <span className="text-gray-400">Calculating delivery…</span>
+                          ) : shippingQuote ? (
+                            <>
+                              <span className="font-semibold text-[#388e3c]">
+                                {getDeliveryLabel(shippingQuote.courier?.estimated_delivery_days) || "Delivery date TBD"}
+                              </span>
+
+                              {/* Shipping price */}
+                              {/* {!isFreeShipping && (
+                                <span className="text-gray-400">· {formatCurrency(shipping)} delivery</span>
+                              )}
+                              {isFreeShipping && (
+                                <span className="rounded bg-emerald-100 px-1.5 py-0.5 font-bold text-[#388e3c]">
+                                  FREE
+                                </span>
+                              )} */}
+                            </>
+                          ) : (
+                            <span className="text-gray-400">Select address for delivery info</span>
+                          )}
+                        </div>
+
+                        {/* Quantity + Actions */}
+                        <div className="mt-4 flex flex-wrap items-center gap-4">
+                          {/* Quantity Control  Flipkart style */}
+                          <div className="flex items-center overflow-hidden rounded border border-gray-300 bg-white">
+                            <button
+                              id={`cart-qty-dec-${item.id}`}
+                              disabled={item.quantity <= 1 || updateItem.isPending}
+                              onClick={() =>
+                                run(() =>
+                                  updateItem.mutateAsync({ itemId: item.id, quantity: item.quantity - 1 })
+                                )
+                              }
+                              aria-label="Decrease quantity"
+                              className="flex h-8 w-8 items-center justify-center text-gray-600 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              <Minus size={14} />
+                            </button>
+                            <span className="flex h-8 min-w-[36px] items-center justify-center border-x border-gray-300 px-2 text-sm font-semibold text-gray-900">
+                              {item.quantity}
+                            </span>
+                            <button
+                              id={`cart-qty-inc-${item.id}`}
+                              disabled={item.quantity >= item.available_stock || updateItem.isPending}
+                              onClick={() =>
+                                run(() =>
+                                  updateItem.mutateAsync({ itemId: item.id, quantity: item.quantity + 1 })
+                                )
+                              }
+                              aria-label="Increase quantity"
+                              className="flex h-8 w-8 items-center justify-center text-gray-600 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              <Plus size={14} />
+                            </button>
+                          </div>
+
+                          {/* Divider */}
+                          <span className="hidden text-gray-300 sm:inline">|</span>
+
+                          {/* Remove */}
+                          <button
+                            id={`cart-remove-${item.id}`}
+                            onClick={() => run(() => removeItem.mutateAsync(item.id), "Item removed")}
+                            className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500 transition hover:text-red-600"
+                          >
+                            <Trash2 size={13} />
+                            Remove
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="col-span-2 flex items-center justify-between border-t border-gray-100 pt-3 sm:col-span-1 sm:block sm:border-0 sm:pt-0 sm:text-right">
-                    <p className="text-lg font-bold text-[#079447]">
-                      {formatCurrency(item.line_total)}
-                    </p>
-                    <button
-                      onClick={() =>
-                        run(() => removeItem.mutateAsync(item.id), "Item removed")
-                      }
-                      className="mt-2 inline-flex items-center gap-1 text-sm text-red-600"
-                    >
-                      <Trash2 size={15} /> Remove
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
+                ))}
+              </div>
 
-          <aside className="h-fit lg:sticky lg:top-28">
-            <section className="rounded-[2rem] border border-emerald-100 bg-gradient-to-b from-[#f4fbf6] to-white p-5 shadow-[0_14px_40px_rgba(15,23,42,0.06)] sm:p-6">
-              <div className="flex items-center justify-between gap-3 border-b border-emerald-100 pb-4">
-                <div>
-                   
-                  <h2 className="mt-1 text-2xl font-semibold text-gray-900">Order summary</h2>
+              {/* Place Order Button  bottom of items (mobile friendly) */}
+              
+            </div>
+            {/* END Cart Items */}
+          </div>
+          {/* END LEFT COLUMN */}
+
+          {/*  RIGHT COLUMN  PRICE DETAILS  */}
+          <aside className="w-full lg:w-[360px] lg:shrink-0">
+            <div className="sticky top-20 space-y-0">
+
+              {/* PRICE DETAILS Card */}
+              <div className="bg-white shadow-sm">
+                <div className="border-b border-gray-200 px-5 py-4">
+                  <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-gray-400">
+                    Price Details
+                  </h2>
                 </div>
-                <div className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#079447] shadow-sm">
-                  Secure checkout
+                <div className="px-5 py-4">
+                  <div className="space-y-3 text-sm">
+                    <div className="flex items-center justify-between text-gray-700">
+                      <span>Price ({itemCount} {itemCount === 1 ? "item" : "items"})</span>
+                      <span className="font-medium">{formatCurrency(subtotal + discount)}</span>
+                    </div>
+                    {discount > 0 && (
+                      <div className="flex items-center justify-between text-[#388e3c]">
+                        <span>Discount</span>
+                        <span className="font-semibold"> {formatCurrency(discount)}</span>
+                      </div>
+                    )}
+                    {tax > 0 && (
+                      <div className="flex items-center justify-between text-gray-700">
+                        <span>Tax</span>
+                        <span className="font-medium">{formatCurrency(tax)}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between text-gray-700">
+                      <span>Delivery Charges</span>
+                      {shippingLoading ? (
+                        <span className="text-xs text-gray-400">Calculating</span>
+                      ) : isFreeShipping ? (
+                        <span className="font-semibold text-[#388e3c]">FREE</span>
+                      ) : (
+                        <span className="font-medium">{formatCurrency(shipping)}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="my-4 border-t border-dashed border-gray-200" />
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-base font-bold text-gray-900">Total Payable</span>
+                    <span className="text-base font-bold text-gray-900">
+                      {formatCurrency(total)}
+                    </span>
+                  </div>
+
+                  {savings > 0 && (
+                    <div className="mt-4 rounded bg-[#e8f5e9] px-3 py-2 text-sm font-semibold text-[#388e3c]">
+                      You will save {formatCurrency(savings)} on this order
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className="mt-5 space-y-4">
-                <div className="rounded-2xl bg-white p-4 shadow-sm">
-                  <div className="space-y-3 text-sm">
-                    <Summary label="Subtotal" value={displaySummary.subtotal} />
-                    <Summary label="Tax" value={displaySummary.tax} />
-                    <Summary label="Shipping" value={displaySummary.shipping} />
-                    <Summary label="Discount" value={-displaySummary.discount} />
-                    <div className="border-t border-gray-200 pt-4">
-                      <Summary label="Total" value={displaySummary.total} strong />
-                    </div>
-                  </div>
+
+              {/* Coupon */}
+              <div className="mt-0 border-t border-gray-100 bg-white px-5 py-4 shadow-sm">
+                <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <Tag size={15} className="text-[#079447]" />
+                  Apply Coupon
                 </div>
                 <form onSubmit={submitCoupon} className="flex gap-2">
                   <input
                     name="code"
-                    placeholder="Coupon code"
-                    className="min-w-0 flex-1 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#079447]"
+                    placeholder="Enter coupon code"
+                    className="min-w-0 flex-1 rounded border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#079447]"
+                    maxLength={40}
                   />
-                  <button className="rounded-xl border border-[#079447] px-4 py-2 text-sm font-semibold text-[#079447]">
+                  <button
+                    id="cart-apply-coupon"
+                    type="submit"
+                    className="shrink-0 rounded border border-[#079447] px-4 py-2 text-xs font-bold uppercase tracking-wide text-[#079447] transition hover:bg-emerald-50"
+                  >
                     Apply
                   </button>
                 </form>
-                <div className="rounded-2xl border border-emerald-100 bg-white p-4" aria-labelledby="delivery-address-heading">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <span className="rounded-lg bg-emerald-100 p-2 text-[#079447]">
-                        <MapPin size={17} />
-                      </span>
-                      <div>
-                        <h3 id="delivery-address-heading" className="text-sm font-semibold text-gray-900">
-                          Delivery address
-                        </h3>
-                        <p className="mt-0.5 text-xs text-gray-500">Choose where we should deliver your order.</p>
-                      </div>
-                    </div>
-                    <Link
-                      to="/profile"
-                      className="shrink-0 rounded-lg px-2 py-1 text-xs font-semibold text-[#079447] transition hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447]"
-                    >
-                      Manage
-                    </Link>
-                  </div>
-                  {addresses.isLoading ? (
-                    <div className="mt-4 rounded-xl border border-white bg-[#f8faf7] px-4 py-5 text-center text-sm text-gray-500">Loading your saved addresses…</div>
-                  ) : addresses.data?.length ? (
-                    <div className="mt-4 max-h-[19.5rem] space-y-3 overflow-y-auto pr-1.5 [scrollbar-gutter:stable]" role="radiogroup" aria-label="Delivery address">
-                      {addresses.data.map((address) => {
-                        const isSelected = String(addressId || addresses.data?.find((item) => item.is_default)?.id || "") === String(address.id);
-                        return (
-                          <label key={address.id} className={`group relative block cursor-pointer rounded-2xl border bg-[#fcfdfb] p-4 transition ${isSelected ? "border-[#079447] shadow-[0_8px_20px_rgba(7,148,71,0.12)]" : "border-gray-200 hover:border-emerald-300"}`}>
-                            <input type="radio" name="delivery-address" value={address.id} checked={isSelected} onChange={(event) => setAddressId(event.target.value)} className="sr-only" />
-                            <span className={`absolute right-4 top-4 flex h-5 w-5 items-center justify-center rounded-full border ${isSelected ? "border-[#079447] bg-[#079447] text-white" : "border-gray-300 bg-white"}`}>{isSelected && <CheckCircle2 size={14} aria-hidden="true" />}</span>
-                            <div className="pr-7">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-sm font-semibold text-gray-900">{address.full_name}</p>
-                                {address.is_default && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#057a3a]">Default</span>}
-                              </div>
-                              <p className="mt-1.5 text-xs leading-5 text-gray-600">
-                                {address.address_line_1}
-                                {address.address_line_2 ? `, ${address.address_line_2}` : ""}
-                                <br />
-                                {address.city}, {address.state} {address.postal_code}
-                              </p>
-                              {address.phone && <p className="mt-1 text-xs text-gray-500">{address.phone}</p>}
-                            </div>
-                            <Link to="/profile" onClick={(event) => event.stopPropagation()} className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#079447] underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447]"><Pencil size={12} /> Edit</Link>
-                          </label>
-                        );
-                      })}
-                      <Link to="/profile" className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-emerald-300 px-3 py-3 text-xs font-semibold text-[#079447] transition hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447]"><Plus size={15} /> Add another address</Link>
-                    </div>
-                  ) : (
-                    <div className="mt-4 rounded-2xl border border-dashed border-emerald-200 bg-[#f8faf7] p-5 text-center"><p className="text-sm font-semibold text-gray-800">No delivery address saved</p><p className="mt-1 text-xs leading-5 text-gray-500">Add an address to continue with checkout.</p><Link to="/profile" className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#079447] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#057a3a] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447]"><Plus size={14} /> Add delivery address</Link></div>
-                  )}
+              </div>
+
+              {/* Payment Method */}
+              <div className="mt-0 border-t border-gray-100 bg-white px-5 py-4 shadow-sm">
+                <p className="mb-3 text-xs font-bold uppercase tracking-[0.15em] text-gray-400">
+                  Payment Method
+                </p>
+                <div className="space-y-2">
+                  <label
+                    className={`flex cursor-pointer items-center gap-3 rounded border p-3 text-sm transition ${paymentMethod === "razorpay" ? "border-[#079447] bg-emerald-50" : "border-gray-200 hover:border-gray-300"}`}
+                  >
+                    <input
+                      type="radio"
+                      name="payment-method"
+                      value="razorpay"
+                      checked={paymentMethod === "razorpay"}
+                      onChange={() => setPaymentMethod("razorpay")}
+                      className="accent-[#079447]"
+                    />
+                    <CreditCard size={16} className="text-[#079447]" />
+                    <span className="font-medium text-gray-800">Pay Now</span>
+                  </label>
+                  <label
+                    className={`flex cursor-pointer items-center gap-3 rounded border p-3 text-sm transition ${paymentMethod === "cod" ? "border-[#079447] bg-emerald-50" : "border-gray-200 hover:border-gray-300"}`}
+                  >
+                    <input
+                      type="radio"
+                      name="payment-method"
+                      value="cod"
+                      checked={paymentMethod === "cod"}
+                      onChange={() => setPaymentMethod("cod")}
+                      className="accent-[#079447]"
+                    />
+                    <Banknote size={16} className="text-[#079447]" />
+                    <span className="font-medium text-gray-800">Cash on Delivery</span>
+                  </label>
                 </div>
-                <div className="rounded-2xl border border-emerald-100 bg-white p-4" aria-labelledby="payment-method-heading">
-                  <h3 id="payment-method-heading" className="text-sm font-semibold text-gray-900">Payment method</h3>
-                  <div className="mt-3 space-y-2" role="radiogroup" aria-label="Payment method">
-                    <label className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition ${paymentMethod === "razorpay" ? "border-[#079447] bg-emerald-50" : "border-transparent bg-gray-50"}`}><input type="radio" name="payment-method" value="razorpay" checked={paymentMethod === "razorpay"} onChange={() => setPaymentMethod("razorpay")} className="accent-[#079447]" /><CreditCard size={17} className="text-[#079447]" aria-hidden="true" /><span className="text-sm font-medium text-gray-800">Pay securely with Razorpay</span></label>
-                    <label className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition ${paymentMethod === "cod" ? "border-[#079447] bg-emerald-50" : "border-transparent bg-gray-50"}`}><input type="radio" name="payment-method" value="cod" checked={paymentMethod === "cod"} onChange={() => setPaymentMethod("cod")} className="accent-[#079447]" /><Banknote size={17} className="text-[#079447]" aria-hidden="true" /><span className="text-sm font-medium text-gray-800">Cash on delivery</span></label>
-                  </div>
+              </div>
+
+              {/* Shipping info shiprocket */}
+              {/* {(shippingQuote || shippingError) && (
+                <div
+                  className={`mt-0 border-t border-gray-100 px-5 py-3 text-xs font-medium shadow-sm ${shippingError ? "bg-red-50 text-red-600" : "bg-[#f0f9f4] text-[#388e3c]"}`}
+                >
+                  {shippingError
+                    ? shippingError
+                    : shippingQuote
+                    ? `${shippingQuote.courier?.courier_name || "Courier"} Â· ${isFreeShipping ? "Free shipping" : formatCurrency(shippingQuote.shipping_charge)}${shippingQuote.courier?.estimated_delivery_days ? ` Â· ~${shippingQuote.courier.estimated_delivery_days} days` : ""}`
+                    : null}
                 </div>
-                <div className={`rounded-xl px-3 py-2 text-xs ${shippingError ? "bg-red-50 text-red-700" : "bg-white text-gray-600"}`}>
-                  {shippingLoading ? "Checking delivery charge…" : shippingError || (shippingQuote ? `${shippingQuote.courier.courier_name} · ${shippingQuote.free_shipping ? "Free shipping" : formatCurrency(shippingQuote.shipping_charge)}${shippingQuote.courier.estimated_delivery_days ? ` · about ${shippingQuote.courier.estimated_delivery_days} days` : ""}` : "Select an address to calculate delivery.")}
-                </div>
+              )} */}
+
+              {/* Place Order CTA */}
+              <div className="">
                 <button
+                  id="cart-place-order-btn"
                   onClick={checkout}
                   disabled={checkingOut || shippingLoading || !shippingQuote?.quote_id || !addresses.data?.length}
-                  className="w-full rounded-2xl bg-[#079447] px-5 py-4 text-base font-semibold text-white shadow-[0_12px_24px_rgba(7,148,71,0.24)] hover:bg-[#057a3a] disabled:bg-gray-300"
+                  className="w-full bg-[#079447] py-4 text-sm font-bold uppercase tracking-wider text-white shadow-md transition hover:bg-[#057a3a] disabled:cursor-not-allowed disabled:bg-gray-300 "
                 >
-                  {checkingOut ? "Processing…" : paymentMethod === "razorpay" ? "Pay with Razorpay" : "Place order"}
+                  {checkingOut
+                    ? "Processing"
+                    : paymentMethod === "razorpay"
+                    ? "Place Order"
+                    : "Place Order"}
                 </button>
               </div>
-            </section>
+
+              {/* Trust Badge */}
+               
+            </div>
           </aside>
+          {/* END RIGHT COLUMN */}
+
         </div>
-      )}
+      </div>
     </main>
   );
 };
 
+/*  Razorpay helpers  */
 function loadRazorpayCheckout() {
   if (window.Razorpay) return Promise.resolve();
   return new Promise((resolve, reject) => {
@@ -413,13 +661,5 @@ function openRazorpayCheckout(paymentOrder) {
   });
 }
 
-const Summary = ({ label, value, strong }) => (
-  <div
-    className={`flex justify-between gap-4 ${strong ? "text-lg font-bold text-gray-900" : "text-gray-600"}`}
-  >
-    <span>{label}</span>
-    <span>{formatCurrency(value)}</span>
-  </div>
-);
-
 export default Cart;
+
