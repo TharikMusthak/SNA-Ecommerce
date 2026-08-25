@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api";
 import BannerFields from "./BannerFields";
 import ProductFields from "./ProductFields";
+import { compressFormDataImages } from "../utils/compressImage";
 
 export default function Editor({
   type,
@@ -90,6 +91,14 @@ export default function Editor({
 
       if (type === "banner") {
         const bannerFormData = new FormData(formElement);
+        const compressedFields = await compressFormDataImages(
+          bannerFormData,
+          ["image", "mobile_image"],
+        );
+
+        if (compressedFields.length) {
+          onNotice?.("Banner images were optimized for upload.");
+        }
 
         await api(`/banners${item ? `/${item.id}` : ""}`, {
           method: item ? "PUT" : "POST",
