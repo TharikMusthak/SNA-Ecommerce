@@ -5,7 +5,7 @@ import { requireCustomer } from "../../middleware/customerAuth.js";
 import { reviewFileUrl, reviewUpload } from "../../middleware/reviewUpload.js";
 import { deleteUploadedFiles, uploadedFiles } from "../../middleware/uploadSecurity.js";
 import { parsePositiveId } from "../../security/validation.js";
-import { safelyDeleteUpload, safelyDeleteUploads } from "../../services/uploadFiles.js";
+import { safelyDeleteUpload, safelyDeleteUploads, uploadReviewMedia } from "../../services/uploadFiles.js";
 import { fail, ok, paginated } from "../../utils/apiResponse.js";
 
 const router = Router();
@@ -60,6 +60,7 @@ router.post("/", requireCustomer, ...reviewUpload, asyncHandler(async (req, res)
   }
   const [[purchase]] = await pool.query(`SELECT oi.id FROM order_items oi JOIN orders o ON o.id=oi.order_id WHERE o.user_id=? AND oi.product_id=? AND o.status='delivered' ORDER BY oi.id DESC LIMIT 1`, [req.user.id, input.productId]);
   try {
+    await uploadReviewMedia(files);
     const [result] = await pool.query(
       "INSERT INTO reviews(user_id,product_id,order_item_id,rating,title,review_text,image_url,video_url,is_verified_purchase,status) VALUES (?,?,?,?,?,?,?,?,?,'approved')",
       [req.user.id, input.productId, purchase?.id || null, input.rating, input.title, input.reviewText, reviewFileUrl(req.files?.image?.[0]), reviewFileUrl(req.files?.video?.[0]), Boolean(purchase)],
@@ -67,6 +68,7 @@ router.post("/", requireCustomer, ...reviewUpload, asyncHandler(async (req, res)
     return ok(res, { id: result.insertId, status: "approved" }, "Review published successfully", 201);
   } catch (error) {
     await deleteUploadedFiles(files);
+    await safelyDeleteUploads(files.map(reviewFileUrl), "reviews");
     if (error.code === "ER_DUP_ENTRY") return fail(res, 409, "You have already reviewed this product");
     throw error;
   }
@@ -85,9 +87,15 @@ router.put("/:id", requireCustomer, ...reviewUpload, asyncHandler(async (req, re
     await deleteUploadedFiles(files);
     return fail(res, 404, "Review not found");
   }
+  await uploadReviewMedia(files);
   const imageUrl = reviewFileUrl(req.files?.image?.[0]) || (req.body.remove_image === "1" ? null : existing.image_url);
   const videoUrl = reviewFileUrl(req.files?.video?.[0]) || (req.body.remove_video === "1" ? null : existing.video_url);
-  await pool.query("UPDATE reviews SET rating=?,title=?,review_text=?,image_url=?,video_url=?,status='approved' WHERE id=? AND user_id=?", [input.rating, input.title, input.reviewText, imageUrl, videoUrl, id, req.user.id]);
+  try {
+    await pool.query("UPDATE reviews SET rating=?,title=?,review_text=?,image_url=?,video_url=?,status='approved' WHERE id=? AND user_id=?", [input.rating, input.title, input.reviewText, imageUrl, videoUrl, id, req.user.id]);
+  } catch (error) {
+    await safelyDeleteUploads(files.map(reviewFileUrl), "reviews");
+    throw error;
+  }
   if (existing.image_url !== imageUrl) await safelyDeleteUpload(existing.image_url, "reviews");
   if (existing.video_url !== videoUrl) await safelyDeleteUpload(existing.video_url, "reviews");
   return ok(res, { status: "approved" }, "Review updated and published successfully");
