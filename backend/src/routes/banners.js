@@ -17,7 +17,7 @@ import {
   isAllowed,
   parsePositiveId,
 } from "../security/validation.js";
-import { safelyDeleteUpload } from "../services/uploadFiles.js";
+import { safelyDeleteUpload, uploadBannerMedia } from "../services/uploadFiles.js";
 
 const router = Router();
 const BANNER_STATUSES = ["Active", "Draft"];
@@ -34,13 +34,17 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+  limits: { fileSize: 5 * 1024 * 1024, files: 2 },
   fileFilter: imageFileFilter,
 });
+const bannerUpload = upload.fields([
+  { name: "image", maxCount: 1 },
+  { name: "mobile_image", maxCount: 1 },
+]);
 
 router.get("/public", async (_req, res) => {
   const [rows] = await pool.query(
-    `SELECT id, title, subtitle, button_text, button_link, image, sort_order
+    `SELECT id, title, subtitle, button_text, button_link, image, mobile_image, sort_order
      FROM banners
      WHERE status = 'Active'
      ORDER BY sort_order, id DESC`,
@@ -56,7 +60,7 @@ router.use(
 router.get("/", async (_req, res) => {
   const [rows] = await pool.query(
     `SELECT
-       id, title, subtitle, button_text, button_link, image,
+       id, title, subtitle, button_text, button_link, image, mobile_image,
        status, sort_order, created_at
      FROM banners
      ORDER BY sort_order, id DESC`,
@@ -72,7 +76,7 @@ router.get("/:id", async (req, res) => {
 
   const [[banner]] = await pool.query(
     `SELECT
-       id, title, subtitle, button_text, button_link, image,
+       id, title, subtitle, button_text, button_link, image, mobile_image,
        status, sort_order, created_at
      FROM banners
      WHERE id = ?
@@ -87,32 +91,36 @@ router.get("/:id", async (req, res) => {
 
 router.post(
   "/",
-  upload.single("image"),
+  bannerUpload,
   verifyUploadedImages,
   async (req, res) => {
     const input = parseBanner(req.body);
     const files = uploadedFiles(req);
 
-    if (input.error || !req.file) {
+    const desktopFile = req.files?.image?.[0];
+    const mobileFile = req.files?.mobile_image?.[0];
+    if (input.error || !desktopFile) {
       await deleteUploadedFiles(files);
       return res.status(400).json({
         message: input.error || "Banner image required",
       });
     }
 
-    const uploadedImage = imageUrl(req.file);
-
     try {
+      await uploadBannerMedia(files);
+      const uploadedImage = imageUrl(desktopFile);
+      const uploadedMobileImage = imageUrl(mobileFile);
       const [result] = await pool.query(
         `INSERT INTO banners
-          (title, subtitle, button_text, button_link, image, status, sort_order)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          (title, subtitle, button_text, button_link, image, mobile_image, status, sort_order)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           input.value.title,
           input.value.subtitle,
           input.value.buttonText,
           input.value.buttonLink,
           uploadedImage,
+          uploadedMobileImage,
           input.value.status,
           input.value.sortOrder,
         ],
@@ -121,9 +129,11 @@ router.post(
       res.status(201).json({
         id: result.insertId,
         image: uploadedImage,
+        mobile_image: uploadedMobileImage,
       });
     } catch (error) {
       await deleteUploadedFiles(files);
+      await Promise.all(files.map((file) => safelyDeleteUpload(imageUrl(file), "banners")));
       throw error;
     }
   },
@@ -131,13 +141,12 @@ router.post(
 
 router.put(
   "/:id",
-  upload.single("image"),
+  bannerUpload,
   verifyUploadedImages,
   async (req, res) => {
     const bannerId = parsePositiveId(req.params.id);
     const input = parseBanner(req.body);
     const files = uploadedFiles(req);
-    const newImage = req.file ? imageUrl(req.file) : null;
 
     if (!bannerId || input.error) {
       await deleteUploadedFiles(files);
@@ -148,29 +157,37 @@ router.put(
 
     let connection;
     let oldImage;
+    let oldMobileImage;
     let finalImage;
+    let finalMobileImage;
 
     try {
       connection = await pool.getConnection();
       await connection.beginTransaction();
+      await uploadBannerMedia(files);
+      const newImage = imageUrl(req.files?.image?.[0]);
+      const newMobileImage = imageUrl(req.files?.mobile_image?.[0]);
       const [[existingBanner]] = await connection.query(
-        "SELECT image FROM banners WHERE id = ? FOR UPDATE",
+        "SELECT image, mobile_image FROM banners WHERE id = ? FOR UPDATE",
         [bannerId],
       );
 
       if (!existingBanner) {
         await connection.rollback();
         await deleteUploadedFiles(files);
+        await Promise.all(files.map((file) => safelyDeleteUpload(imageUrl(file), "banners")));
         return res.status(404).json({ message: "Banner not found" });
       }
 
       oldImage = existingBanner.image;
+      oldMobileImage = existingBanner.mobile_image;
       finalImage = newImage || existingBanner.image;
+      finalMobileImage = newMobileImage || existingBanner.mobile_image;
 
       await connection.query(
         `UPDATE banners
          SET title = ?, subtitle = ?, button_text = ?, button_link = ?,
-             image = ?, status = ?, sort_order = ?
+             image = ?, mobile_image = ?, status = ?, sort_order = ?
          WHERE id = ?`,
         [
           input.value.title,
@@ -178,6 +195,7 @@ router.put(
           input.value.buttonText,
           input.value.buttonLink,
           finalImage,
+          finalMobileImage,
           input.value.status,
           input.value.sortOrder,
           bannerId,
@@ -188,11 +206,15 @@ router.put(
       if (newImage && oldImage !== newImage) {
         await safelyDeleteUpload(oldImage, "banners");
       }
+      if (newMobileImage && oldMobileImage !== newMobileImage) {
+        await safelyDeleteUpload(oldMobileImage, "banners");
+      }
 
-      res.json({ message: "Banner updated", image: finalImage });
+      res.json({ message: "Banner updated", image: finalImage, mobile_image: finalMobileImage });
     } catch (error) {
       if (connection) await connection.rollback();
       await deleteUploadedFiles(files);
+      await Promise.all(files.map((file) => safelyDeleteUpload(imageUrl(file), "banners")));
       throw error;
     } finally {
       connection?.release();
@@ -228,11 +250,12 @@ router.delete("/:id", async (req, res) => {
 
   const connection = await pool.getConnection();
   let imagePath;
+  let mobileImagePath;
 
   try {
     await connection.beginTransaction();
     const [[banner]] = await connection.query(
-      "SELECT image FROM banners WHERE id = ? FOR UPDATE",
+      "SELECT image, mobile_image FROM banners WHERE id = ? FOR UPDATE",
       [bannerId],
     );
 
@@ -242,6 +265,7 @@ router.delete("/:id", async (req, res) => {
     }
 
     imagePath = banner.image;
+    mobileImagePath = banner.mobile_image;
     await connection.query("DELETE FROM banners WHERE id = ?", [bannerId]);
     await connection.commit();
   } catch (error) {
@@ -252,6 +276,7 @@ router.delete("/:id", async (req, res) => {
   }
 
   await safelyDeleteUpload(imagePath, "banners");
+  await safelyDeleteUpload(mobileImagePath, "banners");
   res.json({ message: "Banner deleted" });
 });
 
@@ -292,7 +317,7 @@ function safeButtonLink(value) {
 }
 
 function imageUrl(file) {
-  return `/uploads/banners/${file.filename}`;
+  return file ? file.blobUrl || `/uploads/banners/${file.filename}` : null;
 }
 
 export default router;
