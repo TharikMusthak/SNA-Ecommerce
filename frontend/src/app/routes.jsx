@@ -30,39 +30,49 @@ export const router = createBrowserRouter([
   {
     path: "/",
     element: <MainLayout />,
+    handle: { title: "SNA Sundaram" },
     children: [
       {
         index: true,
         element: <Home />,
+        handle: { title: "Home" },
       },
 
       {
         path: "products",
         element: <Product />,
+        handle: { title: "Products" },
       },
       {
         path: "products/:identifier",
         element: <Product />,
-      },
+                handle: { title: "Products Details" },
+
+       },
       {
         path: "ourstory",
         element: <OurStory />,
+        handle: { title: "Our Story" },
       },
       {
         path: "contactus",
         element: <ContactUs />,
+        handle: { title: "Contact Us" },
       },
       {
         path: "terms-and-conditions",
         element: <TermsAndConditions />,
+        handle: { title: "Terms and Conditions" },
       },
       {
         path: "privacy-policy",
         element: <PrivacyPolicy />,
+        handle: { title: "Privacy Policy" },
       },
       {
         path: "verify-email",
         element: <VerifyEmail />,
+        handle: { title: "Verify Email" },
       },
 
       // Protected Routes
@@ -72,14 +82,17 @@ export const router = createBrowserRouter([
           {
             path: "cart",
             element: <Cart />,
+            handle: { title: "Cart" },
           },
           {
             path: "profile",
             element: <Profile />,
+            handle: { title: "Profile" },
           },
           {
             path: "wishlist",
             element: <Wishlist />,
+            handle: { title: "Wishlist" },
           },
           // {
           //   path: "orders",
@@ -97,6 +110,7 @@ export const router = createBrowserRouter([
   {
     path: "/auth",
     element: <AuthLayout />,
+    handle: { title: "Account" },
     children: [
       {
         element: <GuestRoute />,
@@ -104,14 +118,17 @@ export const router = createBrowserRouter([
           {
             path: "login",
             element: <Login />,
+            handle: { title: "Login" },
           },
           {
             path: "register",
             element: <Register />,
+            handle: { title: "Register" },
           },
           {
             path: "forgot-password",
             element: <ForgotPassword />,
+            handle: { title: "Forgot Password" },
           },
         ],
       },
@@ -137,5 +154,6 @@ export const router = createBrowserRouter([
   {
     path: "*",
     element: <NotFound />,
+    handle: { title: "Page Not Found" },
   },
 ]);

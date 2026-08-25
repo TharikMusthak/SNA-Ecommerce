@@ -316,7 +316,7 @@ const Navbar = () => {
             Products
           </NavLink>
           <NavLink to="/contactus" className={navLinkClass}>
-            Contact
+            Contact Us
           </NavLink>
         </nav>
 

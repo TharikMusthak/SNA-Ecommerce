@@ -1,8 +1,15 @@
+import { useEffect } from "react";
 import { ArrowLeft, Home, Search } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
+const SITE_NAME = "SNA Sundaram";
+
 const NotFound = () => {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    document.title = `Page Not Found | ${SITE_NAME}`;
+  }, []);
 
   return (
     <main className="grid min-h-[100vh] min-w-[100vw] place-items-center   bg-white] px-5 py-12">

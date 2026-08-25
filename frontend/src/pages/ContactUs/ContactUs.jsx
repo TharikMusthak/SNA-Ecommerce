@@ -355,7 +355,7 @@ const ContactUs = () => {
                         value={formData.name}
                         onChange={handleChange}
                         onBlur={handleBlur}
-                        placeholder="Your name"
+                        placeholder="Name"
                         maxLength={100}
                         aria-invalid={Boolean(errors.name)}
                         className={`w-full rounded-xl border ${
@@ -382,7 +382,7 @@ const ContactUs = () => {
                         value={formData.email}
                         onChange={handleChange}
                         onBlur={handleBlur}
-                        placeholder="Email address (you@example.com)"
+                        placeholder="Email"
                         maxLength={100}
                         inputMode="email"
                         aria-invalid={Boolean(errors.email)}
@@ -413,7 +413,7 @@ const ContactUs = () => {
                         value={formData.phone}
                         onChange={handleChange}
                         onBlur={handleBlur}
-                        placeholder="Phone number (+91 XXXXX XXXXX)"
+                        placeholder="Phone number"
                         maxLength={15}
                         aria-invalid={Boolean(errors.phone)}
                         className={`w-full rounded-xl border ${
