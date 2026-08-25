@@ -131,44 +131,21 @@ const Cart = () => {
 
   return (
     <main className="mx-auto min-h-[70vh] w-full max-w-[1280px] px-5 py-12 sm:px-8 lg:px-14">
-      <div className="flex items-end justify-between">
+      <div className="flex items-end justify-between gap-4">
         <div>
-       <div className="mb-2 flex items-center gap-1">
-            <span
-              className="
-                  pointer-events-none
-
-                text-[clamp(22px,1.8vw,27px)]
-                font-bold
-                leading-none
-                text-[#3d3d3d]
-              "
-            >
-             Your Health basket
-
+          <div className="mb-2 flex items-center gap-1">
+            <span className="pointer-events-none text-[clamp(22px,1.8vw,27px)] font-bold leading-none text-[#3d3d3d]">
+              Your Health basket
             </span>
- 
-              
           </div>
-
-
-           <h2
-            className="
-              text-[clamp(43px,3.3vw,56px)]
-              font-regular
-              leading-[1.12]
-              tracking-[-0.025em]
-              text-[#3f3f3f]
-            "
-          >
+          <h2 className="text-[clamp(43px,3.3vw,56px)] font-regular leading-[1.12] tracking-[-0.025em] text-[#3f3f3f]">
             Shopping cart
           </h2>
-          
         </div>
         {cart.items.length > 0 && (
           <button
             onClick={() => run(() => clear.mutateAsync(), "Cart cleared")}
-            className="text-sm font-medium text-red-600 hover:underline"
+            className="rounded-full border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-600 transition hover:border-red-300 hover:bg-red-50"
           >
             Clear cart
           </button>
@@ -191,153 +168,197 @@ const Cart = () => {
           </Link>
         </div>
       ) : (
-        <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_360px]">
-          <section className="space-y-4">
-            {cart.items.map((item) => (
-              <article
-                key={item.id}
-                className="grid grid-cols-[88px_1fr] gap-4 rounded-2xl border border-gray-200 bg-white p-4 sm:grid-cols-[110px_1fr_auto] sm:items-center"
-              >
-                <Link
-                  to={`/products/${item.slug || item.product_id}`}
-                  className="aspect-square rounded-xl bg-[#f5f7f1] p-2"
+        <div className="mt-10 grid gap-8 xl:grid-cols-[minmax(0,1.7fr)_minmax(360px,1fr)]">
+          <section className="rounded-[2rem] border border-gray-200 bg-white p-4 shadow-[0_14px_40px_rgba(15,23,42,0.05)] sm:p-6">
+           
+            <div className="space-y-4">
+              {cart.items.map((item) => (
+                <article
+                  key={item.id}
+                  className="grid grid-cols-[84px_1fr] gap-4 rounded-[1.5rem] border border-gray-200 bg-[#fcfcfb] p-4 transition hover:border-emerald-300 sm:grid-cols-[120px_1fr_auto] sm:items-center sm:p-5"
                 >
-                  <img
-                    src={assetUrl(item.main_image, fallbackImage)}
-                    alt={item.name}
-                    className="h-full w-full object-contain"
-                  />
-                </Link>
-                <div>
                   <Link
                     to={`/products/${item.slug || item.product_id}`}
-                    className="font-semibold text-gray-900 hover:text-[#079447]"
+                    className="aspect-square rounded-2xl bg-[#f5f7f1] p-2"
                   >
-                    {item.name}
+                    <img
+                      src={assetUrl(item.main_image, fallbackImage)}
+                      alt={item.name}
+                      className="h-full w-full object-contain"
+                    />
                   </Link>
-                  <p className="mt-1 text-sm text-gray-500">
-                    {formatCurrency(item.unit_price)} each
-                  </p>
-                  <div className="mt-3 inline-flex items-center rounded-lg border">
-                    <button
-                      disabled={item.quantity <= 1 || updateItem.isPending}
-                      onClick={() =>
-                        run(() =>
-                          updateItem.mutateAsync({
-                            itemId: item.id,
-                            quantity: item.quantity - 1,
-                          }),
-                        )
-                      }
-                      className="p-2"
-                      aria-label="Decrease"
+                  <div>
+                    <Link
+                      to={`/products/${item.slug || item.product_id}`}
+                      className="font-semibold text-gray-900 hover:text-[#079447]"
                     >
-                      <Minus size={16} />
-                    </button>
-                    <span className="min-w-9 text-center text-sm font-semibold">
-                      {item.quantity}
-                    </span>
+                      {item.name}
+                    </Link>
+                    <p className="mt-1 text-sm text-gray-500">
+                      {formatCurrency(item.unit_price)} each
+                    </p>
+                    <div className="mt-3 inline-flex items-center rounded-full border border-gray-200 bg-white px-1 py-1">
+                      <button
+                        disabled={item.quantity <= 1 || updateItem.isPending}
+                        onClick={() =>
+                          run(() =>
+                            updateItem.mutateAsync({
+                              itemId: item.id,
+                              quantity: item.quantity - 1,
+                            }),
+                          )
+                        }
+                        className="rounded-full p-2 hover:bg-gray-100 disabled:opacity-40"
+                        aria-label="Decrease"
+                      >
+                        <Minus size={16} />
+                      </button>
+                      <span className="min-w-10 text-center text-sm font-semibold text-gray-900">
+                        {item.quantity}
+                      </span>
+                      <button
+                        disabled={
+                          item.quantity >= item.available_stock ||
+                          updateItem.isPending
+                        }
+                        onClick={() =>
+                          run(() =>
+                            updateItem.mutateAsync({
+                              itemId: item.id,
+                              quantity: item.quantity + 1,
+                            }),
+                          )
+                        }
+                        className="rounded-full p-2 hover:bg-gray-100 disabled:opacity-40"
+                        aria-label="Increase"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="col-span-2 flex items-center justify-between border-t border-gray-100 pt-3 sm:col-span-1 sm:block sm:border-0 sm:pt-0 sm:text-right">
+                    <p className="text-lg font-bold text-[#079447]">
+                      {formatCurrency(item.line_total)}
+                    </p>
                     <button
-                      disabled={
-                        item.quantity >= item.available_stock ||
-                        updateItem.isPending
-                      }
                       onClick={() =>
-                        run(() =>
-                          updateItem.mutateAsync({
-                            itemId: item.id,
-                            quantity: item.quantity + 1,
-                          }),
-                        )
+                        run(() => removeItem.mutateAsync(item.id), "Item removed")
                       }
-                      className="p-2"
-                      aria-label="Increase"
+                      className="mt-2 inline-flex items-center gap-1 text-sm text-red-600"
                     >
-                      <Plus size={16} />
+                      <Trash2 size={15} /> Remove
                     </button>
                   </div>
-                </div>
-                <div className="col-span-2 flex items-center justify-between sm:col-span-1 sm:block sm:text-right">
-                  <p className="font-bold text-[#079447]">
-                    {formatCurrency(item.line_total)}
-                  </p>
-                  <button
-                    onClick={() =>
-                      run(() => removeItem.mutateAsync(item.id), "Item removed")
-                    }
-                    className="mt-2 inline-flex items-center gap-1 text-sm text-red-600"
-                  >
-                    <Trash2 size={15} /> Remove
-                  </button>
-                </div>
-              </article>
-            ))}
+                </article>
+              ))}
+            </div>
           </section>
 
-          <aside className="h-fit rounded-3xl bg-[#f5f7f1] p-6 lg:sticky lg:top-28">
-            <h2 className="text-xl font-semibold text-gray-900">
-              Order summary
-            </h2>
-            <div className="mt-5 space-y-3 text-sm">
-              <Summary label="Subtotal" value={displaySummary.subtotal} />
-              <Summary label="Tax" value={displaySummary.tax} />
-              <Summary label="Shipping" value={displaySummary.shipping} />
-              <Summary label="Discount" value={-displaySummary.discount} />
-              <div className="border-t border-gray-300 pt-4">
-                <Summary label="Total" value={displaySummary.total} strong />
-              </div>
-            </div>
-            <form onSubmit={submitCoupon} className="mt-6 flex gap-2">
-              <input
-                name="code"
-                placeholder="Coupon code"
-                className="min-w-0 flex-1 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#079447]"
-              />
-              <button className="rounded-xl border border-[#079447] px-4 py-2 text-sm font-semibold text-[#079447]">
-                Apply
-              </button>
-            </form>
-            <section className="mt-7 border-t border-emerald-100 pt-6" aria-labelledby="delivery-address-heading">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-2"><span className="rounded-lg bg-emerald-100 p-2 text-[#079447]"><MapPin size={17} /></span><div><h3 id="delivery-address-heading" className="text-sm font-semibold text-gray-900">Delivery address</h3><p className="mt-0.5 text-xs text-gray-500">Choose where we should deliver your order.</p></div></div>
-                <Link to="/profile" className="shrink-0 rounded-lg px-2 py-1 text-xs font-semibold text-[#079447] transition hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447]">Manage</Link>
-              </div>
-              {addresses.isLoading ? (
-                <div className="mt-4 rounded-xl border border-white bg-white/70 px-4 py-5 text-center text-sm text-gray-500">Loading your saved addresses…</div>
-              ) : addresses.data?.length ? (
-                <div className="mt-4 max-h-[19.5rem] space-y-3 overflow-y-auto pr-1.5 [scrollbar-gutter:stable]" role="radiogroup" aria-label="Delivery address">
-                  {addresses.data.map((address) => {
-                    const isSelected = String(addressId || addresses.data?.find((item) => item.is_default)?.id || "") === String(address.id);
-                    return <label key={address.id} className={`group relative block cursor-pointer rounded-2xl border bg-white p-4 transition ${isSelected ? "border-[#079447] shadow-[0_8px_20px_rgba(7,148,71,0.12)]" : "border-gray-200 hover:border-emerald-300"}`}>
-                      <input type="radio" name="delivery-address" value={address.id} checked={isSelected} onChange={(event) => setAddressId(event.target.value)} className="sr-only" />
-                      <span className={`absolute right-4 top-4 flex h-5 w-5 items-center justify-center rounded-full border ${isSelected ? "border-[#079447] bg-[#079447] text-white" : "border-gray-300 bg-white"}`}>{isSelected && <CheckCircle2 size={14} aria-hidden="true" />}</span>
-                      <div className="pr-7"><div className="flex flex-wrap items-center gap-2"><p className="text-sm font-semibold text-gray-900">{address.full_name}</p>{address.is_default && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#057a3a]">Default</span>}</div><p className="mt-1.5 text-xs leading-5 text-gray-600">{address.address_line_1}{address.address_line_2 ? `, ${address.address_line_2}` : ""}<br />{address.city}, {address.state} {address.postal_code}</p>{address.phone && <p className="mt-1 text-xs text-gray-500">{address.phone}</p>}</div>
-                      <Link to="/profile" onClick={(event) => event.stopPropagation()} className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#079447] underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447]"><Pencil size={12} /> Edit</Link>
-                    </label>;
-                  })}
-                  <Link to="/profile" className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-emerald-300 px-3 py-3 text-xs font-semibold text-[#079447] transition hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447]"><Plus size={15} /> Add another address</Link>
+          <aside className="h-fit lg:sticky lg:top-28">
+            <section className="rounded-[2rem] border border-emerald-100 bg-gradient-to-b from-[#f4fbf6] to-white p-5 shadow-[0_14px_40px_rgba(15,23,42,0.06)] sm:p-6">
+              <div className="flex items-center justify-between gap-3 border-b border-emerald-100 pb-4">
+                <div>
+                   
+                  <h2 className="mt-1 text-2xl font-semibold text-gray-900">Order summary</h2>
                 </div>
-              ) : (
-                <div className="mt-4 rounded-2xl border border-dashed border-emerald-200 bg-white/70 p-5 text-center"><p className="text-sm font-semibold text-gray-800">No delivery address saved</p><p className="mt-1 text-xs leading-5 text-gray-500">Add an address to continue with checkout.</p><Link to="/profile" className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#079447] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#057a3a] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447]"><Plus size={14} /> Add delivery address</Link></div>
-              )}
-            </section>
-            <section className="mt-6 border-t border-emerald-100 pt-5" aria-labelledby="payment-method-heading">
-              <h3 id="payment-method-heading" className="text-sm font-semibold text-gray-900">Payment method</h3>
-              <div className="mt-3 space-y-2" role="radiogroup" aria-label="Payment method">
-                <label className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition ${paymentMethod === "razorpay" ? "border-[#079447] bg-white" : "border-transparent bg-white/60"}`}><input type="radio" name="payment-method" value="razorpay" checked={paymentMethod === "razorpay"} onChange={() => setPaymentMethod("razorpay")} className="accent-[#079447]" /><CreditCard size={17} className="text-[#079447]" aria-hidden="true" /><span className="text-sm font-medium text-gray-800">Pay securely with Razorpay</span></label>
-                <label className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition ${paymentMethod === "cod" ? "border-[#079447] bg-white" : "border-transparent bg-white/60"}`}><input type="radio" name="payment-method" value="cod" checked={paymentMethod === "cod"} onChange={() => setPaymentMethod("cod")} className="accent-[#079447]" /><Banknote size={17} className="text-[#079447]" aria-hidden="true" /><span className="text-sm font-medium text-gray-800">Cash on delivery</span></label>
+                <div className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#079447] shadow-sm">
+                  Secure checkout
+                </div>
+              </div>
+              <div className="mt-5 space-y-4">
+                <div className="rounded-2xl bg-white p-4 shadow-sm">
+                  <div className="space-y-3 text-sm">
+                    <Summary label="Subtotal" value={displaySummary.subtotal} />
+                    <Summary label="Tax" value={displaySummary.tax} />
+                    <Summary label="Shipping" value={displaySummary.shipping} />
+                    <Summary label="Discount" value={-displaySummary.discount} />
+                    <div className="border-t border-gray-200 pt-4">
+                      <Summary label="Total" value={displaySummary.total} strong />
+                    </div>
+                  </div>
+                </div>
+                <form onSubmit={submitCoupon} className="flex gap-2">
+                  <input
+                    name="code"
+                    placeholder="Coupon code"
+                    className="min-w-0 flex-1 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#079447]"
+                  />
+                  <button className="rounded-xl border border-[#079447] px-4 py-2 text-sm font-semibold text-[#079447]">
+                    Apply
+                  </button>
+                </form>
+                <div className="rounded-2xl border border-emerald-100 bg-white p-4" aria-labelledby="delivery-address-heading">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-lg bg-emerald-100 p-2 text-[#079447]">
+                        <MapPin size={17} />
+                      </span>
+                      <div>
+                        <h3 id="delivery-address-heading" className="text-sm font-semibold text-gray-900">
+                          Delivery address
+                        </h3>
+                        <p className="mt-0.5 text-xs text-gray-500">Choose where we should deliver your order.</p>
+                      </div>
+                    </div>
+                    <Link
+                      to="/profile"
+                      className="shrink-0 rounded-lg px-2 py-1 text-xs font-semibold text-[#079447] transition hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447]"
+                    >
+                      Manage
+                    </Link>
+                  </div>
+                  {addresses.isLoading ? (
+                    <div className="mt-4 rounded-xl border border-white bg-[#f8faf7] px-4 py-5 text-center text-sm text-gray-500">Loading your saved addresses…</div>
+                  ) : addresses.data?.length ? (
+                    <div className="mt-4 max-h-[19.5rem] space-y-3 overflow-y-auto pr-1.5 [scrollbar-gutter:stable]" role="radiogroup" aria-label="Delivery address">
+                      {addresses.data.map((address) => {
+                        const isSelected = String(addressId || addresses.data?.find((item) => item.is_default)?.id || "") === String(address.id);
+                        return (
+                          <label key={address.id} className={`group relative block cursor-pointer rounded-2xl border bg-[#fcfdfb] p-4 transition ${isSelected ? "border-[#079447] shadow-[0_8px_20px_rgba(7,148,71,0.12)]" : "border-gray-200 hover:border-emerald-300"}`}>
+                            <input type="radio" name="delivery-address" value={address.id} checked={isSelected} onChange={(event) => setAddressId(event.target.value)} className="sr-only" />
+                            <span className={`absolute right-4 top-4 flex h-5 w-5 items-center justify-center rounded-full border ${isSelected ? "border-[#079447] bg-[#079447] text-white" : "border-gray-300 bg-white"}`}>{isSelected && <CheckCircle2 size={14} aria-hidden="true" />}</span>
+                            <div className="pr-7">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-sm font-semibold text-gray-900">{address.full_name}</p>
+                                {address.is_default && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#057a3a]">Default</span>}
+                              </div>
+                              <p className="mt-1.5 text-xs leading-5 text-gray-600">
+                                {address.address_line_1}
+                                {address.address_line_2 ? `, ${address.address_line_2}` : ""}
+                                <br />
+                                {address.city}, {address.state} {address.postal_code}
+                              </p>
+                              {address.phone && <p className="mt-1 text-xs text-gray-500">{address.phone}</p>}
+                            </div>
+                            <Link to="/profile" onClick={(event) => event.stopPropagation()} className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#079447] underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447]"><Pencil size={12} /> Edit</Link>
+                          </label>
+                        );
+                      })}
+                      <Link to="/profile" className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-emerald-300 px-3 py-3 text-xs font-semibold text-[#079447] transition hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447]"><Plus size={15} /> Add another address</Link>
+                    </div>
+                  ) : (
+                    <div className="mt-4 rounded-2xl border border-dashed border-emerald-200 bg-[#f8faf7] p-5 text-center"><p className="text-sm font-semibold text-gray-800">No delivery address saved</p><p className="mt-1 text-xs leading-5 text-gray-500">Add an address to continue with checkout.</p><Link to="/profile" className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#079447] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#057a3a] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447]"><Plus size={14} /> Add delivery address</Link></div>
+                  )}
+                </div>
+                <div className="rounded-2xl border border-emerald-100 bg-white p-4" aria-labelledby="payment-method-heading">
+                  <h3 id="payment-method-heading" className="text-sm font-semibold text-gray-900">Payment method</h3>
+                  <div className="mt-3 space-y-2" role="radiogroup" aria-label="Payment method">
+                    <label className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition ${paymentMethod === "razorpay" ? "border-[#079447] bg-emerald-50" : "border-transparent bg-gray-50"}`}><input type="radio" name="payment-method" value="razorpay" checked={paymentMethod === "razorpay"} onChange={() => setPaymentMethod("razorpay")} className="accent-[#079447]" /><CreditCard size={17} className="text-[#079447]" aria-hidden="true" /><span className="text-sm font-medium text-gray-800">Pay securely with Razorpay</span></label>
+                    <label className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition ${paymentMethod === "cod" ? "border-[#079447] bg-emerald-50" : "border-transparent bg-gray-50"}`}><input type="radio" name="payment-method" value="cod" checked={paymentMethod === "cod"} onChange={() => setPaymentMethod("cod")} className="accent-[#079447]" /><Banknote size={17} className="text-[#079447]" aria-hidden="true" /><span className="text-sm font-medium text-gray-800">Cash on delivery</span></label>
+                  </div>
+                </div>
+                <div className={`rounded-xl px-3 py-2 text-xs ${shippingError ? "bg-red-50 text-red-700" : "bg-white text-gray-600"}`}>
+                  {shippingLoading ? "Checking Shiprocket delivery charge…" : shippingError || (shippingQuote ? `${shippingQuote.courier.courier_name} · ${shippingQuote.free_shipping ? "Free shipping" : formatCurrency(shippingQuote.shipping_charge)}${shippingQuote.courier.estimated_delivery_days ? ` · about ${shippingQuote.courier.estimated_delivery_days} days` : ""}` : "Select an address to calculate delivery.")}
+                </div>
+                <button
+                  onClick={checkout}
+                  disabled={checkingOut || shippingLoading || !shippingQuote?.quote_id || !addresses.data?.length}
+                  className="w-full rounded-2xl bg-[#079447] px-5 py-4 text-base font-semibold text-white shadow-[0_12px_24px_rgba(7,148,71,0.24)] hover:bg-[#057a3a] disabled:bg-gray-300"
+                >
+                  {checkingOut ? "Processing…" : paymentMethod === "razorpay" ? "Pay with Razorpay" : "Place order"}
+                </button>
               </div>
             </section>
-            <div className={`mt-4 rounded-xl px-3 py-2 text-xs ${shippingError ? "bg-red-50 text-red-700" : "bg-white text-gray-600"}`}>
-              {shippingLoading ? "Checking Shiprocket delivery charge…" : shippingError || (shippingQuote ? `${shippingQuote.courier.courier_name} · ${shippingQuote.free_shipping ? "Free shipping" : formatCurrency(shippingQuote.shipping_charge)}${shippingQuote.courier.estimated_delivery_days ? ` · about ${shippingQuote.courier.estimated_delivery_days} days` : ""}` : "Select an address to calculate delivery.")}
-            </div>
-            <button
-              onClick={checkout}
-              disabled={checkingOut || shippingLoading || !shippingQuote?.quote_id || !addresses.data?.length}
-              className="mt-5 w-full rounded-xl bg-[#079447] px-5 py-3 font-semibold text-white hover:bg-[#057a3a] disabled:bg-gray-300"
-            >
-              {checkingOut ? "Processing…" : paymentMethod === "razorpay" ? "Pay with Razorpay" : "Place order"}
-            </button>
           </aside>
         </div>
       )}

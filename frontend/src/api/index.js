@@ -1,4 +1,4 @@
-export { default as api, apiErrorMessage } from "./axios";
+ export { default as api, apiErrorMessage } from "./axios";
 export * from "./auth.api";
 export * from "./product.api";
 export * from "./category.api";
