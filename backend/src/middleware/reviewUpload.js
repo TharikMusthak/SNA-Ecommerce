@@ -34,5 +34,5 @@ export const reviewUpload = [
 ];
 
 export function reviewFileUrl(file) {
-  return file ? `/uploads/reviews/${file.filename}` : null;
+  return file ? file.blobUrl || `/uploads/reviews/${file.filename}` : null;
 }
