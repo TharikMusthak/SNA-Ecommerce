@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Eye, EyeOff, MapPin, Plus, ShieldCheck, ShoppingBag, UserRound, X, AlertCircle } from "lucide-react";
+import { AlertCircle, CheckCircle2, Eye, EyeOff, MapPin, Plus, ShieldCheck, ShoppingBag, Sparkles, UserRound, X } from "lucide-react";
 import toast from "react-hot-toast";
 
 import {
@@ -205,41 +205,42 @@ const Profile = () => {
   return (
     <main className="min-h-screen bg-[#f1f3f6] py-5 sm:py-8">
       <div className="mx-auto max-w-[1240px] px-3 sm:px-5">
-        <header className="mb-4 overflow-hidden bg-white shadow-sm">
-          <div className="flex items-center gap-4 border-b border-gray-100 p-5">
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#079447] text-lg font-bold text-white">
-              {user?.first_name?.[0]?.toUpperCase() || "U"}
+        {/* ── Hero Header (ContactUs style) ── */}
+        <header className="relative mb-4 overflow-hidden rounded-[28px] bg-[linear-gradient(135deg,#0f2a1e_0%,#123627_55%,#0b5130_100%)] p-7 text-white shadow-[0_24px_60px_rgba(13,35,25,0.18)] sm:p-10">
+          {/* decorative rings */}
+          <div className="pointer-events-none absolute -right-24 -top-32 h-80 w-80 rounded-full border-[45px] border-white/5" />
+          <div className="pointer-events-none absolute -bottom-32 -left-24 h-72 w-72 rounded-full border-[40px] border-white/5" />
+
+          <div className="relative z-10 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+            {/* Left: avatar + name */}
+            <div className="flex items-center gap-5">
+              {/* Avatar */}
+              <div className="relative shrink-0">
+                <div className="grid h-16 w-16 place-items-center rounded-full bg-[#000]/20 ring-2 ring-[#7ee3a8]/40 text-2xl font-bold text-[#7ee3a8]">
+                  {user?.first_name?.[0]?.toUpperCase()+user?.last_name?.[0]?.toUpperCase() || "U"}
+                </div>
+                <span className="absolute -bottom-0.5 -right-0.5 grid h-5 w-5 place-items-center rounded-full bg-[#079447] ring-2 ring-[#0f2a1e]">
+                  <CheckCircle2 size={12} className="text-white" />
+                </span>
+              </div>
+              {/* Name + badge */}
+              <div>
+                <div className="mb-1 flex items-center gap-2 text-[#7ee3a8]">
+                  <Sparkles size={14} />
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em]">My Account</p>
+                </div>
+                <h1 className="text-2xl font-semibold leading-tight tracking-tight text-white sm:text-3xl">
+                  {user?.first_name} {user?.last_name}
+                </h1>
+                {user?.email && (
+                  <p className="mt-1 text-sm text-white/60">{user.email}</p>
+                )}
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="text-xs text-gray-500">Hello,</p>
-              <h1 className="truncate text-xl font-semibold text-gray-900 sm:text-2xl">
-                {user?.first_name} {user?.last_name}
-              </h1>
-            </div>
+
+            {/* Right: quick-action pills */}
+        
           </div>
-          {/* <div className="flex flex-wrap gap-2 p-4">
-            <button
-              type="button"
-              onClick={() => scrollToSection("personal-information")}
-              className="rounded-full bg-[#079447] px-4 py-2 text-sm font-semibold text-white"
-            >
-              Personal information
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollToSection("manage-addresses")}
-              className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
-            >
-              Addresses
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollToSection("login-security")}
-              className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
-            >
-              Change Password
-            </button>
-          </div> */}
         </header>
 
         <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
