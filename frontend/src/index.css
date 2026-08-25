@@ -54,6 +54,14 @@ body {
   margin: 0;
 }
 
+a,
+button,
+label,
+select,
+[role="button"] {
+  cursor: pointer;
+}
+
 #root {
   width: 1126px;
   max-width: 100%;
