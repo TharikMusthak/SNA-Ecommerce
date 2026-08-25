@@ -12,6 +12,8 @@ import { assetUrl } from "@utils/helpers";
 
 const Wishlist = () => {
   const { items, isLoading, removeItem, moveItemToCart } = useWishlist();
+
+  console.log(items)
   const run = async (operation, message) => {
     try {
       await operation();
@@ -51,7 +53,7 @@ const Wishlist = () => {
         </section>
       ) : (
         <section className="mt-9" aria-label="Saved products">
-          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
             {items.map((product) => {
               const detailPath = `/products/${product.slug || product.id}`;
               const isMoving = moveItemToCart.isPending && Number(moveItemToCart.variables) === Number(product.id);
@@ -108,10 +110,10 @@ const Wishlist = () => {
                         )}
                       </button>
                     </div>
-                    <p className="mt-3 line-clamp-2 text-sm leading-6 text-gray-500">
+                    {/* <p className="mt-3 line-clamp-2 text-sm leading-6 text-gray-500">
                       {product.short_description || product.description || "Made with carefully selected ingredients."}
-                    </p>
-                    <div className="mt-3 flex items-center gap-1.5 text-sm">
+                    </p> */}
+                    {/* <div className="mt-3 flex items-center gap-1.5 text-sm">
                       <Star size={16} className="fill-amber-400 text-amber-400" />
                       <span className="font-semibold text-gray-800">
                         {rating ? rating.toFixed(1) : "New"}
@@ -119,7 +121,7 @@ const Wishlist = () => {
                       <span className="text-gray-400">
                         {reviewCount ? `(${reviewCount} review${reviewCount === 1 ? "" : "s"})` : "No reviews yet"}
                       </span>
-                    </div>
+                    </div> */}
                     <div className="mt-4 flex items-center justify-between gap-3">
                       <div>
                         <ProductPrice
