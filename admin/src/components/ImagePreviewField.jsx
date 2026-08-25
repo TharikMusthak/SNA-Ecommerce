@@ -103,7 +103,7 @@ export default function ImagePreviewField({
           aria-invalid={validationError ? "true" : undefined}
         />
         <small id={helpId}>
-          JPG, PNG or WebP · Maximum 5 MB
+          JPG, PNG or WebP · Maximum 5 MB · Banner images are optimized automatically
           {multiple ? " · Up to 8 images" : ""}
         </small>
         {validationError && (
