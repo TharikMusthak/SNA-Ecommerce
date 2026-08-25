@@ -55,7 +55,7 @@ export async function cleanupProductImageUploads(files, blobDelete = del) {
   for (const file of files) delete file.blobUrl;
 }
 
-export async function uploadReviewMedia(files, blobPut = put) {
+async function uploadMediaToBlob(files, folder, blobPut = put) {
   if (process.env.VERCEL !== "1") return files;
 
   try {
@@ -64,7 +64,7 @@ export async function uploadReviewMedia(files, blobPut = put) {
         throw new Error("A validated review media file is required");
       }
       const body = await fs.readFile(file.path);
-      const blob = await blobPut(`reviews/${file.filename}`, body, {
+      const blob = await blobPut(`${folder}/${file.filename}`, body, {
         access: "public",
         contentType: file.mimetype,
       });
@@ -75,7 +75,7 @@ export async function uploadReviewMedia(files, blobPut = put) {
     await Promise.allSettled(
       files
         .map((file) => file?.blobUrl)
-        .filter(isReviewBlobUrl)
+        .filter((url) => isBlobUrl(url, folder))
         .map((url) => del(url)),
     );
     throw error;
@@ -84,6 +84,14 @@ export async function uploadReviewMedia(files, blobPut = put) {
       files.map((file) => file?.path).filter(Boolean).map((filePath) => fs.unlink(filePath)),
     );
   }
+}
+
+export async function uploadReviewMedia(files, blobPut = put) {
+  return uploadMediaToBlob(files, "reviews", blobPut);
+}
+
+export async function uploadBannerMedia(files, blobPut = put) {
+  return uploadMediaToBlob(files, "banners", blobPut);
 }
 
 export function resolveUploadPath(uploadUrl, expectedFolder) {
