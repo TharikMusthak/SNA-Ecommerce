@@ -44,7 +44,7 @@ const bannerUpload = upload.fields([
 
 router.get("/public", async (_req, res) => {
   const [rows] = await pool.query(
-    `SELECT id, title, subtitle, button_text, button_link, image, mobile_image, sort_order
+    `SELECT id, name, title, subtitle, button_text, button_link, image, mobile_image, sort_order
      FROM banners
      WHERE status = 'Active'
      ORDER BY sort_order, id DESC`,
@@ -60,7 +60,7 @@ router.use(
 router.get("/", async (_req, res) => {
   const [rows] = await pool.query(
     `SELECT
-       id, title, subtitle, button_text, button_link, image, mobile_image,
+       id, name, title, subtitle, button_text, button_link, image, mobile_image,
        status, sort_order, created_at
      FROM banners
      ORDER BY sort_order, id DESC`,
@@ -76,7 +76,7 @@ router.get("/:id", async (req, res) => {
 
   const [[banner]] = await pool.query(
     `SELECT
-       id, title, subtitle, button_text, button_link, image, mobile_image,
+       id, name, title, subtitle, button_text, button_link, image, mobile_image,
        status, sort_order, created_at
      FROM banners
      WHERE id = ?
@@ -112,9 +112,10 @@ router.post(
       const uploadedMobileImage = imageUrl(mobileFile);
       const [result] = await pool.query(
         `INSERT INTO banners
-          (title, subtitle, button_text, button_link, image, mobile_image, status, sort_order)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          (name, title, subtitle, button_text, button_link, image, mobile_image, status, sort_order)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
+          input.value.name,
           input.value.title,
           input.value.subtitle,
           input.value.buttonText,
@@ -128,6 +129,7 @@ router.post(
 
       res.status(201).json({
         id: result.insertId,
+        name: input.value.name,
         image: uploadedImage,
         mobile_image: uploadedMobileImage,
       });
@@ -186,10 +188,11 @@ router.put(
 
       await connection.query(
         `UPDATE banners
-         SET title = ?, subtitle = ?, button_text = ?, button_link = ?,
+         SET name = ?, title = ?, subtitle = ?, button_text = ?, button_link = ?,
              image = ?, mobile_image = ?, status = ?, sort_order = ?
          WHERE id = ?`,
         [
+          input.value.name,
           input.value.title,
           input.value.subtitle,
           input.value.buttonText,
@@ -210,7 +213,7 @@ router.put(
         await safelyDeleteUpload(oldMobileImage, "banners");
       }
 
-      res.json({ message: "Banner updated", image: finalImage, mobile_image: finalMobileImage });
+      res.json({ message: "Banner updated", name: input.value.name, image: finalImage, mobile_image: finalMobileImage });
     } catch (error) {
       if (connection) await connection.rollback();
       await deleteUploadedFiles(files);
@@ -282,6 +285,7 @@ router.delete("/:id", async (req, res) => {
 
 function parseBanner(body) {
   const value = {
+    name: cleanText(body.name, 190),
     title: cleanText(body.title, 220),
     subtitle: cleanText(body.subtitle, 1000),
     buttonText: cleanText(body.button_text || "Shop now", 80),
@@ -290,6 +294,7 @@ function parseBanner(body) {
     sortOrder: Number(body.sort_order || 0),
   };
 
+  if (!value.name) return { error: "Banner name is required" };
   if (!value.title) return { error: "Banner title is required" };
   if (!value.buttonLink) {
     return { error: "Button link must be a relative path or HTTPS URL" };
