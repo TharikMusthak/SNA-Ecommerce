@@ -1,9 +1,8 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   AlertTriangle,
   Heart,
-  Leaf,
   LogOut,
   Menu,
   Search,
@@ -17,7 +16,74 @@ import Tinyleaf from "@assets/images/tinyleaf.svg";
 import Logo from "@assets/images/Navbar/snaNavbarLogo.svg";
 import { useAuth } from "@context/AuthProvider";
 import { useCart } from "@hooks/useCart";
+import { useDebounce } from "@hooks/useDebounce";
+import { useProducts } from "@hooks/useProducts";
 import { useWishlist } from "@hooks/useWishlist";
+
+const normalizeText = (value = "") =>
+  String(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const soundex = (value = "") => {
+  const input = normalizeText(value).replace(/[^a-z]/g, "");
+  if (!input) return "";
+  const first = input[0];
+  const map = {
+    b: 1, f: 1, p: 1, v: 1,
+    c: 2, g: 2, j: 2, k: 2, q: 2, s: 2, x: 2, z: 2,
+    d: 3, t: 3,
+    l: 4,
+    m: 5, n: 5,
+    r: 6,
+  };
+  let code = first.toUpperCase();
+  let prev = map[first] || 0;
+  for (const char of input.slice(1)) {
+    const current = map[char] || 0;
+    if (current && current !== prev) code += String(current);
+    prev = current;
+  }
+  return (code + "000").slice(0, 4);
+};
+
+const scoreSuggestion = (query, item) => {
+  const haystack = normalizeText([item.name, item.brand_name, item.category_name].filter(Boolean).join(" "));
+  if (!query || !haystack) return 0;
+  if (haystack.includes(query)) return 100;
+  const queryWords = query.split(" ");
+  const hayWords = haystack.split(" ");
+  let score = 0;
+  queryWords.forEach((word) => {
+    if (!word) return;
+    if (haystack.startsWith(word)) score += 30;
+    if (haystack.includes(word)) score += 20;
+    const qSound = soundex(word);
+    if (qSound && hayWords.some((candidate) => soundex(candidate) === qSound)) {
+      score += 40;
+    }
+  });
+  return score;
+};
+
+const levenshtein = (a = "", b = "") => {
+  const left = normalizeText(a);
+  const right = normalizeText(b);
+  if (!left) return right.length;
+  if (!right) return left.length;
+  const rows = Array.from({ length: left.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= right.length; j += 1) rows[0][j] = j;
+  for (let i = 1; i <= left.length; i += 1) {
+    for (let j = 1; j <= right.length; j += 1) {
+      rows[i][j] = left[i - 1] === right[j - 1]
+        ? rows[i - 1][j - 1]
+        : Math.min(rows[i - 1][j - 1], rows[i - 1][j], rows[i][j - 1]) + 1;
+    }
+  }
+  return rows[left.length][right.length];
+};
 
 const navLinkClass = ({ isActive }) =>
   `font-medium transition-colors ${isActive ? "text-[#079447]" : "text-[#333] hover:text-[#079447]"}`;
@@ -40,17 +106,130 @@ const Navbar = () => {
   const [search, setSearch] = useState("");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [activeSuggestion, setActiveSuggestion] = useState(-1);
+  const [lastSubmittedQuery, setLastSubmittedQuery] = useState("");
+  const searchWrapRef = useRef(null);
+  const mobileSearchWrapRef = useRef(null);
+  const debouncedSearch = useDebounce(search.trim(), 250);
+  const normalizedSearch = normalizeText(debouncedSearch);
+  const searchTokens = normalizedSearch.split(" ").filter(Boolean);
+  const { data: suggestionData } = useProducts({
+    q: debouncedSearch,
+    limit: 5,
+    available: "true",
+  });
+  const { data: catalogData } = useProducts({
+    limit: 20,
+    available: "true",
+  });
   let cartCount = cart.items.reduce(
     (total, item) => total + Number(item.quantity),
     0,
   );
+  const suggestions = useMemo(
+    () =>
+      [...(suggestionData?.items || []), ...(catalogData?.items || [])]
+        .filter(Boolean)
+        .map((item) => ({
+          ...item,
+          _score: scoreSuggestion(normalizedSearch, item),
+        }))
+        .filter((item) => normalizedSearch && item._score > 0)
+        .sort((a, b) => b._score - a._score)
+        .slice(0, 5),
+    [suggestionData, catalogData, normalizedSearch],
+  );
+  const didYouMean = useMemo(() => {
+    if (!normalizedSearch || suggestions.length) return null;
+    const pool = [...(catalogData?.items || [])].filter(Boolean);
+    if (!pool.length) return null;
+    return pool
+      .map((item) => {
+        const haystack = normalizeText([item.name, item.brand_name, item.category_name].filter(Boolean).join(" "));
+        const distance = levenshtein(normalizedSearch, haystack);
+        const soundMatch = soundex(normalizedSearch) === soundex(item.name);
+        return {
+          ...item,
+          _distance: distance,
+          _soundMatch: soundMatch,
+        };
+      })
+      .sort((a, b) => {
+        if (a._soundMatch !== b._soundMatch) return a._soundMatch ? -1 : 1;
+        return a._distance - b._distance;
+      })[0];
+  }, [catalogData, normalizedSearch, suggestions.length]);
+  const showSuggestions =
+    searchTokens.length >= 1 &&
+    suggestions.length > 0 &&
+    lastSubmittedQuery !== normalizedSearch;
+  const showDidYouMean = searchTokens.length >= 2 && !suggestions.length && didYouMean;
 
   const submitSearch = (event) => {
     event.preventDefault();
     const query = search.trim();
+    setLastSubmittedQuery(normalizeText(query));
     navigate(query ? `/products?q=${encodeURIComponent(query)}` : "/products");
     setMobileMenuOpen(false);
   };
+
+  const goToSuggestion = (value) => {
+    setSearch(value);
+    setLastSubmittedQuery(normalizeText(value));
+    navigate(`/products?q=${encodeURIComponent(value)}`);
+    setMobileMenuOpen(false);
+    setActiveSuggestion(-1);
+  };
+
+  const moveSuggestion = (direction) => {
+    if (!suggestions.length) return;
+    setActiveSuggestion((current) => {
+      const next = current + direction;
+      if (next < 0) return suggestions.length - 1;
+      if (next >= suggestions.length) return 0;
+      return next;
+    });
+  };
+
+  const handleSearchKeyDown = (event) => {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      moveSuggestion(1);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      moveSuggestion(-1);
+    } else if (event.key === "Escape") {
+      setActiveSuggestion(-1);
+    } else if (event.key === "Enter" && activeSuggestion >= 0 && suggestions[activeSuggestion]) {
+      event.preventDefault();
+      goToSuggestion(suggestions[activeSuggestion].name);
+    }
+  };
+
+  const handleSearchChange = (event) => {
+    const value = event.target.value;
+    setSearch(value);
+    setActiveSuggestion(0);
+    setLastSubmittedQuery("");
+    if (!value.trim() && location.pathname.startsWith("/products")) {
+      navigate("/products");
+    }
+  };
+
+  useEffect(() => {
+    const onPointerDown = (event) => {
+      const target = event.target;
+      if (
+        searchWrapRef.current?.contains(target) ||
+        mobileSearchWrapRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setActiveSuggestion(-1);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, []);
 
   const confirmSignOut = async () => {
     setIsSigningOut(true);
@@ -72,12 +251,14 @@ const Navbar = () => {
 
         <form
           onSubmit={submitSearch}
-          className="ml-14 hidden w-[355px] md:block lg:ml-16"
+          className="relative ml-14 hidden w-[355px] md:block lg:ml-16"
+          ref={searchWrapRef}
         >
           <div className="flex h-10 items-center rounded-full border border-gray-300 px-4 focus-within:border-[#12A94B]">
             <input
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={handleSearchChange}
+              onKeyDown={handleSearchKeyDown}
               type="search"
               placeholder="Search products…"
               className="min-w-0 flex-1 bg-transparent text-sm text-gray-700 outline-none"
@@ -86,6 +267,42 @@ const Navbar = () => {
               <Search size={20} strokeWidth={2.5} />
             </button>
           </div>
+          {showSuggestions && (
+            <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.12)]">
+              {suggestions.map((item, index) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  aria-selected={index === activeSuggestion}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => goToSuggestion(item.name)}
+                  className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm transition ${
+                    index === activeSuggestion ? "bg-emerald-50" : "hover:bg-gray-50"
+                  }`}
+                >
+                  <span className="min-w-0 truncate text-gray-800">{item.name}</span>
+                  <span className="shrink-0 text-xs text-gray-500">
+                    {item.category_name || item.brand_name || "Product"}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+          {showDidYouMean && (
+            <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.12)]">
+              <button
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => goToSuggestion(didYouMean.name)}
+                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm hover:bg-emerald-50"
+              >
+                <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Did you mean
+                </span>
+                <span className="min-w-0 truncate text-gray-800">{didYouMean.name}</span>
+              </button>
+            </div>
+          )}
         </form>
 
         <nav className="ml-auto hidden items-center gap-8 lg:flex">
@@ -172,14 +389,12 @@ const Navbar = () => {
         </div>
       </div>
 
-      <form
-        onSubmit={submitSearch}
-        className="border-t border-gray-100 px-4 py-3 md:hidden"
-      >
+      <form onSubmit={submitSearch} className="border-t border-gray-100 px-4 py-3 md:hidden" ref={mobileSearchWrapRef}>
         <div className="flex h-10 items-center rounded-full border border-gray-300 px-4 focus-within:border-[#12A94B]">
           <input
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={handleSearchChange}
+            onKeyDown={handleSearchKeyDown}
             type="search"
             placeholder="Search products…"
             className="min-w-0 flex-1 bg-transparent text-sm outline-none"
@@ -188,7 +403,43 @@ const Navbar = () => {
             <Search size={20} />
           </button>
         </div>
-      </form>
+        {showSuggestions && (
+          <div className="mt-2 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.12)]">
+              {suggestions.map((item, index) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  aria-selected={index === activeSuggestion}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => goToSuggestion(item.name)}
+                  className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm transition ${
+                    index === activeSuggestion ? "bg-emerald-50" : "hover:bg-gray-50"
+                  }`}
+                >
+                  <span className="min-w-0 truncate text-gray-800">{item.name}</span>
+                  <span className="shrink-0 text-xs text-gray-500">
+                    {item.category_name || item.brand_name || "Product"}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+          {showDidYouMean && (
+            <div className="mt-2 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.12)]">
+              <button
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => goToSuggestion(didYouMean.name)}
+                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm hover:bg-emerald-50"
+              >
+                <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Did you mean
+                </span>
+                <span className="min-w-0 truncate text-gray-800">{didYouMean.name}</span>
+              </button>
+            </div>
+          )}
+        </form>
 
       <div
         className={`overflow-hidden border-t border-gray-100 bg-white transition-all duration-300 lg:hidden ${mobileMenuOpen ? "max-h-[460px] opacity-100" : "max-h-0 opacity-0"}`}
