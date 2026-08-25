@@ -364,7 +364,6 @@ export default function Editor({
     </div>
   );
 }
-
 function normalizeProductName(value) {
   return String(value ?? "")
     .trim()
