@@ -3,18 +3,26 @@ import path from "node:path";
 import { del, put } from "@vercel/blob";
 import { uploadsRoot } from "../config/paths.js";
 
-const PRODUCT_BLOB_HOST_SUFFIX = ".public.blob.vercel-storage.com";
+const BLOB_HOST_SUFFIX = ".public.blob.vercel-storage.com";
 
-export function isProductBlobUrl(value) {
+function isBlobUrl(value, folder) {
   if (typeof value !== "string") return false;
   try {
     const url = new URL(value);
     return url.protocol === "https:" &&
-      url.hostname.endsWith(PRODUCT_BLOB_HOST_SUFFIX) &&
-      url.pathname.startsWith("/products/");
+      url.hostname.endsWith(BLOB_HOST_SUFFIX) &&
+      url.pathname.startsWith(`/${folder}/`);
   } catch {
     return false;
   }
+}
+
+export function isProductBlobUrl(value) {
+  return isBlobUrl(value, "products");
+}
+
+export function isReviewBlobUrl(value) {
+  return isBlobUrl(value, "reviews");
 }
 
 export async function uploadProductImage(file, blobPut = put) {
@@ -47,6 +55,37 @@ export async function cleanupProductImageUploads(files, blobDelete = del) {
   for (const file of files) delete file.blobUrl;
 }
 
+export async function uploadReviewMedia(files, blobPut = put) {
+  if (process.env.VERCEL !== "1") return files;
+
+  try {
+    for (const file of files) {
+      if (!file?.path || !file.filename || !file.mimetype) {
+        throw new Error("A validated review media file is required");
+      }
+      const body = await fs.readFile(file.path);
+      const blob = await blobPut(`reviews/${file.filename}`, body, {
+        access: "public",
+        contentType: file.mimetype,
+      });
+      file.blobUrl = blob.url;
+    }
+    return files;
+  } catch (error) {
+    await Promise.allSettled(
+      files
+        .map((file) => file?.blobUrl)
+        .filter(isReviewBlobUrl)
+        .map((url) => del(url)),
+    );
+    throw error;
+  } finally {
+    await Promise.allSettled(
+      files.map((file) => file?.path).filter(Boolean).map((filePath) => fs.unlink(filePath)),
+    );
+  }
+}
+
 export function resolveUploadPath(uploadUrl, expectedFolder) {
   if (
     typeof uploadUrl !== "string" ||
@@ -65,7 +104,7 @@ export function resolveUploadPath(uploadUrl, expectedFolder) {
 }
 
 export async function deleteUploadByUrl(uploadUrl, expectedFolder, blobDelete = del) {
-  if (expectedFolder === "products" && isProductBlobUrl(uploadUrl)) {
+  if (isBlobUrl(uploadUrl, expectedFolder)) {
     await blobDelete(uploadUrl);
     return true;
   }
