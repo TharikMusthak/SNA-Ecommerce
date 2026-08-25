@@ -238,7 +238,7 @@ const Footer = () => {
             </p>
 
             <p>
-              Designed by{" "}
+              Designed & Developed by{" "}
               <Link
                 to="#"
                 className="font-medium hover:text-[#079447]"

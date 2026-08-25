@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Eye, EyeOff, KeyRound, MapPin, Plus, ShieldCheck, ShoppingBag, UserRound, X } from "lucide-react";
+import { Eye, EyeOff, MapPin, Plus, ShieldCheck, ShoppingBag, UserRound, X } from "lucide-react";
 import toast from "react-hot-toast";
 
 import {
@@ -87,10 +87,11 @@ const Profile = () => {
   ); 
 
   const saveProfile = useMutation({
-    mutationFn: () =>
-      updateProfileRequest({ ...profile, phone: profile.phone || null }),
-    onSuccess: async () => {
+    mutationFn: (nextProfile) =>
+      updateProfileRequest({ ...nextProfile, phone: nextProfile.phone || null }),
+    onSuccess: async (_, nextProfile) => {
       await refreshUser();
+      setProfile(nextProfile);
       setShowProfileForm(false);
       toast.success("Profile updated");
     },
@@ -149,6 +150,44 @@ const Profile = () => {
   const fieldClass =
     "mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm outline-none transition focus:border-[#079447] focus:ring-4 focus:ring-emerald-50";
   const inlineErrorClass = "mt-0.5 min-h-4 text-[11px] leading-4 text-red-600";
+  const scrollToSection = (id) => {
+    const element = document.getElementById(id);
+    if (!element) return;
+    const navbarOffset = 96;
+    const top = window.scrollY + element.getBoundingClientRect().top - navbarOffset;
+    window.scrollTo({ top: Math.max(top, 0), behavior: "smooth" });
+  };
+  const validateProfile = () => {
+    const errors = {};
+    if (!profile.first_name.trim()) errors.first_name = "First name is required";
+    if (!profile.last_name.trim()) errors.last_name = "Last name is required";
+    if (profile.phone && !phoneRegex.test(profile.phone.trim())) errors.phone = "Enter a valid phone number";
+    setProfileErrors(errors);
+    return !Object.keys(errors).length;
+  };
+  const validateAddress = () => {
+    const errors = {};
+    if (!address.full_name.trim()) errors.full_name = "Name is required";
+    if (!address.phone.trim()) errors.phone = "Phone number is required";
+    else if (!phoneRegex.test(address.phone.trim())) errors.phone = "Enter a valid phone number";
+    if (!address.address_line_1.trim()) errors.address_line_1 = "Address line 1 is required";
+    if (!address.city.trim()) errors.city = "City is required";
+    if (!address.state.trim()) errors.state = "State is required";
+    if (!address.postal_code.trim()) errors.postal_code = "PIN code is required";
+    else if (!pinCodeRegex.test(address.postal_code.trim())) errors.postal_code = "Enter a valid 6-digit PIN code";
+    setAddressErrors(errors);
+    return !Object.keys(errors).length;
+  };
+  const validatePassword = () => {
+    const errors = {};
+    if (!password.current_password) errors.current_password = "Current password is required";
+    if (!password.new_password) errors.new_password = "New password is required";
+    else if (!strongPasswordRegex.test(password.new_password)) errors.new_password = "Use 8+ chars with upper, lower, number, and symbol";
+    if (!password.confirm_password) errors.confirm_password = "Please confirm your password";
+    else if (password.confirm_password !== password.new_password) errors.confirm_password = "Passwords do not match";
+    setPasswordErrors(errors);
+    return !Object.keys(errors).length;
+  };
   const closeAddressForm = () => {
     setAddress(emptyAddress);
     setEditingAddressId(null);
@@ -167,438 +206,294 @@ const Profile = () => {
   };
 
   return (
-    <main className="min-h-[70vh] bg-[#f7faf8] py-8 sm:py-12">
-      <div className="mx-auto w-full max-w-[1180px] px-5 sm:px-8 lg:px-14">
-      <header className="relative overflow-hidden rounded-[2rem] bg-[#075d32] px-6 py-8 text-white shadow-xl shadow-emerald-950/10 sm:px-9 sm:py-10">
-        <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-emerald-400/20" />
-        <div className="absolute -bottom-24 right-32 h-48 w-48 rounded-full border-[28px] border-emerald-400/10" />
-        <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <div className="grid h-14 w-14 place-items-center rounded-2xl bg-white/15 text-xl font-bold ring-1 ring-white/20">
+    <main className="min-h-screen bg-[#f1f3f6] py-5 sm:py-8">
+      <div className="mx-auto max-w-[1240px] px-3 sm:px-5">
+        <header className="mb-4 overflow-hidden bg-white shadow-sm">
+          <div className="flex items-center gap-4 border-b border-gray-100 p-5">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#079447] text-lg font-bold text-white">
               {user?.first_name?.[0]?.toUpperCase() || "U"}
             </div>
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-200">My account</p>
-              <h1 className="mt-1 text-3xl font-semibold sm:text-4xl">Hello, {user?.first_name}</h1>
-              <p className="mt-1 text-sm text-emerald-100">Manage your details, addresses and orders.</p>
+            <div className="min-w-0">
+              <p className="text-xs text-gray-500">Hello,</p>
+              <h1 className="truncate text-xl font-semibold text-gray-900 sm:text-2xl">
+                {user?.first_name} {user?.last_name}
+              </h1>
             </div>
           </div>
-          <div className="inline-flex w-fit items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm text-emerald-50 ring-1 ring-white/15">
-            <ShieldCheck size={17} /> Account secured
+          {/* <div className="flex flex-wrap gap-2 p-4">
+            <button
+              type="button"
+              onClick={() => scrollToSection("personal-information")}
+              className="rounded-full bg-[#079447] px-4 py-2 text-sm font-semibold text-white"
+            >
+              Personal information
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollToSection("manage-addresses")}
+              className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
+            >
+              Addresses
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollToSection("login-security")}
+              className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
+            >
+              Change Password
+            </button>
+          </div> */}
+        </header>
+
+        <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
+          <aside className="h-fit overflow-hidden bg-white shadow-sm">
+            <nav className="divide-y divide-gray-100 hidden lg:block">
+              <button type="button" onClick={() => scrollToSection("personal-information")} className="flex w-full items-center gap-4 px-5 py-4 text-left text-sm transition hover:bg-gray-50">
+                <UserRound size={19} className="text-[#079447]" />
+                <span className="font-medium text-gray-700">Personal information</span>
+              </button>
+              <button type="button" onClick={() => scrollToSection("manage-addresses")} className="flex w-full items-center gap-4 px-5 py-4 text-left text-sm transition hover:bg-gray-50">
+                <MapPin size={19} className="text-[#079447]" />
+                <span className="font-medium text-gray-700">Manage addresses</span>
+              </button>
+              <button type="button" onClick={() => scrollToSection("login-security")} className="flex w-full items-center gap-4 px-5 py-4 text-left text-sm transition hover:bg-gray-50">
+                <ShieldCheck size={19} className="text-[#079447]" />
+                <span className="font-medium text-gray-700">Change Password</span>
+              </button>
+              <button type="button" onClick={() => scrollToSection("my-orders")} className="flex w-full items-center gap-4 px-5 py-4 text-left text-sm transition hover:bg-gray-50">
+                <ShoppingBag size={19} className="text-[#079447]" />
+                <span className="font-medium text-gray-700">Orders</span>
+              </button>
+            </nav>
+          </aside>
+
+          <div className="space-y-4">
+            <section id="personal-information" className="bg-white shadow-sm scroll-mt-24">
+              <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4 sm:px-7">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Personal information</h2>
+                  <p className="mt-0.5 text-xs text-gray-500">Manage your personal details</p>
+                </div>
+                <button type="button" onClick={() => setShowProfileForm(true)} className="text-sm font-semibold text-[#079447] hover:underline">Edit</button>
+              </div>
+              <div className="px-5 py-5 sm:px-7">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <InfoRow label="First name" value={profile.first_name || "—"} />
+                  <InfoRow label="Last name" value={profile.last_name || "—"} />
+                  <InfoRow label="Email address" value={user?.email || "—"} />
+                  <InfoRow label="Mobile number" value={profile.phone || "—"} />
+                </div>
+              </div>
+            </section>
+
+            <section id="manage-addresses" className="bg-white shadow-sm scroll-mt-24">
+              <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4 sm:px-7">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Manage addresses</h2>
+                  <p className="mt-0.5 text-xs text-gray-500">Your saved delivery addresses</p>
+                </div>
+                <button type="button" onClick={() => (showAddressForm ? closeAddressForm() : setShowAddressForm(true))} className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#079447]">
+                  <Plus size={16} />
+                  ADD NEW ADDRESS
+                </button>
+              </div>
+              <div className="p-5 sm:p-7">
+                {addresses.isLoading ? (
+                  <div className="py-12"><Spinner /></div>
+                ) : !addresses.data?.length ? (
+                  <div className="py-10 text-center">
+                    <MapPin size={42} className="mx-auto text-gray-300" />
+                    <p className="mt-3 text-sm text-gray-500">No saved addresses</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {addresses.data.map((item) => (
+                      <article key={item.id} className="border border-gray-200 bg-white">
+                        <div className="flex flex-col gap-4 p-4 sm:flex-row sm:justify-between">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h3 className="text-sm font-semibold text-gray-900">{item.full_name}</h3>
+                              <span className="rounded-sm bg-gray-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-gray-500">{item.address_type || "Home"}</span>
+                              {item.is_default && <span className="rounded-sm bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase text-[#079447]">Default</span>}
+                            </div>
+                            <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
+                              {item.address_line_1}{item.address_line_2 ? `, ${item.address_line_2}` : ""}{item.landmark ? `, ${item.landmark}` : ""}
+                              <br />
+                              {item.city}, {item.district ? `${item.district}, ` : ""}{item.state} - {item.postal_code}
+                            </p>
+                            <p className="mt-2 text-sm font-medium text-gray-800">{item.phone}</p>
+                          </div>
+                          <div className="flex shrink-0 items-start gap-4 text-xs font-semibold">
+                            <button type="button" onClick={() => startEditingAddress(item)} className="text-[#079447] hover:underline">EDIT</button>
+                            {!item.is_default && (
+                              <button type="button" onClick={() => makeDefault.mutate(item.id)} disabled={makeDefault.isPending} className="text-[#079447] hover:underline disabled:opacity-50">
+                                MAKE DEFAULT
+                              </button>
+                            )}
+                            <button type="button" onClick={() => removeAddress.mutate(item.id)} disabled={removeAddress.isPending} className="text-red-500 hover:underline disabled:opacity-50">
+                              DELETE
+                            </button>
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section id="login-security" className="bg-white shadow-sm scroll-mt-24">
+              <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4 sm:px-7">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Change Password</h2>
+                  <p className="mt-0.5 text-xs text-gray-500">Keep your password updated for better security</p>
+                </div>
+                <button type="button" onClick={() => setShowPasswordForm(true)} className="text-sm font-semibold text-[#079447] hover:underline">Change password</button>
+              </div>
+               
+            </section>
+
+            <section id="my-orders" className="bg-white shadow-sm scroll-mt-24">
+              <div className="border-b border-gray-100 px-5 py-4 sm:px-7">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900">My Orders</h2>
+                    <p className="mt-0.5 text-xs text-gray-500">Track and manage your recent purchases</p>
+                  </div>
+                  <div className="inline-flex w-fit rounded-sm border border-gray-200 bg-white">
+                    {[
+                      ["all", "All"],
+                      ["current", "Current"],
+                      ["cod", "COD"],
+                    ].map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setOrderScope(value)}
+                        className={`border-r border-gray-200 px-4 py-2 text-xs font-semibold last:border-r-0 ${
+                          orderScope === value ? "bg-[#079447] text-white" : "text-gray-500 hover:bg-gray-50"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="p-5 sm:p-7">
+                {orders.isLoading ? (
+                  <div className="py-12"><Spinner /></div>
+                ) : !visibleOrders.length ? (
+                  <div className="py-12 text-center">
+                    <ShoppingBag size={44} className="mx-auto text-gray-300" />
+                    <p className="mt-3 text-sm text-gray-500">You have not placed any orders yet.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {visibleOrders.map((order) => (
+                      <CustomerOrderCard key={order.id} order={order} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
           </div>
         </div>
-      </header>
+      </div>
 
-      <div className="mt-7 grid gap-7 lg:grid-cols-2">
-        <section className="rounded-[1.75rem] border border-gray-100 bg-white p-6 shadow-sm sm:p-8">
-          <div className="flex items-start gap-3">
-            <div className="rounded-xl bg-emerald-50 p-2.5 text-[#079447]"><UserRound size={20} /></div>
-            <div><h2 className="text-2xl font-semibold text-gray-900">Personal details</h2><p className="mt-1 text-sm text-gray-500">Keep your contact information up to date.</p></div>
-          </div>
-          <div className="mt-6 rounded-2xl bg-gray-50 p-4 text-sm text-gray-600">
-            <p className="font-semibold text-gray-900">{profile.first_name} {profile.last_name}</p>
-            <p className="mt-1">{user?.email}</p>
-            {profile.phone && <p className="mt-1">{profile.phone}</p>}
-          </div>
-          <button onClick={() => setShowProfileForm(true)} className="mt-4 rounded-xl bg-[#079447] px-4 py-2.5 text-sm font-semibold text-white">Edit profile</button>
-          {showProfileForm && (
-          <Modal title="Edit personal details" onClose={() => setShowProfileForm(false)}>
+      {showProfileForm && (
+        <Modal title="Edit Personal Information" onClose={() => { setShowProfileForm(false); setProfileErrors({}); }}>
           <form
+            className="mt-6 space-y-4"
             onSubmit={(event) => {
               event.preventDefault();
-              const nextErrors = {};
-              if (!profile.first_name.trim()) nextErrors.first_name = "Enter a first name.";
-              if (!profile.last_name.trim()) nextErrors.last_name = "Enter a last name.";
-              if (profile.phone && !phoneRegex.test(profile.phone.trim())) {
-                nextErrors.phone = "Enter a valid mobile number.";
-              }
-              setProfileErrors(nextErrors);
-              if (Object.keys(nextErrors).length) return;
-              saveProfile.mutate();
+              if (!validateProfile()) return;
+              saveProfile.mutate(profile);
             }}
-            className="mt-6 space-y-4"
           >
-            <div className="grid grid-cols-2 gap-3">
-              <label className="text-sm font-medium">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block text-sm font-medium text-gray-700">
                 First name
-                <input
-                  value={profile.first_name}
-                  onChange={(event) =>
-                    {
-                      setProfile({ ...profile, first_name: event.target.value });
-                      if (profileErrors.first_name) setProfileErrors((prev) => ({ ...prev, first_name: "" }));
-                    }
-                  }
-                  axLength={50}
-
-                  className={fieldClass}
-                />
+                <input value={profile.first_name} onChange={(e) => setProfile({ ...profile, first_name: e.target.value })} className={fieldClass} />
                 <p className={inlineErrorClass}>{profileErrors.first_name || " "}</p>
               </label>
-              <label className="text-sm font-medium">
+              <label className="block text-sm font-medium text-gray-700">
                 Last name
-                <input
-                  value={profile.last_name}
-                  onChange={(event) =>
-                    {
-                      setProfile({ ...profile, last_name: event.target.value });
-                      if (profileErrors.last_name) setProfileErrors((prev) => ({ ...prev, last_name: "" }));
-                    }
-                  }
-                  maxLength={50}
-                  className={fieldClass}
-                />
+                <input value={profile.last_name} onChange={(e) => setProfile({ ...profile, last_name: e.target.value })} className={fieldClass} />
                 <p className={inlineErrorClass}>{profileErrors.last_name || " "}</p>
               </label>
             </div>
-            <label className="block text-sm font-medium">
-              Email
-              <input
-                disabled
-                value={user?.email || ""}
-                className={`${fieldClass} bg-gray-50 text-gray-500`}
-                 maxLength={50}
-
-              />
-            </label>
-            <label className="block text-sm font-medium">
-              Mobile
-              <input
-                value={profile.phone}
-                onChange={(event) =>
-                  {
-                    setProfile({ ...profile, phone: event.target.value });
-                    if (profileErrors.phone) setProfileErrors((prev) => ({ ...prev, phone: "" }));
-                  }
-                }
-                                 maxLength={10}
-
-                className={fieldClass}
-              />
+            <label className="block text-sm font-medium text-gray-700">
+              Mobile number
+              <input value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} className={fieldClass} />
               <p className={inlineErrorClass}>{profileErrors.phone || " "}</p>
             </label>
-            <button
-              disabled={saveProfile.isPending}
-              className="flex items-center gap-2 rounded-xl bg-[#079447] px-5 py-3 font-semibold text-white disabled:opacity-70"
-            >
-              {saveProfile.isPending && <Spinner className="h-4 w-4 border-2 border-white border-t-transparent" />}
-              {saveProfile.isPending ? "Saving…" : "Save profile"}
-            </button>
+            <div className="flex justify-end gap-3 pt-2">
+              <button type="button" onClick={() => { setShowProfileForm(false); setProfileErrors({}); }} className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700">Cancel</button>
+              <button type="submit" disabled={saveProfile.isPending} className="rounded-xl bg-[#079447] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">Save</button>
+            </div>
           </form>
-          </Modal>
-          )}
-          {/* {user?.referral_code && (
-            <div className="mt-6 rounded-xl bg-emerald-50 p-4">
-              <p className="text-xs font-semibold uppercase text-emerald-700">
-                Your referral code
-              </p>
-              <p className="mt-1 font-mono text-lg font-bold text-emerald-900">
-                {user.referral_code}
-              </p>
-            </div>
-          )} */}
-        </section>
-
-        <section className="rounded-[1.75rem] border border-gray-100 bg-white p-6 shadow-sm sm:p-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-start gap-3"><div className="rounded-xl bg-emerald-50 p-2.5 text-[#079447]"><MapPin size={20} /></div><div><h2 className="text-2xl font-semibold text-gray-900">Saved addresses</h2><p className="mt-1 text-sm text-gray-500">Choose where your orders should be delivered.</p></div></div>
-            <button
-              onClick={() =>
-                showAddressForm ? closeAddressForm() : setShowAddressForm(true)
-              }
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-semibold text-[#079447] transition hover:bg-emerald-100"
-            >
-              {showAddressForm ? "Cancel" : <><Plus size={16} /> Add address</>}
-            </button>
-          </div>
-          {addresses.isLoading ? (
-            <div className="py-12">
-              <Spinner />
-            </div>
-          ) : (
-            <div className="mt-5 space-y-3">
-              {addresses.data?.map((item) => (
-                <article
-                  key={item.id}
-                  className="rounded-2xl border border-gray-100 bg-gray-50/70 p-4 transition hover:border-emerald-200 hover:bg-emerald-50/30"
-                >
-                  <div className="flex justify-between gap-4">
-                    <div>
-                      <p className="font-semibold text-gray-900">
-                        {item.full_name}{" "}
-                        {item.is_default ? (
-                          <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">
-                            Default
-                          </span>
-                        ) : null}
-                      </p>
-                      <p className="mt-1 text-sm leading-6 text-gray-500">
-                        {item.address_line_1}
-                        {item.address_line_2 ? `, ${item.address_line_2}` : ""}
-                        <br />
-                        {item.city}, {item.state} {item.postal_code}
-                        <br />
-                        {item.phone}
-                      </p>
-                    </div>
-                    <div className="flex h-fit gap-3 text-xs font-medium">
-                      <button
-                        onClick={() => startEditingAddress(item)}
-                        className="text-[#079447]"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => removeAddress.mutate(item.id)}
-                        disabled={removeAddress.isPending}
-                        className="flex items-center gap-1 text-red-600 disabled:opacity-70"
-                      >
-                        {removeAddress.isPending &&
-                          removeAddress.variables === item.id && (
-                            <Spinner className="h-3 w-3 border-2 border-red-600 border-t-transparent" />
-                          )}
-                        {removeAddress.isPending && removeAddress.variables === item.id
-                          ? "Deleting"
-                          : "Delete"}
-                      </button>
-                    </div>
-                  </div>
-                  {!item.is_default && (
-                    <button
-                      onClick={() => makeDefault.mutate(item.id)}
-                      disabled={makeDefault.isPending}
-                      className="mt-3 flex items-center gap-1 text-xs font-semibold text-[#079447] disabled:opacity-70"
-                    >
-                      {makeDefault.isPending &&
-                        makeDefault.variables === item.id && (
-                          <Spinner className="h-3 w-3 border-2 border-[#079447] border-t-transparent" />
-                        )}
-                      {makeDefault.isPending && makeDefault.variables === item.id
-                        ? "Setting default"
-                        : "Make default"}
-                    </button>
-                  )}
-                </article>
-              ))}
-              {!addresses.data?.length && !showAddressForm && (
-                <p className="py-8 text-center text-sm text-gray-500">
-                  No saved addresses.
-                </p>
-              )}
-            </div>
-          )}
-          {showAddressForm && (
-            <Modal
-              title={editingAddressId ? "Edit address" : "Add a new address"}
-              onClose={closeAddressForm}
-            >
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                const nextErrors = {};
-                if (!address.full_name.trim()) nextErrors.full_name = "Enter a full name.";
-                if (!address.phone.trim()) nextErrors.phone = "Enter a mobile number.";
-                else if (!phoneRegex.test(address.phone.trim())) nextErrors.phone = "Enter a valid mobile number.";
-                if (!address.postal_code.trim()) nextErrors.postal_code = "Enter a PIN code.";
-                else if (!pinCodeRegex.test(address.postal_code.trim())) nextErrors.postal_code = "Enter a 6-digit PIN code.";
-                if (!address.address_line_1.trim()) nextErrors.address_line_1 = "Enter address line 1.";
-                if (!address.city.trim()) nextErrors.city = "Enter a city.";
-                if (!address.state.trim()) nextErrors.state = "Enter a state.";
-                setAddressErrors(nextErrors);
-                if (Object.keys(nextErrors).length) return;
-                if (editingAddressId) editAddress.mutate();
-                else addAddress.mutate();
-              }}
-              className="mt-5 grid grid-cols-1 gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4 sm:grid-cols-2 sm:p-5"
-            >
-              <AddressInput
-                label="Full name"
-                name="full_name"
-                value={address}
-                setValue={setAddress}
-                error={addressErrors.full_name}
-                className="sm:col-span-2"
-                maxLength={30}
-
-              />
-              <AddressInput
-                label="Mobile"
-                name="phone"
-                value={address}
-                setValue={setAddress}
-                error={addressErrors.phone}
-                maxLength={10}
-
-              />
-              <AddressInput
-                label="PIN code"
-                name="postal_code"
-                value={address}
-                setValue={setAddress}
-                error={addressErrors.postal_code}
-                maxLength={6}
-
-              />
-              <AddressInput
-                label="Address line 1"
-                name="address_line_1"
-                value={address}
-                setValue={setAddress}
-                error={addressErrors.address_line_1}
-                className="sm:col-span-2"
-                maxLength={70}
-
-              />
-              <AddressInput
-                label="Address line 2"
-                name="address_line_2"
-                value={address}
-                setValue={setAddress}
-                className="sm:col-span-2"
-                required={false}
-                maxLength={70}
-
-              />
-              <AddressInput
-                label="City"
-                name="city"
-                value={address}
-                setValue={setAddress}
-                error={addressErrors.city}
-                maxLength={50}
-
-              />
-              <AddressInput
-                label="District"
-                name="district"
-                value={address}
-                setValue={setAddress}
-                required={false}
-                maxLength={50}
-
-              />
-              <AddressInput
-                label="State"
-                name="state"
-                value={address}
-                setValue={setAddress}
-                error={addressErrors.state}
-                className="sm:col-span-2"
-                 maxLength={50}
-
-              />
-              <label className="flex items-center gap-2 text-sm sm:col-span-2">
-                <input
-                  type="checkbox"
-                  checked={address.is_default}
-                  onChange={(event) =>
-                    setAddress({ ...address, is_default: event.target.checked })
-                  }
-                />{" "}
-                Make default
-              </label>
-              <button
-                disabled={addAddress.isPending || editAddress.isPending}
-                className="flex items-center justify-center gap-2 rounded-xl bg-[#079447] px-5 py-3 font-semibold text-white disabled:opacity-70 sm:col-span-2"
-              >
-                {(addAddress.isPending || editAddress.isPending) && (
-                  <Spinner className="h-4 w-4 border-2 border-white border-t-transparent" />
-                )}
-                {editingAddressId
-                  ? editAddress.isPending
-                    ? "Saving…"
-                    : "Save address"
-                  : addAddress.isPending
-                    ? "Adding…"
-                    : "Add address"}
-              </button>
-            </form>
-            </Modal>
-          )}
-        </section>
-      </div>
-
-      <section className="mt-7 max-w-[570px] rounded-[1.75rem] border border-gray-100 bg-white p-6 shadow-sm sm:p-8">
-        <div className="flex items-start gap-3"><div className="rounded-xl bg-emerald-50 p-2.5 text-[#079447]"><KeyRound size={20} /></div><div><h2 className="text-2xl font-semibold text-gray-900">Change password</h2><p className="mt-1 text-sm text-gray-500">Use a new password with at least 8 characters.</p></div></div>
-        <button onClick={() => setShowPasswordForm(true)} className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-[#079447]">Change password</button>
-        {showPasswordForm && (
-        <Modal title="Change password" onClose={() => setShowPasswordForm(false)}>
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            const nextErrors = {};
-            if (!password.current_password.trim()) nextErrors.current_password = "Enter your current password.";
-            if (!password.new_password.trim()) nextErrors.new_password = "Enter a new password.";
-            else if (!strongPasswordRegex.test(password.new_password)) nextErrors.new_password = "Use 8+ characters with upper, lower, number, and symbol.";
-            if (!password.confirm_password.trim()) nextErrors.confirm_password = "Confirm your password.";
-            if (password.new_password !== password.confirm_password) {
-              nextErrors.confirm_password = "Passwords do not match.";
-            }
-            setPasswordErrors(nextErrors);
-            if (Object.keys(nextErrors).length) {
-              return;
-            }
-            changePassword.mutate(password);
-          }}
-          className="mt-6 space-y-4"
-        >
-          <PasswordInput
-            label="Current password"
-            name="current_password"
-            value={password}
-            setValue={setPassword}
-            error={passwordErrors.current_password}
-          />
-          <PasswordInput
-            label="New password"
-            name="new_password"
-            value={password}
-            setValue={setPassword}
-            error={passwordErrors.new_password}
-          />
-          <PasswordInput
-            label="Confirm new password"
-            name="confirm_password"
-            value={password}
-            setValue={setPassword}
-            error={passwordErrors.confirm_password}
-          />
-          <button
-            disabled={changePassword.isPending}
-            className="flex items-center gap-2 rounded-xl bg-[#079447] px-5 py-3 font-semibold text-white disabled:opacity-70"
-          >
-            {changePassword.isPending && (
-              <Spinner className="h-4 w-4 border-2 border-white border-t-transparent" />
-            )}
-            {changePassword.isPending ? "Changing password…" : "Change password"}
-          </button>
-        </form>
         </Modal>
-        )}
-      </section>
+      )}
 
-      <section className="mt-7 rounded-[1.75rem] border border-gray-100 bg-white p-6 shadow-sm sm:p-8">
-        <div className="flex items-center gap-3"><div className="rounded-xl bg-emerald-50 p-2.5 text-[#079447]"><ShoppingBag size={20} /></div><div><h2 className="text-2xl font-semibold text-gray-900">Recent orders</h2><p className="mt-1 text-sm text-gray-500">Your latest purchases at a glance.</p></div></div>
-        <div className="mt-5 inline-flex rounded-xl bg-gray-100 p-1">
-          {[['all','All orders'],['current','Current'],['cod','COD orders']].map(([value,label]) => <button key={value} type="button" onClick={() => setOrderScope(value)} className={`rounded-lg px-4 py-2 text-xs font-semibold transition ${orderScope === value ? 'bg-white text-[#079447] shadow-sm' : 'text-gray-500'}`}>{label}</button>)}
-        </div>
-        {orders.isLoading ? (
-          <div className="py-12">
-            <Spinner />
-          </div>
-        ) : !visibleOrders.length ? (
-          <p className="py-10 text-center text-gray-500">
-            You have not placed any orders yet.
-          </p>
-        ) : (
-          <div className="mt-5 space-y-4">
-            {visibleOrders.map((order) => <CustomerOrderCard key={order.id} order={order} />)}
-          </div>
-        )}
-      </section>
-      </div>
+      {showAddressForm && (
+        <Modal title={editingAddressId ? "Edit Address" : "Add New Address"} onClose={closeAddressForm}>
+          <form
+            className="mt-6 grid gap-4 sm:grid-cols-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!validateAddress()) return;
+              (editingAddressId ? editAddress : addAddress).mutate();
+            }}
+          >
+            <AddressInput label="Full name" name="full_name" value={address} setValue={setAddress} error={addressErrors.full_name} />
+            <AddressInput label="Phone" name="phone" value={address} setValue={setAddress} error={addressErrors.phone} />
+            <AddressInput label="Address line 1" name="address_line_1" value={address} setValue={setAddress} error={addressErrors.address_line_1} className="sm:col-span-2" />
+            <AddressInput label="Address line 2" name="address_line_2" value={address} setValue={setAddress} error={addressErrors.address_line_2} className="sm:col-span-2" required={false} />
+            <AddressInput label="Landmark" name="landmark" value={address} setValue={setAddress} error={addressErrors.landmark} required={false} />
+            <AddressInput label="City" name="city" value={address} setValue={setAddress} error={addressErrors.city} />
+            <AddressInput label="District" name="district" value={address} setValue={setAddress} error={addressErrors.district} required={false} />
+            <AddressInput label="State" name="state" value={address} setValue={setAddress} error={addressErrors.state} />
+            <AddressInput label="PIN code" name="postal_code" value={address} setValue={setAddress} error={addressErrors.postal_code} maxLength={6} />
+            <label className="block text-sm font-medium text-gray-700 sm:col-span-2">
+              Address type
+              <select value={address.address_type} onChange={(e) => setAddress({ ...address, address_type: e.target.value })} className={fieldClass}>
+                <option value="home">Home</option>
+                <option value="work">Work</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <div className="sm:col-span-2 flex justify-end gap-3 pt-2">
+              <button type="button" onClick={closeAddressForm} className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700">Cancel</button>
+              <button type="submit" disabled={addAddress.isPending || editAddress.isPending} className="rounded-xl bg-[#079447] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{editingAddressId ? "Update" : "Add"}</button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {showPasswordForm && (
+        <Modal title="Change Password" onClose={() => { setShowPasswordForm(false); setPasswordErrors({}); }}>
+          <form
+            className="mt-6 space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!validatePassword()) return;
+              changePassword.mutate(password);
+            }}
+          >
+            <PasswordInput label="Current password" name="current_password" value={password} setValue={setPassword} error={passwordErrors.current_password} />
+            <PasswordInput label="New password" name="new_password" value={password} setValue={setPassword} error={passwordErrors.new_password} />
+            <PasswordInput label="Confirm password" name="confirm_password" value={password} setValue={setPassword} error={passwordErrors.confirm_password} />
+            <div className="flex justify-end gap-3 pt-2">
+              <button type="button" onClick={() => { setShowPasswordForm(false); setPasswordErrors({}); }} className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700">Cancel</button>
+              <button type="submit" disabled={changePassword.isPending} className="rounded-xl bg-[#079447] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">Update</button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </main>
   );
+
 };
 
 function CustomerOrderCard({ order }) {
@@ -699,5 +594,12 @@ const PasswordInput = ({ label, name, value, setValue, error }) => {
     </label>
   );
 };
+
+const InfoRow = ({ label, value }) => (
+  <div className="rounded-2xl border border-gray-200 bg-[#f7f8fa] p-4">
+    <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-gray-400">{label}</p>
+    <p className="mt-1.5 truncate text-sm font-semibold text-gray-900">{value}</p>
+  </div>
+);
 
 export default Profile;
