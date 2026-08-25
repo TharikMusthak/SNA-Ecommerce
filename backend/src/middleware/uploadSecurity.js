@@ -45,7 +45,7 @@ export function uploadedFiles(req) {
 
 export async function deleteUploadedFiles(files) {
   await Promise.all(
-    files.filter(Boolean).map(async (file) => {
+    files.filter((file) => file?.path).map(async (file) => {
       try {
         await fs.unlink(file.path);
       } catch (error) {
