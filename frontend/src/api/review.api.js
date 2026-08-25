@@ -21,9 +21,23 @@ const appendReviewField = (formData, key, value) => {
 };
 
 const toReviewFormData = (payload) => {
-  if (payload instanceof FormData) return payload;
-
   const formData = new FormData();
+
+  if (payload instanceof FormData) {
+    for (const [key, value] of payload.entries()) {
+      const normalizedKey = key === "photos"
+        ? "image"
+        : key === "videos"
+          ? "video"
+          : key;
+
+      // The API stores at most one image and one video per review.
+      if ((normalizedKey === "image" || normalizedKey === "video")
+        && formData.has(normalizedKey)) continue;
+      appendReviewField(formData, normalizedKey, value);
+    }
+    return formData;
+  }
 
   Object.entries(payload || {}).forEach(([key, value]) => {
     appendReviewField(formData, key, value);
