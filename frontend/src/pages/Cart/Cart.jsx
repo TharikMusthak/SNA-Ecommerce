@@ -61,6 +61,11 @@ const Cart = () => {
   }, [selectedAddressId, paymentMethod, cartFingerprint, cart.items.length]);
 
   const displaySummary = shippingQuote?.summary || cart.summary;
+  const pageLoading =
+    isLoading ||
+    addresses.isLoading ||
+    (cart.items.length > 0 && !selectedAddressId && shippingLoading) ||
+    (cart.items.length > 0 && !!selectedAddressId && shippingLoading && !shippingQuote && !shippingError);
 
   const run = async (operation, successMessage) => {
     try {
@@ -122,7 +127,7 @@ const Cart = () => {
     }
   };
 
-  if (isLoading)
+  if (pageLoading)
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <Spinner />
@@ -348,7 +353,7 @@ const Cart = () => {
                   </div>
                 </div>
                 <div className={`rounded-xl px-3 py-2 text-xs ${shippingError ? "bg-red-50 text-red-700" : "bg-white text-gray-600"}`}>
-                  {shippingLoading ? "Checking Shiprocket delivery charge…" : shippingError || (shippingQuote ? `${shippingQuote.courier.courier_name} · ${shippingQuote.free_shipping ? "Free shipping" : formatCurrency(shippingQuote.shipping_charge)}${shippingQuote.courier.estimated_delivery_days ? ` · about ${shippingQuote.courier.estimated_delivery_days} days` : ""}` : "Select an address to calculate delivery.")}
+                  {shippingLoading ? "Checking delivery charge…" : shippingError || (shippingQuote ? `${shippingQuote.courier.courier_name} · ${shippingQuote.free_shipping ? "Free shipping" : formatCurrency(shippingQuote.shipping_charge)}${shippingQuote.courier.estimated_delivery_days ? ` · about ${shippingQuote.courier.estimated_delivery_days} days` : ""}` : "Select an address to calculate delivery.")}
                 </div>
                 <button
                   onClick={checkout}
