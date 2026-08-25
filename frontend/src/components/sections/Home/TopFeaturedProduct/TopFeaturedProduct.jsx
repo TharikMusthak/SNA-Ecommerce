@@ -86,12 +86,22 @@ const TopFeaturedProduct = () => {
     : product || {};
 
   const productImage = assetUrl(
-    product?.main_image ||
-      product?.future_image ||
+    product?.future_image ||
       product?.image ||
-      product?.thumbnail,
+      product?.thumbnail ||
+      product?.future_image,
     fallbackImage,
   );
+
+// const productImage = assetUrl(
+//     product?.main_image ||
+//       product?.future_image ||
+//       product?.image ||
+//       product?.thumbnail,
+
+//     fallbackImage,
+//   );
+
 
   const handleSizeChange = (size) => {
     setSelectedSize(size);
