@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Eye, EyeOff, MapPin, Plus, ShieldCheck, ShoppingBag, UserRound, X } from "lucide-react";
+import { Eye, EyeOff, MapPin, Plus, ShieldCheck, ShoppingBag, UserRound, X, AlertCircle } from "lucide-react";
 import toast from "react-hot-toast";
 
 import {
@@ -147,9 +147,6 @@ const Profile = () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.addresses }),
   });
 
-  const fieldClass =
-    "mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm outline-none transition focus:border-[#079447] focus:ring-4 focus:ring-emerald-50";
-  const inlineErrorClass = "mt-0.5 min-h-4 text-[11px] leading-4 text-red-600";
   const scrollToSection = (id) => {
     const element = document.getElementById(id);
     if (!element) return;
@@ -404,30 +401,85 @@ const Profile = () => {
       {showProfileForm && (
         <Modal title="Edit Personal Information" onClose={() => { setShowProfileForm(false); setProfileErrors({}); }}>
           <form
-            className="mt-6 space-y-4"
+            className="mt-6 space-y-2.5"
             onSubmit={(event) => {
               event.preventDefault();
               if (!validateProfile()) return;
               saveProfile.mutate(profile);
             }}
           >
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block text-sm font-medium text-gray-700">
-                First name
-                <input value={profile.first_name} onChange={(e) => setProfile({ ...profile, first_name: e.target.value })} className={fieldClass} />
-                <p className={inlineErrorClass}>{profileErrors.first_name || " "}</p>
-              </label>
-              <label className="block text-sm font-medium text-gray-700">
-                Last name
-                <input value={profile.last_name} onChange={(e) => setProfile({ ...profile, last_name: e.target.value })} className={fieldClass} />
-                <p className={inlineErrorClass}>{profileErrors.last_name || " "}</p>
-              </label>
+            <div className="grid gap-2.5 sm:grid-cols-2">
+              <div>
+                <input
+                  value={profile.first_name}
+                  onChange={(e) => setProfile({ ...profile, first_name: e.target.value })}
+                  placeholder="First name"
+                  maxLength={50}
+                  aria-invalid={Boolean(profileErrors.first_name)}
+                  className={`w-full rounded-xl border ${
+                    profileErrors.first_name
+                      ? "border-red-400 bg-red-50/20 text-[#333] focus:border-red-500 focus:bg-white focus:ring-4 focus:ring-red-500/10"
+                      : "border-gray-200 bg-white text-[#333] focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
+                  } px-3.5 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400`}
+                />
+                <p className="mt-0.5 flex min-h-[14px] items-center gap-1 text-[11px] font-medium leading-4 text-red-600">
+                  {profileErrors.first_name && (
+                    <>
+                      <AlertCircle size={12} className="shrink-0 text-red-600" />
+                      <span>{profileErrors.first_name}</span>
+                    </>
+                  )}
+                </p>
+              </div>
+
+              <div>
+                <input
+                  value={profile.last_name}
+                  onChange={(e) => setProfile({ ...profile, last_name: e.target.value })}
+                  placeholder="Last name"
+                  maxLength={50}
+                  aria-invalid={Boolean(profileErrors.last_name)}
+                  className={`w-full rounded-xl border ${
+                    profileErrors.last_name
+                      ? "border-red-400 bg-red-50/20 text-[#333] focus:border-red-500 focus:bg-white focus:ring-4 focus:ring-red-500/10"
+                      : "border-gray-200 bg-white text-[#333] focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
+                  } px-3.5 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400`}
+                />
+                <p className="mt-0.5 flex min-h-[14px] items-center gap-1 text-[11px] font-medium leading-4 text-red-600">
+                  {profileErrors.last_name && (
+                    <>
+                      <AlertCircle size={12} className="shrink-0 text-red-600" />
+                      <span>{profileErrors.last_name}</span>
+                    </>
+                  )}
+                </p>
+              </div>
             </div>
-            <label className="block text-sm font-medium text-gray-700">
-              Mobile number
-              <input value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} className={fieldClass} />
-              <p className={inlineErrorClass}>{profileErrors.phone || " "}</p>
-            </label>
+
+            <div>
+              <input
+                value={profile.phone}
+                onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                placeholder="Mobile number"
+                maxLength={15}
+                inputMode="tel"
+                aria-invalid={Boolean(profileErrors.phone)}
+                className={`w-full rounded-xl border ${
+                  profileErrors.phone
+                    ? "border-red-400 bg-red-50/20 text-[#333] focus:border-red-500 focus:bg-white focus:ring-4 focus:ring-red-500/10"
+                    : "border-gray-200 bg-white text-[#333] focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
+                } px-3.5 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400`}
+              />
+              <p className="mt-0.5 flex min-h-[14px] items-center gap-1 text-[11px] font-medium leading-4 text-red-600">
+                {profileErrors.phone && (
+                  <>
+                    <AlertCircle size={12} className="shrink-0 text-red-600" />
+                    <span>{profileErrors.phone}</span>
+                  </>
+                )}
+              </p>
+            </div>
+
             <div className="flex justify-end gap-3 pt-2">
               <button type="button" onClick={() => { setShowProfileForm(false); setProfileErrors({}); }} className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700">Cancel</button>
               <button type="submit" disabled={saveProfile.isPending} className="rounded-xl bg-[#079447] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">Save</button>
@@ -439,30 +491,33 @@ const Profile = () => {
       {showAddressForm && (
         <Modal title={editingAddressId ? "Edit Address" : "Add New Address"} onClose={closeAddressForm}>
           <form
-            className="mt-6 grid gap-4 sm:grid-cols-2"
+            className="mt-6 grid gap-2.5 sm:grid-cols-2"
             onSubmit={(event) => {
               event.preventDefault();
               if (!validateAddress()) return;
               (editingAddressId ? editAddress : addAddress).mutate();
             }}
           >
-            <AddressInput label="Full name" name="full_name" value={address} setValue={setAddress} error={addressErrors.full_name} />
-            <AddressInput label="Phone" name="phone" value={address} setValue={setAddress} error={addressErrors.phone} />
-            <AddressInput label="Address line 1" name="address_line_1" value={address} setValue={setAddress} error={addressErrors.address_line_1} className="sm:col-span-2" />
-            <AddressInput label="Address line 2" name="address_line_2" value={address} setValue={setAddress} error={addressErrors.address_line_2} className="sm:col-span-2" required={false} />
-            <AddressInput label="Landmark" name="landmark" value={address} setValue={setAddress} error={addressErrors.landmark} required={false} />
-            <AddressInput label="City" name="city" value={address} setValue={setAddress} error={addressErrors.city} />
-            <AddressInput label="District" name="district" value={address} setValue={setAddress} error={addressErrors.district} required={false} />
-            <AddressInput label="State" name="state" value={address} setValue={setAddress} error={addressErrors.state} />
+            <AddressInput label="Full name" name="full_name" value={address} setValue={setAddress} error={addressErrors.full_name} maxLength={50} />
+            <AddressInput label="Phone number" name="phone" value={address} setValue={setAddress} error={addressErrors.phone} maxLength={15} />
+            <AddressInput label="Address line 1" name="address_line_1" value={address} setValue={setAddress} error={addressErrors.address_line_1} className="sm:col-span-2" maxLength={150} />
+            <AddressInput label="Address line 2 (optional)" name="address_line_2" value={address} setValue={setAddress} error={addressErrors.address_line_2} className="sm:col-span-2" required={false} maxLength={150} />
+            <AddressInput label="Landmark (optional)" name="landmark" value={address} setValue={setAddress} error={addressErrors.landmark} required={false} maxLength={100} />
+            <AddressInput label="City" name="city" value={address} setValue={setAddress} error={addressErrors.city} maxLength={50} />
+            <AddressInput label="District (optional)" name="district" value={address} setValue={setAddress} error={addressErrors.district} required={false} maxLength={50} />
+            <AddressInput label="State" name="state" value={address} setValue={setAddress} error={addressErrors.state} maxLength={50} />
             <AddressInput label="PIN code" name="postal_code" value={address} setValue={setAddress} error={addressErrors.postal_code} maxLength={6} />
-            <label className="block text-sm font-medium text-gray-700 sm:col-span-2">
-              Address type
-              <select value={address.address_type} onChange={(e) => setAddress({ ...address, address_type: e.target.value })} className={fieldClass}>
-                <option value="home">Home</option>
-                <option value="work">Work</option>
-                <option value="other">Other</option>
+            <div className="sm:col-span-2">
+              <select
+                value={address.address_type}
+                onChange={(e) => setAddress({ ...address, address_type: e.target.value })}
+                className="w-full appearance-none rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-[#333] outline-none transition-all focus:border-[#079447] focus:ring-4 focus:ring-emerald-50"
+              >
+                <option value="home">Address type: Home</option>
+                <option value="work">Address type: Work</option>
+                <option value="other">Address type: Other</option>
               </select>
-            </label>
+            </div>
             <div className="sm:col-span-2 flex justify-end gap-3 pt-2">
               <button type="button" onClick={closeAddressForm} className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700">Cancel</button>
               <button type="submit" disabled={addAddress.isPending || editAddress.isPending} className="rounded-xl bg-[#079447] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{editingAddressId ? "Update" : "Add"}</button>
@@ -474,7 +529,7 @@ const Profile = () => {
       {showPasswordForm && (
         <Modal title="Change Password" onClose={() => { setShowPasswordForm(false); setPasswordErrors({}); }}>
           <form
-            className="mt-6 space-y-4"
+            className="mt-6 space-y-2.5"
             onSubmit={(event) => {
               event.preventDefault();
               if (!validatePassword()) return;
@@ -499,6 +554,15 @@ const Profile = () => {
 function CustomerOrderCard({ order }) {
   const address = parseAddress(order.shipping_address_json);
   const isCod = String(order.payment_method).toLowerCase() === "cod";
+  const deliveryDate = formatDeliveryDate(
+    order.delivery_date ||
+      order.estimated_delivery_date ||
+      order.expected_delivery_date ||
+      order.delivery_by ||
+      order.eta ||
+      order.expected_delivery_at ||
+      order.delivery_date_time,
+  );
   return (
     <article className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
       <header className="flex flex-col gap-3 border-b border-gray-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -507,7 +571,7 @@ function CustomerOrderCard({ order }) {
       </header>
       <div className="grid gap-3 bg-gray-50/60 px-5 py-4 text-sm sm:grid-cols-4">
         <div><span className="block text-[11px] font-bold uppercase text-gray-400">Status</span><b className="mt-1 block capitalize text-gray-800">{String(order.status).replaceAll("_", " ")}</b></div>
-        <div><span className="block text-[11px] font-bold uppercase text-gray-400">Date of delivery</span><b className="mt-1 block text-gray-800">Not scheduled</b></div>
+        <div><span className="block text-[11px] font-bold uppercase text-gray-400">Date of delivery</span><b className="mt-1 block text-gray-800">{deliveryDate || "Not scheduled"}</b></div>
         <div><span className="block text-[11px] font-bold uppercase text-gray-400">Delivered to</span><b className="mt-1 block text-gray-800">{[address.city,address.state,address.postal_code].filter(Boolean).join(", ") || "Not recorded"}</b></div>
         <div><span className="block text-[11px] font-bold uppercase text-gray-400">Total</span><b className="mt-1 block text-gray-900">{formatCurrency(order.amount)}</b><small className="capitalize text-gray-500">{isCod ? `COD · ${order.payment_status}` : order.payment_status}</small></div>
       </div>
@@ -523,13 +587,22 @@ function parseAddress(value) {
   catch { return {}; }
 }
 
+function formatDeliveryDate(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  const day = date.toLocaleDateString("en-US", { day: "numeric" });
+  const month = date.toLocaleDateString("en-US", { month: "short" });
+  const weekday = date.toLocaleDateString("en-US", { weekday: "short" });
+  return `Delivery by ${month} ${day}, ${weekday}`;
+}
+
 const Modal = ({ title, onClose, children }) => (
   <div className="fixed inset-0 z-50 flex min-h-[100dvh] items-end bg-gray-950/45 p-0 backdrop-blur-sm sm:items-center sm:justify-center sm:p-6">
     <div className="max-h-[calc(100dvh-0.75rem)] w-full overflow-y-auto overscroll-contain rounded-t-[2rem] bg-white p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-2xl sm:max-h-[90vh] sm:max-w-xl sm:rounded-[2rem] sm:p-8">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#079447]">Account settings</p>
-          <h3 className="mt-1 text-2xl font-semibold text-gray-900">{title}</h3>
+           <h3 className="mt-1 text-2xl font-semibold text-gray-900">{title}</h3>
         </div>
         <button type="button" onClick={onClose} aria-label="Close" className="shrink-0 rounded-xl bg-gray-100 p-2 text-gray-500 transition hover:bg-gray-200 hover:text-gray-900"><X size={20} /></button>
       </div>
@@ -545,39 +618,51 @@ const AddressInput = ({
   setValue,
   error,
   className = "",
-  required = true,
-  maxLength
+  maxLength = 100
 }) => (
-  <label className={`text-sm font-medium ${className}`}>
-    {label}
+  <div className={className}>
     <input
-      required={required}
       value={value[name]}
       onChange={(event) => setValue({ ...value, [name]: event.target.value })}
-      className="mt-1.5 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm outline-none transition focus:border-[#079447] focus:ring-4 focus:ring-emerald-50"
-    maxLength={maxLength}
-
+      placeholder={label}
+      aria-invalid={Boolean(error)}
+      className={`w-full rounded-xl border ${
+        error
+          ? "border-red-400 bg-red-50/20 text-[#333] focus:border-red-500 focus:bg-white focus:ring-4 focus:ring-red-500/10"
+          : "border-gray-200 bg-white text-[#333] focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
+      } px-3.5 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400`}
+      maxLength={maxLength}
     />
-    <p className="mt-0.5 min-h-4 text-[11px] leading-4 text-red-600">
-      {error || " "}
+    <p className="mt-0.5 flex min-h-[14px] items-center gap-1 text-[11px] font-medium leading-4 text-red-600">
+      {error && (
+        <>
+          <AlertCircle size={12} className="shrink-0 text-red-600" />
+          <span>{error}</span>
+        </>
+      )}
     </p>
-  </label>
+  </div>
 );
 
 const PasswordInput = ({ label, name, value, setValue, error }) => {
   const [isVisible, setIsVisible] = useState(false);
 
   return (
-    <label className="block text-sm font-medium">
-      {label}
-      <span className="relative mt-1.5 block">
+    <div>
+      <span className="relative block">
         <input
-          required
-           type={isVisible ? "text" : "password"}
+          type={isVisible ? "text" : "password"}
           autoComplete={name === "current_password" ? "current-password" : "new-password"}
           value={value[name]}
           onChange={(event) => setValue({ ...value, [name]: event.target.value })}
-          className="w-full rounded-xl border border-gray-300 py-3 pl-4 pr-12 text-sm outline-none transition focus:border-[#079447] focus:ring-4 focus:ring-emerald-50"
+          placeholder={label}
+          maxLength={128}
+          aria-invalid={Boolean(error)}
+          className={`w-full rounded-xl border ${
+            error
+              ? "border-red-400 bg-red-50/20 text-[#333] focus:border-red-500 focus:bg-white focus:ring-4 focus:ring-red-500/10"
+              : "border-gray-200 bg-white text-[#333] focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
+          } py-2.5 pl-3.5 pr-11 text-sm outline-none transition-all placeholder:text-gray-400`}
         />
         <button
           type="button"
@@ -585,13 +670,18 @@ const PasswordInput = ({ label, name, value, setValue, error }) => {
           aria-label={isVisible ? "Hide password" : "Show password"}
           className="absolute inset-y-0 right-0 grid w-12 place-items-center text-gray-400 transition hover:text-[#079447]"
         >
-          {isVisible ? <EyeOff size={19} /> : <Eye size={19} />}
+          {isVisible ? <EyeOff size={18} /> : <Eye size={18} />}
         </button>
       </span>
-      <p className="mt-0.5 min-h-4 text-[11px] leading-4 text-red-600">
-        {error || " "}
+      <p className="mt-0.5 flex min-h-[14px] items-center gap-1 text-[11px] font-medium leading-4 text-red-600">
+        {error && (
+          <>
+            <AlertCircle size={12} className="shrink-0 text-red-600" />
+            <span>{error}</span>
+          </>
+        )}
       </p>
-    </label>
+    </div>
   );
 };
 
