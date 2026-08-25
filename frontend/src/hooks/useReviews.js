@@ -34,19 +34,8 @@ export function useUpdateReview(productId) {
 
   return useMutation({
     mutationFn: saveReview,
-    onSuccess: (_, { reviewId, ...changes }) => {
-      queryClient.setQueryData(reviewKey(productId), (current) => {
-        if (!current) return current;
-
-        return {
-          ...current,
-          items: current.items.map((review) =>
-            String(review.id) === String(reviewId)
-              ? { ...review, ...changes }
-              : review,
-          ),
-        };
-      });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: reviewKey(productId) });
       queryClient.invalidateQueries({ queryKey: ["products"] });
     },
   });
