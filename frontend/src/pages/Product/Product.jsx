@@ -341,7 +341,25 @@ console.log(user, "user");
       event.target.value = "";
       return;
     }
-    setReviewMedia((current) => [...current, ...nextMedia]);
+    setReviewMedia((current) => {
+      const selectedByType = new Map(
+        nextMedia.map((media) => [media.type, media]),
+      );
+      const duplicateType = nextMedia.find(
+        (media, index) =>
+          nextMedia.findLastIndex((item) => item.type === media.type) !== index,
+      );
+      if (duplicateType) {
+        toast.error("A review can include one image and one video");
+      }
+
+      const retained = current.filter((media) => {
+        if (!selectedByType.has(media.type)) return true;
+        URL.revokeObjectURL(media.previewUrl);
+        return false;
+      });
+      return [...retained, ...selectedByType.values()];
+    });
     event.target.value = "";
   };
 
@@ -387,12 +405,13 @@ console.log(user, "user");
     }
 
     try {
-      const payload = new FormData();
-      payload.append("rating", String(rating));
-      if (title) payload.append("title", title);
-      payload.append("review_text", review_text);
+      const payload = {
+        rating: String(rating),
+        title,
+        review_text,
+      };
       reviewMedia.forEach(({ file, type }) => {
-        payload.append(type === "image" ? "photos" : "videos", file);
+        payload[type] = file;
       });
       if (editingReviewId != null) {
         await updateReview.mutateAsync({
@@ -401,7 +420,7 @@ console.log(user, "user");
         });
         toast.success("Your review has been updated");
       } else {
-        payload.append("product_id", String(product.id));
+        payload.product_id = String(product.id);
         await submitReview.mutateAsync(payload);
         toast.success("Thanks for reviewing this product");
       }
@@ -548,8 +567,8 @@ console.log(user, "user");
                   <input type="text" value={reviewTitle} onChange={(event) => setReviewTitle(event.target.value)} maxLength={150} placeholder="Give your review a title" className="mt-4 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-[#079447] focus:ring-2 focus:ring-emerald-100" />
                   <textarea value={reviewText} onChange={(event) => setReviewText(event.target.value)} maxLength={500} minLength={1} required rows={3} placeholder="What did you like about it?" className="mt-3 w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-[#079447] focus:ring-2 focus:ring-emerald-100" />
                   <label className="mt-3 block rounded-xl border border-dashed border-emerald-200 bg-white p-3 text-xs font-semibold text-gray-700">
-                    Add Photos/Videos
-                    <small className="mt-1 block font-normal text-gray-500">Images or videos · JPG, PNG, WebP, MP4, WebM, MOV</small>
+                    Add an image and/or video
+                    <small className="mt-1 block font-normal text-gray-500">Up to one image and one video · JPG, PNG, WebP, MP4, WebM, MOV</small>
                     <input
                       type="file"
                       accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
