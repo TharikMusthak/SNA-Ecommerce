@@ -199,6 +199,7 @@ router.post("/", productUploadWithVideo, verifyProductMedia, async (req, res) =>
       connection,
       req.body.slug || input.value.name,
     );
+    const sku = await resolveProductSku(connection, input.value.sku, input.value.name);
     if (input.value.isFeatured) {
       await connection.query("UPDATE products SET is_featured = 0 WHERE is_featured = 1");
     }
@@ -206,8 +207,8 @@ router.post("/", productUploadWithVideo, verifyProductMedia, async (req, res) =>
       `INSERT INTO products
           (name, category, category_id, price, stock, low_stock_threshold,
            status, short_description, description, sale_price, video_url,
-           is_featured, published_at, main_image, future_image, slug)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           is_featured, published_at, main_image, future_image, slug, sku)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         input.value.name,
         category.name,
@@ -225,6 +226,7 @@ router.post("/", productUploadWithVideo, verifyProductMedia, async (req, res) =>
         mainImage,
         req.files?.future_image?.[0] ? imageUrl(req.files.future_image[0]) : null,
         slug,
+        sku,
       ],
     );
 
@@ -268,7 +270,7 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
     connection = await pool.getConnection();
     await connection.beginTransaction();
     const [[existingProduct]] = await connection.query(
-      `SELECT main_image, future_image, video_url, slug
+      `SELECT main_image, future_image, video_url, slug, sku
          FROM products
          WHERE id = ?
          FOR UPDATE`,
@@ -324,6 +326,9 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
       ? await resolveProductSlug(connection, req.body.slug, id)
       : existingProduct.slug ||
         (await resolveProductSlug(connection, input.value.name, id));
+    const sku = input.value.sku
+      ? await resolveProductSku(connection, input.value.sku, input.value.name, id, true)
+      : existingProduct.sku || await resolveProductSku(connection, "", input.value.name, id);
     const [[imageCount]] = await connection.query(
       "SELECT COUNT(*) AS total FROM product_images WHERE product_id = ?",
       [id],
@@ -350,7 +355,7 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
          SET name = ?, category = ?, category_id = ?, price = ?, stock = ?,
              low_stock_threshold = ?, status = ?, short_description = ?,
              description = ?, sale_price = ?, video_url = ?, is_featured = ?,
-             published_at = ?, main_image = ?, future_image = ?, slug = ?
+             published_at = ?, main_image = ?, future_image = ?, slug = ?, sku = ?
          WHERE id = ?`,
       [
         input.value.name,
@@ -369,6 +374,7 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
         mainImage,
         futureImage,
         slug,
+        sku,
         id,
       ],
     );
@@ -748,6 +754,7 @@ function parseProduct(body) {
   const categoryId = rawCategoryId ? parsePositiveId(rawCategoryId) : null;
   const value = {
     name: normalizeProductName(body.name),
+    sku: normalizeSku(body.sku),
     category: cleanText(body.category, 120),
     categoryId,
     price: Number(body.price),
@@ -811,6 +818,45 @@ function parsePublishedAt(value) {
   return Number.isNaN(date.getTime())
     ? null
     : date.toISOString().slice(0, 19).replace("T", " ");
+}
+
+function normalizeSku(value) {
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 120);
+}
+
+async function resolveProductSku(
+  queryable,
+  requestedSku,
+  productName,
+  excludeId = null,
+  rejectDuplicate = false,
+) {
+  const requested = normalizeSku(requestedSku);
+  const base = requested || normalizeSku(`SNA-${productName}`) || "SNA-PRODUCT";
+  let candidate = base;
+  let suffix = 1;
+
+  while (true) {
+    const params = [candidate];
+    const exclusion = excludeId ? "AND id<>?" : "";
+    if (excludeId) params.push(excludeId);
+    const [[existing]] = await queryable.query(
+      `SELECT id FROM products WHERE sku=? ${exclusion} LIMIT 1`,
+      params,
+    );
+    if (!existing) return candidate;
+    if (requested && rejectDuplicate) {
+      throw Object.assign(new Error("Product SKU already exists"), { status: 409 });
+    }
+    suffix += 1;
+    const ending = `-${suffix}`;
+    candidate = `${base.slice(0, 120 - ending.length)}${ending}`;
+  }
 }
 
 async function resolveProductSlug(queryable, value, excludeId = null) {
