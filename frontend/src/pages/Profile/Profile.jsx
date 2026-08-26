@@ -165,10 +165,11 @@ const Profile = () => {
   const validateAddress = () => {
     const errors = {};
     if (!address.full_name.trim()) errors.full_name = "Name is required";
-    if (!address.phone.trim()) errors.phone = "Phone number is required";
+    if (!address.phone.trim()) errors.phone = "Mobile phone number is required";
     else if (!phoneRegex.test(address.phone.trim())) errors.phone = "Enter a valid phone number";
     if (!address.address_line_1.trim()) errors.address_line_1 = "Address line 1 is required";
     if (!address.city.trim()) errors.city = "City is required";
+    if (!address.district.trim()) errors.district = "District is required";
     if (!address.state.trim()) errors.state = "State is required";
     if (!address.postal_code.trim()) errors.postal_code = "PIN code is required";
     else if (!pinCodeRegex.test(address.postal_code.trim())) errors.postal_code = "Enter a valid 6-digit PIN code";
@@ -506,7 +507,7 @@ const Profile = () => {
             <AddressInput label="Address line 2 (optional)" name="address_line_2" value={address} setValue={setAddress} error={addressErrors.address_line_2} className="sm:col-span-2" required={false} maxLength={150} />
             <AddressInput label="Landmark (optional)" name="landmark" value={address} setValue={setAddress} error={addressErrors.landmark} required={false} maxLength={100} />
             <AddressInput label="City" name="city" value={address} setValue={setAddress} error={addressErrors.city} maxLength={50} />
-            <AddressInput label="District (optional)" name="district" value={address} setValue={setAddress} error={addressErrors.district} required={false} maxLength={50} />
+            <AddressInput label="District" name="district" value={address} setValue={setAddress} error={addressErrors.district} maxLength={50} />
             <AddressInput label="State" name="state" value={address} setValue={setAddress} error={addressErrors.state} maxLength={50} />
             <AddressInput label="PIN code" name="postal_code" value={address} setValue={setAddress} error={addressErrors.postal_code} maxLength={6} />
             <div className="sm:col-span-2">
