@@ -16,7 +16,7 @@ import { useNavigate } from "react-router-dom";
 const emailRegex = /^\S+@\S+\.\S+$/;
 const phoneRegex = /^[0-9+\-\s()]{7,15}$/;
 const strongPasswordRegex =
-  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,}$/;
 
 const AuthModal = ({ onClose }) => {
   const { login, register, loading, isAuthenticated } = useAuth();
@@ -74,8 +74,9 @@ const AuthModal = ({ onClose }) => {
         return "";
       case "password":
         if (!value) return "Please create a password.";
+        if (value.length < 12) return "Password must be at least 12 characters.";
         if (!strongPasswordRegex.test(value)) {
-          return "Use 8+ characters with upper, lower, number, and symbol.";
+          return "Use 12+ characters with upper, lower, number, and symbol.";
         }
         return "";
       case "password_confirmation":
@@ -91,7 +92,7 @@ const AuthModal = ({ onClose }) => {
   };
 
   const passwordCriteria = {
-    length: formData.password.length >= 8,
+    length: formData.password.length >= 12,
     hasUpper: /[A-Z]/.test(formData.password),
     hasLower: /[a-z]/.test(formData.password),
     hasNumber: /\d/.test(formData.password),
@@ -881,7 +882,7 @@ const AuthModal = ({ onClose }) => {
                   {!isLogin && (formData.password || touched.password) && (
                     <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px]">
                       <span className={passwordCriteria.length ? "text-emerald-600 font-medium" : "text-gray-400"}>
-                        {passwordCriteria.length ? "✓" : "•"} 8+ chars
+                        {passwordCriteria.length ? "✓" : "•"} 12+ chars
                       </span>
                       <span className={(passwordCriteria.hasUpper && passwordCriteria.hasLower) ? "text-emerald-600 font-medium" : "text-gray-400"}>
                         {(passwordCriteria.hasUpper && passwordCriteria.hasLower) ? "✓" : "•"} Upper & Lower

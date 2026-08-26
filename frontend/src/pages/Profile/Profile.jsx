@@ -44,7 +44,7 @@ const emptyPassword = {
 const phoneRegex = /^[0-9+\-\s()]{7,15}$/;
 const pinCodeRegex = /^\d{6}$/;
 const strongPasswordRegex =
-  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,}$/;
 
 const Profile = () => {
   const { user, refreshUser } = useAuth();
@@ -179,7 +179,8 @@ const Profile = () => {
     const errors = {};
     if (!password.current_password) errors.current_password = "Current password is required";
     if (!password.new_password) errors.new_password = "New password is required";
-    else if (!strongPasswordRegex.test(password.new_password)) errors.new_password = "Use 8+ chars with upper, lower, number, and symbol";
+    else if (password.new_password.length < 12) errors.new_password = "Password must be at least 12 characters";
+    else if (!strongPasswordRegex.test(password.new_password)) errors.new_password = "Use 12+ chars with upper, lower, number, and symbol";
     if (!password.confirm_password) errors.confirm_password = "Please confirm your password";
     else if (password.confirm_password !== password.new_password) errors.confirm_password = "Passwords do not match";
     setPasswordErrors(errors);
@@ -567,7 +568,7 @@ function CustomerOrderCard({ order }) {
   return (
     <article className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
       <header className="flex flex-col gap-3 border-b border-gray-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <div><h3 className="font-bold text-gray-900">Order #: {order.order_code}</h3><p className="mt-1 text-xs text-gray-500">{order.items?.length || 0} products · {formatOrderDate(order.created_at)}</p></div>
+        <div><h3 className="font-bold text-gray-900">Order #: {order.order_code}</h3><p className="mt-1 text-xs text-gray-500">{order.items?.length || 0} products · {new Date(order.created_at).toLocaleString("en-IN")}</p></div>
         <span className={`w-fit rounded-full px-3 py-1 text-xs font-bold ${isCod ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-700"}`}>{isCod ? "Cash on Delivery (COD)" : "Online payment · Paid"}</span>
       </header>
       <div className="grid gap-3 bg-gray-50/60 px-5 py-4 text-sm sm:grid-cols-4">
@@ -586,18 +587,6 @@ function CustomerOrderCard({ order }) {
 function parseAddress(value) {
   try { return typeof value === "string" ? JSON.parse(value) : value || {}; }
   catch { return {}; }
-}
-
-function formatOrderDate(value) {
-  if (!value) return "—";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? String(value)
-    : date.toLocaleString("en-IN", {
-        timeZone: "Asia/Kolkata",
-        dateStyle: "medium",
-        timeStyle: "short",
-      });
 }
 
 function formatDeliveryDate(value) {
