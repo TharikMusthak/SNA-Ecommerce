@@ -51,7 +51,7 @@ router.post("/shipments", asyncHandler(async (req, res) => {
   if (existing) return fail(res, 409, "A shipment already exists for this order");
   const [orderResult, itemsResult, settingsResult, userResult] = await Promise.all([
     pool.query("SELECT * FROM orders WHERE id=?", [orderId]),
-    pool.query("SELECT product_name,sku,unit_price,quantity FROM order_items WHERE order_id=?", [orderId]),
+    pool.query("SELECT id,product_id,variant_id,product_name,sku,unit_price,quantity FROM order_items WHERE order_id=?", [orderId]),
     pool.query("SELECT * FROM shipping_settings WHERE id=1", []),
     pool.query("SELECT email FROM users WHERE id=(SELECT user_id FROM orders WHERE id=?)", [orderId]),
   ]);
@@ -69,7 +69,7 @@ router.post("/shipments", asyncHandler(async (req, res) => {
     order_id: order.order_code, order_date: new Date(order.created_at).toISOString().slice(0, 16).replace("T", " "), pickup_location: settings.pickup_location,
     billing_customer_name: nameParts.shift() || "Customer", billing_last_name: nameParts.join(" "), billing_address: address.address_line_1, billing_address_2: address.address_line_2 || "",
     billing_city: address.city, billing_pincode: String(address.postal_code), billing_state: address.state, billing_country: address.country || "India", billing_email: userRows[0]?.email || "", billing_phone: address.phone || order.phone,
-    shipping_is_billing: true, order_items: items.map((item) => ({ name: item.product_name, sku: item.sku || `SNA-${order.id}`, units: Number(item.quantity), selling_price: Number(item.unit_price) })),
+    shipping_is_billing: true, order_items: shiprocketOrderItems(items, order.id),
     payment_method: paymentMethod === "cod" ? "COD" : "Prepaid", sub_total: Number(order.subtotal),
     length: Number(settings.default_length_cm || 10), breadth: Number(settings.default_width_cm || 10), height: Number(settings.default_height_cm || 10), weight: Number(settings.default_weight_grams || 500) * items.reduce((sum, item) => sum + Number(item.quantity), 0) / 1000,
   }});
@@ -117,6 +117,38 @@ router.post("/shipments/:id/cancel", asyncHandler(async (req, res) => {
 const allowedStatuses = new Set(['shipment_created','pickup_scheduled','picked_up','in_transit','out_for_delivery','delivered','delivery_failed','rto_initiated','rto_in_transit','rto_delivered','cancelled']);
 function normalizeStatus(value) { const text = String(value || "").toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,""); if (text.includes("out_for_delivery")) return "out_for_delivery"; if (text.includes("delivered")) return text.includes("rto") ? "rto_delivered" : "delivered"; if (text.includes("transit")) return text.includes("rto") ? "rto_in_transit" : "in_transit"; if (text.includes("pickup")) return "picked_up"; return allowedStatuses.has(text) ? text : "shipment_created"; }
 function parseJson(value) { try { return typeof value === "string" ? JSON.parse(value) : value || {}; } catch { return {}; } }
+function shiprocketOrderItems(items, orderId) {
+  const normalizedSkus = items.map((item) => shipmentSkuBase(item.sku));
+  const skuCounts = normalizedSkus.reduce((counts, sku) => {
+    if (sku) counts.set(sku.toLowerCase(), (counts.get(sku.toLowerCase()) || 0) + 1);
+    return counts;
+  }, new Map());
+
+  return items.map((item, index) => {
+    const base = normalizedSkus[index];
+    const duplicate = base && skuCounts.get(base.toLowerCase()) > 1;
+    const lineReference = item.id || `${orderId}-${index + 1}`;
+    const suffix = `-${lineReference}`;
+    const sku = !base
+      ? `SNA-${orderId}-${lineReference}`.slice(-50)
+      : duplicate
+        ? `${base.slice(0, Math.max(1, 50 - suffix.length))}${suffix}`
+        : base;
+    return {
+      name: item.product_name,
+      sku,
+      units: Number(item.quantity),
+      selling_price: Number(item.unit_price),
+    };
+  });
+}
+function shipmentSkuBase(value) {
+  return String(value || "")
+    .trim()
+    .replace(/[^A-Za-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 50);
+}
 async function getShipment(value, res) { const id=parsePositiveId(value); if (!id) { fail(res,400,"Invalid shipment ID"); return null; } const [[row]]=await pool.query("SELECT * FROM shipments WHERE id=?",[id]); if (!row) { fail(res,404,"Shipment not found"); return null; } return row; }
 async function addEvent(shipmentId,status,description=null,location=null,eventTime=null) { const key=createHash("sha256").update(`${shipmentId}|${status}|${description}|${eventTime || ""}`).digest("hex"); await pool.query("INSERT IGNORE INTO shipment_events(shipment_id,provider_event_id,status,description,location,event_time,raw_event_reference) VALUES (?,?,?,?,?,COALESCE(?,UTC_TIMESTAMP()),?)",[shipmentId,key,status,String(description || "").slice(0,500)||null,String(location || "").slice(0,190)||null,eventTime,key]); }
 
