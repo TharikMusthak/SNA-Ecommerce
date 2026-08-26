@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Heart, Minus, Pencil, Plus, ShoppingBag, Star, ThumbsUp } from "lucide-react";
+import { Camera, CheckCircle2, ChevronLeft, ChevronRight, Heart, Minus, Pencil, Play, Plus, ShoppingBag, Star, ThumbsUp, Video, X } from "lucide-react";
 import {
   useLocation,
   useNavigate,
@@ -30,6 +30,77 @@ import {
 } from "@hooks/useReviews";
 import formatCurrency from "@utils/formatCurrency";
 import { assetUrl, effectivePrice } from "@utils/helpers";
+
+export function extractReviewMedia(review) {
+  if (!review) return [];
+  const list = [];
+
+  const addMedia = (item, defaultType = "image") => {
+    if (!item) return;
+    let url = "";
+    let type = defaultType;
+    if (typeof item === "string") {
+      url = item.trim();
+    } else if (typeof item === "object") {
+      url =
+        item.url ||
+        item.image_url ||
+        item.video_url ||
+        item.image ||
+        item.video ||
+        item.media ||
+        item.path ||
+        item.src ||
+        item.file_path ||
+        "";
+      if (item.type) type = item.type;
+    }
+    if (!url) return;
+
+    if (/\.(mp4|webm|mov|avi|mkv|ogg)($|\?)/i.test(url)) {
+      type = "video";
+    } else if (/\.(jpg|jpeg|png|webp|gif|svg|avif)($|\?)/i.test(url)) {
+      type = "image";
+    }
+
+    const fullUrl = assetUrl(url);
+    if (fullUrl && !list.some((m) => m.url === fullUrl)) {
+      list.push({ url: fullUrl, type, original: url });
+    }
+  };
+
+  const processArray = (arr, type) => {
+    if (!arr) return;
+    if (Array.isArray(arr)) {
+      arr.forEach((i) => addMedia(i, type));
+    } else if (typeof arr === "string") {
+      const trimmed = arr.trim();
+      if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((i) => addMedia(i, type));
+            return;
+          }
+        } catch {
+          // ignore
+        }
+      }
+      trimmed.split(",").forEach((i) => addMedia(i, type));
+    }
+  };
+
+  processArray(review.photos, "image");
+  processArray(review.images, "image");
+  processArray(review.videos, "video");
+  processArray(review.media, "image");
+  if (review.image_url) addMedia(review.image_url, "image");
+  if (review.imageUrl) addMedia(review.imageUrl, "image");
+  if (review.video_url) addMedia(review.video_url, "video");
+  if (review.videoUrl) addMedia(review.videoUrl, "video");
+
+  return list;
+}
 
 const Product = () => {
   const { identifier } = useParams();
@@ -190,6 +261,7 @@ const ProductDetail = ({ identifier }) => {
   const [reviewText, setReviewText] = useState("");
   const [reviewMedia, setReviewMedia] = useState([]);
   const [editingReviewId, setEditingReviewId] = useState(null);
+  const [lightboxMedia, setLightboxMedia] = useState(null);
   const { data: reviewsData, isLoading: reviewsLoading } = useProductReviews(product?.id);
   const submitReview = useSubmitReview(product?.id);
   const updateReview = useUpdateReview(product?.id);
@@ -202,8 +274,25 @@ const ProductDetail = ({ identifier }) => {
     [reviewMedia],
   );
 
-console.log(reviewsData, "reviewsData");
-console.log(user, "user");
+  const reviews = useMemo(() => reviewsData?.items || [], [reviewsData]);
+
+  const allCustomerReviewMedia = useMemo(() => {
+    if (!reviews || !reviews.length) return [];
+    const mediaList = [];
+    reviews.forEach((rev) => {
+      const extracted = extractReviewMedia(rev);
+      extracted.forEach((item) => {
+        if (!mediaList.some((m) => m.url === item.url)) {
+          mediaList.push({
+            ...item,
+            reviewId: rev.id,
+            reviewer: rev.reviewer || rev.user?.name || "Customer",
+          });
+        }
+      });
+    });
+    return mediaList;
+  }, [reviews]);
 
   if (isLoading)
     return (
@@ -211,6 +300,7 @@ console.log(user, "user");
         <Spinner />
       </div>
     );
+
   if (isError || !product)
     return (
       <div className="mx-auto max-w-3xl px-5 py-24 text-center">
@@ -232,7 +322,6 @@ console.log(user, "user");
   const favorite = wishlist.items.some(
     (item) => Number(item.id) === Number(product.id),
   );
-  const reviews = reviewsData?.items || [];
 
   const reviewCount = Number(
     product.review_count ??
@@ -568,53 +657,221 @@ console.log(user, "user");
                   <div className="flex gap-1" onMouseLeave={() => setHoveredRating(0)}>{[1, 2, 3, 4, 5].map((star) => <button key={star} type="button" onMouseEnter={() => setHoveredRating(star)} onFocus={() => setHoveredRating(star)} onBlur={() => setHoveredRating(0)} onClick={() => setRating(star)} className="rounded-md p-1 text-gray-200 transition hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447]" aria-label={`Rate ${star} out of 5 stars`} aria-pressed={rating === star}><Star size={28} className={star <= (hoveredRating || rating) ? "fill-amber-400 text-amber-400" : "text-current"} /></button>)}</div>
                   <input type="text" value={reviewTitle} onChange={(event) => setReviewTitle(event.target.value)} maxLength={150} placeholder="Give your review a title" className="mt-4 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-[#079447] focus:ring-2 focus:ring-emerald-100" />
                   <textarea value={reviewText} onChange={(event) => setReviewText(event.target.value)} maxLength={500} minLength={1} required rows={3} placeholder="What did you like about it?" className="mt-3 w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-[#079447] focus:ring-2 focus:ring-emerald-100" />
-                  <label className="mt-3 block rounded-xl border border-dashed border-emerald-200 bg-white p-3 text-xs font-semibold text-gray-700">
-                    Add an image and/or video
-                    <small className="mt-1 block font-normal text-gray-500">Up to one image and one video · JPG, PNG, WebP, MP4, WebM, MOV</small>
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
-                      multiple
-                      className="mt-2 block w-full text-xs"
-                      onChange={handleReviewMediaAdd}
-                    />
-                  </label>
-                  {reviewMedia.length > 0 && (
-                    <div className="mt-3 space-y-3">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Selected media</p>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        {reviewMedia.map((media) => (
-                          <div key={media.id} className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-                            <div className="aspect-square bg-gray-50">
-                              {media.type === "image" ? (
-                                <img src={media.previewUrl} alt={media.file.name} className="h-full w-full object-contain" />
-                              ) : (
-                                <video src={media.previewUrl} controls className="h-full w-full object-contain bg-black" />
-                              )}
-                            </div>
-                            <div className="flex items-center justify-between gap-3 p-3">
-                              <p className="min-w-0 truncate text-xs text-gray-600">{media.file.name}</p>
-                              <button
-                                type="button"
-                                onClick={() => removeReviewMedia(media.id)}
-                                className="text-xs font-semibold text-red-600"
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                  <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4">
+                    <p className="text-sm font-semibold text-gray-900">Add a photo or video</p>
+                    <p className="mt-0.5 text-xs text-gray-500">Shoppers find images and videos more helpful than text alone.</p>
+                    
+                    <div className="mt-3.5 flex flex-wrap items-center gap-3">
+                      {/* Plus Upload Box */}
+                      <label className="flex h-20 w-20 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 transition hover:border-[#079447] hover:bg-emerald-50/40 group">
+                        <div className="flex items-center text-gray-400 group-hover:text-[#079447]">
+                          <Camera size={20} />
+                          <Plus size={12} className="-ml-0.5" />
+                        </div>
+                        <span className="mt-1 text-[11px] font-medium text-gray-600 group-hover:text-[#079447]">Add media</span>
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
+                          multiple
+                          className="hidden"
+                          onChange={handleReviewMediaAdd}
+                        />
+                      </label>
+
+                      {/* Selected Media Thumbnails */}
+                      {reviewMedia.map((media, mIdx) => (
+                        <div key={media.id} className="relative h-20 w-20 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-xs group">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setLightboxMedia({
+                                items: reviewMedia.map((m) => ({
+                                  url: m.previewUrl,
+                                  type: m.type,
+                                })),
+                                activeIndex: mIdx,
+                              })
+                            }
+                            className="h-full w-full focus:outline-none"
+                          >
+                            {media.type === "image" ? (
+                              <img src={media.previewUrl} alt={media.file.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
+                            ) : (
+                              <div className="relative flex h-full w-full items-center justify-center bg-black">
+                                <video src={media.previewUrl} className="h-full w-full object-cover opacity-80" />
+                                <div className="absolute flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-xs">
+                                  <Play size={12} className="ml-0.5 fill-white" />
+                                </div>
+                              </div>
+                            )}
+                          </button>
+
+                          {/* Delete Badge Button */}
+                          <button
+                            type="button"
+                            onClick={() => removeReviewMedia(media.id)}
+                            className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white transition hover:bg-red-600 focus:outline-none"
+                            aria-label="Remove media"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                  )}
+                  </div>
                   <div className="mt-3 flex flex-wrap items-center gap-3"><button disabled={submitReview.isPending || updateReview.isPending} className="rounded-xl bg-[#079447] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#057a3a] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447] disabled:bg-gray-300">{updateReview.isPending ? "Saving..." : submitReview.isPending ? "Submitting..." : editingReviewId != null ? "Save changes" : "Submit review"}</button>{editingReviewId != null && <button type="button" disabled={updateReview.isPending} onClick={cancelReviewEdit} className="rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447] disabled:opacity-50">Cancel</button>}</div>
                 </form>
               ) : <button onClick={ensureLogin} className="mt-5 rounded-xl border border-[#079447] px-4 py-2.5 text-sm font-semibold text-[#079447] transition hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447]">Log in to write a review</button>}
             </div>
           </div>
           <div className="rounded-2xl bg-white p-5 shadow-sm sm:p-6">
-            <div className="flex items-end justify-between gap-4"><div><h3 className="text-xl font-semibold text-gray-900">Customer reviews</h3><p className="mt-1 text-sm text-gray-500">Most recent feedback</p></div></div>
-            <div className="mt-5 space-y-0">{reviewsLoading && <p className="py-8 text-sm text-gray-500">Loading customer reviews...</p>}{!reviewsLoading && !reviews.length && <p className="py-8 text-sm leading-6 text-gray-500">No reviews yet. Be the first to tell us about your experience.</p>}{reviews.map((review) => { const author = review.reviewer || review.user?.name || "Verified customer"; const score = Number(review.rating || 0); const text = review.review_text || review.comment || review.review || review.content; const initials = author.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase(); const helpfulCount = Number(review.helpful_count ?? review.helpful ?? 0); const isOwnReview = isReviewOwnedByUser(review, user); return <article key={review.id} className="border-b border-gray-100 py-5 first:pt-0 last:border-0 last:pb-0"><div className="flex items-start justify-between gap-4"><div className="flex min-w-0 items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-[#057a3a]">{initials}</span><div className="min-w-0"><div className="flex flex-wrap items-center gap-x-2 gap-y-1"><p className="font-semibold text-gray-900">{author}</p><span className="inline-flex items-center gap-1 text-xs text-[#079447]"><CheckCircle2 size={13} /> Verified purchase</span></div><p className="mt-0.5 text-xs text-gray-500">{formatReviewDate(review.created_at || review.createdAt || review.date)}</p></div></div><div className="flex shrink-0 gap-0.5" aria-label={`${score} out of 5 stars`}>{[1, 2, 3, 4, 5].map((star) => <Star key={star} size={15} className={star <= score ? "fill-amber-400 text-amber-400" : "text-gray-200"} />)}</div></div>{review.title && <h4 className="mt-4 font-semibold text-gray-800">{review.title}</h4>}{text && <p className="mt-2 text-sm leading-6 text-gray-600">{text}</p>}{(review.image_url || review.video_url) && <div className="mt-3 grid gap-3 sm:grid-cols-2">{review.image_url && <img src={assetUrl(review.image_url)} alt="Customer review" className="max-h-56 w-full rounded-xl bg-gray-50 object-contain" />}{review.video_url && <video src={assetUrl(review.video_url)} controls preload="metadata" className="max-h-56 w-full rounded-xl bg-black" />}</div>}<div className="mt-4 flex flex-wrap items-center gap-2"><button type="button" disabled={markReviewHelpful.isPending} onClick={() => markReviewHelpful.mutate(review.id, { onError: (error) => toast.error(apiErrorMessage(error, "Could not record your feedback")) })} className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-gray-500 transition hover:bg-emerald-50 hover:text-[#079447] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447] disabled:opacity-50" aria-label={`Mark ${author}'s review as helpful`}><ThumbsUp size={14} /> Helpful{helpfulCount > 0 ? ` (${helpfulCount})` : ""}</button>{isOwnReview && <button type="button" disabled={updateReview.isPending} onClick={() => startReviewEdit(review)} className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-[#079447] transition hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447] disabled:opacity-50"><Pencil size={14} /> Edit review</button>}</div></article>; })}</div>
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">Customer reviews</h3>
+                <p className="mt-1 text-sm text-gray-500">Most recent feedback</p>
+              </div>
+            </div>
+
+            {/* Customer Photos & Videos Gallery Strip */}
+            {allCustomerReviewMedia.length > 0 && (
+              <div className="mt-5 rounded-2xl border border-emerald-100 bg-[#f5f7f1]/60 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-[#079447]">
+                  Photos & videos from customers
+                </p>
+                <div className="no-scrollbar mt-3 flex items-center gap-3 overflow-x-auto pb-1">
+                  {allCustomerReviewMedia.map((item, idx) => (
+                    <button
+                      key={`all-media-${item.url}-${idx}`}
+                      type="button"
+                      onClick={() => setLightboxMedia({ items: allCustomerReviewMedia, activeIndex: idx })}
+                      className="group relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 transition hover:border-[#079447] hover:shadow-md focus:outline-none"
+                      aria-label="View customer photo/video"
+                    >
+                      {item.type === "image" ? (
+                        <img src={item.url} alt="Customer upload" className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
+                      ) : (
+                        <div className="relative flex h-full w-full items-center justify-center bg-black">
+                          <video src={item.url} className="h-full w-full object-cover opacity-80" />
+                          <div className="absolute flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-xs">
+                            <Play size={12} className="ml-0.5 fill-white" />
+                          </div>
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className={`mt-5 space-y-0 ${reviews.length > 4 ? "max-h-[620px] overflow-y-auto pr-2" : ""}`}>
+              {reviewsLoading && <p className="py-8 text-sm text-gray-500">Loading customer reviews...</p>}
+              {!reviewsLoading && !reviews.length && (
+                <p className="py-8 text-sm leading-6 text-gray-500">
+                  No reviews yet. Be the first to tell us about your experience.
+                </p>
+              )}
+              {reviews.map((review) => {
+                const author = review.reviewer || review.user?.name || "Verified customer";
+                const score = Number(review.rating || 0);
+                const text = review.review_text || review.comment || review.review || review.content;
+                const initials = author.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase();
+                const helpfulCount = Number(review.helpful_count ?? review.helpful ?? 0);
+                const isOwnReview = isReviewOwnedByUser(review, user);
+                const reviewMediaList = extractReviewMedia(review);
+
+                return (
+                  <article key={review.id} className="border-b border-gray-100 py-5 first:pt-0 last:border-0 last:pb-0">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-[#057a3a]">
+                          {initials}
+                        </span>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <p className="font-semibold text-gray-900">{author}</p>
+                            <span className="inline-flex items-center gap-1 text-xs text-[#079447]">
+                              <CheckCircle2 size={13} /> Verified purchase
+                            </span>
+                          </div>
+                          <p className="mt-0.5 text-xs text-gray-500">
+                            {formatReviewDate(review.created_at || review.createdAt || review.date)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 gap-0.5" aria-label={`${score} out of 5 stars`}>
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star
+                            key={star}
+                            size={15}
+                            className={star <= score ? "fill-amber-400 text-amber-400" : "text-gray-200"}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {review.title && <h4 className="mt-4 font-semibold text-gray-800">{review.title}</h4>}
+                    {text && <p className="mt-2 text-sm leading-6 text-gray-600">{text}</p>}
+
+                    {/* Customer Review Media Thumbnails */}
+                    {reviewMediaList.length > 0 && (
+                      <div className="mt-3.5 flex flex-wrap gap-2.5">
+                        {reviewMediaList.map((media, mIdx) => (
+                          <button
+                            key={`rev-media-${media.url}-${mIdx}`}
+                            type="button"
+                            onClick={() => setLightboxMedia({ items: reviewMediaList, activeIndex: mIdx })}
+                            className="group relative h-20 w-20 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 transition hover:border-[#079447] hover:shadow-md focus:outline-none"
+                            aria-label={`View review ${media.type}`}
+                          >
+                            {media.type === "image" ? (
+                              <img
+                                src={media.url}
+                                alt="Customer review photo"
+                                className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                              />
+                            ) : (
+                              <div className="relative flex h-full w-full items-center justify-center bg-black">
+                                <video src={media.url} className="h-full w-full object-cover opacity-80" />
+                                <div className="absolute flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-xs">
+                                  <Play size={12} className="ml-0.5 fill-white" />
+                                </div>
+                              </div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={markReviewHelpful.isPending}
+                        onClick={() =>
+                          markReviewHelpful.mutate(review.id, {
+                            onError: (error) =>
+                              toast.error(apiErrorMessage(error, "Could not record your feedback")),
+                          })
+                        }
+                        className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-gray-500 transition hover:bg-emerald-50 hover:text-[#079447] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447] disabled:opacity-50"
+                        aria-label={`Mark ${author}'s review as helpful`}
+                      >
+                        <ThumbsUp size={14} /> Helpful{helpfulCount > 0 ? ` (${helpfulCount})` : ""}
+                      </button>
+                      {isOwnReview && (
+                        <button
+                          type="button"
+                          disabled={updateReview.isPending}
+                          onClick={() => startReviewEdit(review)}
+                          className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-[#079447] transition hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447] disabled:opacity-50"
+                        >
+                          <Pencil size={14} /> Edit review
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
           </div>
         </div>
       </section>
@@ -629,6 +886,120 @@ console.log(user, "user");
             ))}
           </div>
         </section>
+      )}
+
+      {/* Review Media Lightbox Modal */}
+      {lightboxMedia && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur-md animate-fade-in"
+          onClick={() => setLightboxMedia(null)}
+        >
+          {/* Header Controls */}
+          <div className="absolute top-4 right-4 z-50 flex items-center gap-3">
+            <span className="text-sm font-medium text-white/80">
+              {lightboxMedia.activeIndex + 1} / {lightboxMedia.items.length}
+            </span>
+            <button
+              type="button"
+              onClick={() => setLightboxMedia(null)}
+              className="rounded-full bg-white/20 p-2 text-white transition hover:bg-white/40"
+              aria-label="Close preview"
+            >
+              <X size={24} />
+            </button>
+          </div>
+
+          {/* Active Media Display */}
+          <div
+            className="relative flex h-full max-h-[85vh] w-full max-w-5xl items-center justify-center p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {lightboxMedia.items[lightboxMedia.activeIndex]?.type === "image" ? (
+              <img
+                src={lightboxMedia.items[lightboxMedia.activeIndex].url}
+                alt="Customer review media enlarged"
+                className="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
+              />
+            ) : (
+              <video
+                src={lightboxMedia.items[lightboxMedia.activeIndex].url}
+                controls
+                autoPlay
+                className="max-h-full max-w-full rounded-lg bg-black shadow-2xl"
+              />
+            )}
+
+            {/* Prev / Next controls */}
+            {lightboxMedia.items.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setLightboxMedia((prev) => ({
+                      ...prev,
+                      activeIndex:
+                        prev.activeIndex === 0
+                          ? prev.items.length - 1
+                          : prev.activeIndex - 1,
+                    }))
+                  }
+                  className="absolute left-2 rounded-full bg-white/20 p-3 text-white transition hover:bg-white/40"
+                  aria-label="Previous media"
+                >
+                  <ChevronLeft size={28} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setLightboxMedia((prev) => ({
+                      ...prev,
+                      activeIndex:
+                        prev.activeIndex === prev.items.length - 1
+                          ? 0
+                          : prev.activeIndex + 1,
+                    }))
+                  }
+                  className="absolute right-2 rounded-full bg-white/20 p-3 text-white transition hover:bg-white/40"
+                  aria-label="Next media"
+                >
+                  <ChevronRight size={28} />
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Bottom Thumbnail Strip */}
+          {lightboxMedia.items.length > 1 && (
+            <div
+              className="absolute bottom-4 z-50 flex max-w-xl items-center gap-2 overflow-x-auto rounded-2xl bg-black/60 p-2 backdrop-blur-md"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {lightboxMedia.items.map((item, idx) => (
+                <button
+                  key={`lightbox-${item.url}-${idx}`}
+                  type="button"
+                  onClick={() =>
+                    setLightboxMedia((prev) => ({ ...prev, activeIndex: idx }))
+                  }
+                  className={`h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2 transition ${
+                    idx === lightboxMedia.activeIndex
+                      ? "border-[#079447] scale-110"
+                      : "border-transparent opacity-50 hover:opacity-100"
+                  }`}
+                >
+                  {item.type === "image" ? (
+                    <img src={item.url} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="relative flex h-full w-full items-center justify-center bg-black">
+                      <video src={item.url} className="h-full w-full object-cover opacity-70" />
+                      <Play size={12} className="absolute text-white fill-white" />
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       )}
     </main>
   );
