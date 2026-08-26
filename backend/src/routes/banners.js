@@ -21,6 +21,11 @@ import { safelyDeleteUpload, uploadBannerMedia } from "../services/uploadFiles.j
 
 const router = Router();
 const BANNER_STATUSES = ["Active", "Draft"];
+const REDIRECT_TYPES = ["none", "product", "category", "custom_url"];
+const DISPLAY_POSITIONS = ["home_hero", "home_middle", "category_top", "product_top"];
+const BANNER_SELECT = `b.id,b.name,b.title,b.subtitle,b.button_text,b.button_link,
+  b.image,b.mobile_image,b.redirect_type,b.product_id,b.category_id,b.redirect_url,
+  b.display_position,b.start_at,b.end_at,b.status,b.sort_order,b.created_at,b.updated_at`;
 
 fs.mkdirSync(bannerUploadsDir, { recursive: true });
 
@@ -44,10 +49,12 @@ const bannerUpload = upload.fields([
 
 router.get("/public", async (_req, res) => {
   const [rows] = await pool.query(
-    `SELECT id, name, title, subtitle, button_text, button_link, image, mobile_image, sort_order
-     FROM banners
-     WHERE status = 'Active'
-     ORDER BY sort_order, id DESC`,
+    `SELECT ${BANNER_SELECT}
+     FROM banners b
+     WHERE b.status = 'Active'
+       AND (b.start_at IS NULL OR b.start_at <= CURRENT_TIMESTAMP)
+       AND (b.end_at IS NULL OR b.end_at >= CURRENT_TIMESTAMP)
+     ORDER BY b.sort_order, b.id DESC`,
   );
   res.json(rows);
 });
@@ -59,11 +66,11 @@ router.use(
 
 router.get("/", async (_req, res) => {
   const [rows] = await pool.query(
-    `SELECT
-       id, name, title, subtitle, button_text, button_link, image, mobile_image,
-       status, sort_order, created_at
-     FROM banners
-     ORDER BY sort_order, id DESC`,
+    `SELECT ${BANNER_SELECT},p.name AS product_name,c.name AS category_name
+     FROM banners b
+     LEFT JOIN products p ON p.id=b.product_id
+     LEFT JOIN categories c ON c.id=b.category_id
+     ORDER BY b.sort_order, b.id DESC`,
   );
   res.json(rows);
 });
@@ -75,11 +82,11 @@ router.get("/:id", async (req, res) => {
   }
 
   const [[banner]] = await pool.query(
-    `SELECT
-       id, name, title, subtitle, button_text, button_link, image, mobile_image,
-       status, sort_order, created_at
-     FROM banners
-     WHERE id = ?
+    `SELECT ${BANNER_SELECT},p.name AS product_name,c.name AS category_name
+     FROM banners b
+     LEFT JOIN products p ON p.id=b.product_id
+     LEFT JOIN categories c ON c.id=b.category_id
+     WHERE b.id = ?
      LIMIT 1`,
     [bannerId],
   );
@@ -112,8 +119,10 @@ router.post(
       const uploadedMobileImage = imageUrl(mobileFile);
       const [result] = await pool.query(
         `INSERT INTO banners
-          (name, title, subtitle, button_text, button_link, image, mobile_image, status, sort_order)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          (name,title,subtitle,button_text,button_link,image,mobile_image,
+           redirect_type,product_id,category_id,redirect_url,display_position,
+           start_at,end_at,status,sort_order)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           input.value.name,
           input.value.title,
@@ -122,6 +131,13 @@ router.post(
           input.value.buttonLink,
           uploadedImage,
           uploadedMobileImage,
+          input.value.redirectType,
+          input.value.productId,
+          input.value.categoryId,
+          input.value.redirectUrl,
+          input.value.displayPosition,
+          input.value.startAt,
+          input.value.endAt,
           input.value.status,
           input.value.sortOrder,
         ],
@@ -189,7 +205,9 @@ router.put(
       await connection.query(
         `UPDATE banners
          SET name = ?, title = ?, subtitle = ?, button_text = ?, button_link = ?,
-             image = ?, mobile_image = ?, status = ?, sort_order = ?
+             image = ?, mobile_image = ?, redirect_type = ?, product_id = ?,
+             category_id = ?, redirect_url = ?, display_position = ?,
+             start_at = ?, end_at = ?, status = ?, sort_order = ?
          WHERE id = ?`,
         [
           input.value.name,
@@ -199,6 +217,13 @@ router.put(
           input.value.buttonLink,
           finalImage,
           finalMobileImage,
+          input.value.redirectType,
+          input.value.productId,
+          input.value.categoryId,
+          input.value.redirectUrl,
+          input.value.displayPosition,
+          input.value.startAt,
+          input.value.endAt,
           input.value.status,
           input.value.sortOrder,
           bannerId,
@@ -284,18 +309,40 @@ router.delete("/:id", async (req, res) => {
 });
 
 function parseBanner(body) {
+  const redirectType = cleanText(body.redirect_type || "none", 30);
+  const productId = redirectType === "product" ? parsePositiveId(body.product_id) : null;
+  const categoryId = redirectType === "category" ? parsePositiveId(body.category_id) : null;
+  const redirectUrl = redirectType === "custom_url" ? safeButtonLink(body.redirect_url) : null;
+  const displayPosition = cleanText(body.display_position || "home_hero", 40);
+  const startAt = bannerDate(body.start_at);
+  const endAt = bannerDate(body.end_at);
   const value = {
     name: cleanText(body.name, 190),
     title: cleanText(body.title, 220),
     subtitle: cleanText(body.subtitle, 1000),
     buttonText: cleanText(body.button_text || "Shop now", 80),
-    buttonLink: safeButtonLink(body.button_link || "/products"),
+    buttonLink: bannerLink(redirectType, productId, categoryId, redirectUrl),
+    redirectType,
+    productId,
+    categoryId,
+    redirectUrl,
+    displayPosition,
+    startAt,
+    endAt,
     status: body.status || "Active",
     sortOrder: Number(body.sort_order || 0),
   };
 
   if (!value.name) return { error: "Banner name is required" };
   if (!value.title) return { error: "Banner title is required" };
+  if (!isAllowed(value.redirectType, REDIRECT_TYPES)) return { error: "Invalid redirect type" };
+  if (value.redirectType === "product" && !value.productId) return { error: "Select a product" };
+  if (value.redirectType === "category" && !value.categoryId) return { error: "Select a category" };
+  if (value.redirectType === "custom_url" && !value.redirectUrl) return { error: "Enter a valid relative path or HTTPS URL" };
+  if (!isAllowed(value.displayPosition, DISPLAY_POSITIONS)) return { error: "Invalid banner position" };
+  if (body.start_at && !value.startAt) return { error: "Invalid start date" };
+  if (body.end_at && !value.endAt) return { error: "Invalid end date" };
+  if (value.startAt && value.endAt && value.endAt <= value.startAt) return { error: "End date must be after start date" };
   if (!value.buttonLink) {
     return { error: "Button link must be a relative path or HTTPS URL" };
   }
@@ -307,6 +354,20 @@ function parseBanner(body) {
   }
 
   return { value };
+}
+
+function bannerLink(type, productId, categoryId, redirectUrl) {
+  if (type === "product") return `/products/${productId}`;
+  if (type === "category") return `/products?category=${categoryId}`;
+  if (type === "custom_url") return redirectUrl;
+  return "/products";
+}
+
+function bannerDate(value) {
+  const normalized = cleanText(value, 32);
+  if (!normalized) return null;
+  const match = normalized.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(?::\d{2})?$/);
+  return match ? `${match[1]} ${match[2]}:00` : null;
 }
 
 function safeButtonLink(value) {
