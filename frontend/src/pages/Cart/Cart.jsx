@@ -41,9 +41,9 @@ import { assetUrl } from "@utils/helpers";
 const Cart = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { cart, isLoading, updateItem, removeItem, clear, applyCoupon } = useCart();
-  console.log("cart",cart);
-  
+  const { cart, isLoading, updateItem, removeItem, clear, applyCoupon, removeCoupon } = useCart();
+  console.log("cart", cart);
+
   const [addressId, setAddressId] = useState("");
   const [checkingOut, setCheckingOut] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("razorpay");
@@ -51,6 +51,7 @@ const Cart = () => {
   const [shippingError, setShippingError] = useState("");
   const [shippingLoading, setShippingLoading] = useState(false);
   const [showAddressPicker, setShowAddressPicker] = useState(false);
+  const [couponInput, setCouponInput] = useState("");
 
   const addresses = useQuery({
     queryKey: QUERY_KEYS.addresses,
@@ -128,11 +129,60 @@ const Cart = () => {
     }
   };
 
-  const submitCoupon = (event) => {
-    event.preventDefault();
-    const code = new FormData(event.currentTarget).get("code");
-    if (code) run(() => applyCoupon.mutateAsync(code), "Coupon applied");
+  const handleRemoveCoupon = async () => {
+    try {
+      await removeCoupon.mutateAsync();
+      toast.success("Coupon removed");
+      setCouponInput("");
+    } catch (error) {
+      toast.error(apiErrorMessage(error, "Could not remove coupon"));
+    }
   };
+
+  const submitCoupon = async (event) => {
+    event.preventDefault();
+    const code = (couponInput || new FormData(event.currentTarget).get("code") || "")
+      .toString()
+      .trim();
+    if (!code) {
+      toast.error("Please enter a coupon code");
+      return;
+    }
+    try {
+      const res = await applyCoupon.mutateAsync(code);
+      if (res && (res.valid === false || res.is_valid === false)) {
+        await removeCoupon.mutateAsync();
+        toast.error("Invalid coupon code. Removed automatically.");
+        setCouponInput("");
+        return;
+      }
+      toast.success("Coupon applied");
+      setCouponInput("");
+    } catch (error) {
+      try {
+        await removeCoupon.mutateAsync();
+      } catch {
+        // ignore
+      }
+      toast.error(apiErrorMessage(error, "Invalid coupon code. Removed automatically."));
+      setCouponInput("");
+    }
+  };
+
+  useEffect(() => {
+    if (
+      cart.coupon_invalid ||
+      cart.is_coupon_valid === false ||
+      cart.summary?.is_coupon_valid === false
+    ) {
+      removeCoupon
+        .mutateAsync()
+        .then(() => {
+          toast.error("Invalid coupon removed automatically.");
+        })
+        .catch(() => {});
+    }
+  }, [cart.coupon_invalid, cart.is_coupon_valid, cart.summary?.is_coupon_valid]);
 
   const checkout = async () => {
     if (!selectedAddressId) {
@@ -216,6 +266,13 @@ const Cart = () => {
   const total = displaySummary.total ?? 0;
   const savings = discount;
   const isFreeShipping = shippingQuote?.free_shipping || shipping === 0;
+  const appliedCouponCode =
+    cart.coupon_code ||
+    cart.coupon ||
+    cart.applied_coupon ||
+    cart.summary?.coupon_code ||
+    cart.summary?.coupon ||
+    (discount > 0 ? "APPLIED" : null);
 
   return (
     <main className="min-h-[70vh] bg-[#f1f3f6]">
@@ -519,25 +576,58 @@ const Cart = () => {
 
               {/* Coupon */}
               <div className="mt-0 border-t border-gray-100 bg-white px-5 py-4 shadow-sm">
-                <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <Tag size={15} className="text-[#079447]" />
-                  Apply Coupon
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <Tag size={15} className="text-[#079447]" />
+                    {appliedCouponCode ? "Coupon Applied" : "Apply Coupon"}
+                  </div>
                 </div>
-                <form onSubmit={submitCoupon} className="flex gap-2">
-                  <input
-                    name="code"
-                    placeholder="Enter coupon code"
-                    className="min-w-0 flex-1 rounded border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#079447]"
-                    maxLength={40}
-                  />
-                  <button
-                    id="cart-apply-coupon"
-                    type="submit"
-                    className="shrink-0 rounded border border-[#079447] px-4 py-2 text-xs font-bold uppercase tracking-wide text-[#079447] transition hover:bg-emerald-50"
-                  >
-                    Apply
-                  </button>
-                </form>
+
+                {appliedCouponCode ? (
+                  <div className="flex items-center justify-between rounded border border-emerald-200 bg-emerald-50/70 p-3">
+                    <div className="min-w-0 flex-1 pr-2">
+                      <div className="flex items-center gap-1.5">
+                        <CheckCircle2 size={16} className="shrink-0 text-[#079447]" />
+                        <span className="truncate text-xs font-bold uppercase tracking-wider text-emerald-900">
+                          {appliedCouponCode !== "APPLIED" ? appliedCouponCode : "COUPON APPLIED"}
+                        </span>
+                      </div>
+                      {discount > 0 && (
+                        <p className="mt-1 text-xs font-semibold text-emerald-700">
+                          Saved {formatCurrency(discount)} on this order
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      id="cart-remove-coupon-btn"
+                      type="button"
+                      disabled={removeCoupon.isPending}
+                      onClick={handleRemoveCoupon}
+                      className="shrink-0 rounded border border-red-200 bg-white px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-red-600 shadow-xs transition hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
+                    >
+                      {removeCoupon.isPending ? "Removing..." : "Remove"}
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={submitCoupon} className="flex gap-2">
+                    <input
+                      name="code"
+                      value={couponInput}
+                      onChange={(e) => setCouponInput(e.target.value)}
+                      placeholder="Enter coupon code"
+                      className="min-w-0 flex-1 rounded border border-gray-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-[#079447]"
+                      maxLength={40}
+                    />
+                    <button
+                      id="cart-apply-coupon"
+                      type="submit"
+                      disabled={applyCoupon.isPending || !couponInput.trim()}
+                      className="shrink-0 rounded border border-[#079447] px-4 py-2 text-xs font-bold uppercase tracking-wide text-[#079447] transition hover:bg-emerald-50 disabled:opacity-40"
+                    >
+                      {applyCoupon.isPending ? "Applying..." : "Apply"}
+                    </button>
+                  </form>
+                )}
               </div>
 
               {/* Payment Method */}
