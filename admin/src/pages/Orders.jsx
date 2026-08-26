@@ -572,6 +572,7 @@ function label(value) {
 function formatDate(value) {
   return value
     ? new Date(value).toLocaleString("en-IN", {
+        timeZone: "Asia/Kolkata",
         dateStyle: "medium",
         timeStyle: "short",
       })
@@ -579,7 +580,10 @@ function formatDate(value) {
 }
 function formatDateOnly(value) {
   return value
-    ? new Date(value).toLocaleDateString("en-IN", { dateStyle: "medium" })
+    ? new Date(value).toLocaleDateString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        dateStyle: "medium",
+      })
     : "Not scheduled";
 }
 function currency(value, currencyCode = "INR") {
