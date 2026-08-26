@@ -36,7 +36,7 @@ export function useUpdateReview(productId) {
     mutationFn: saveReview,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: reviewKey(productId) });
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+         queryClient.invalidateQueries({ queryKey: ["products"] });
     },
   });
 }

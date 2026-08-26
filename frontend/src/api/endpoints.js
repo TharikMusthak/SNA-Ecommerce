@@ -9,4 +9,5 @@ export const ENDPOINTS = Object.freeze({
   orders: "/orders",
   reviews: "/reviews",
   faqs: "/faqs",
+  banners: "/banners",
 });

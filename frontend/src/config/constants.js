@@ -11,6 +11,7 @@ export const BASE_URL = "https://sna-ecommerce-api.vercel.app/api/v1";
   addresses: ["addresses"],
   orders: ["orders"],
   faqs: ["faqs"],
+  banners: ["banners"],
 });
 
 export const EMPTY_CART = Object.freeze({

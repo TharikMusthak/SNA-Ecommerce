@@ -9,6 +9,7 @@ import {
 import toast from "react-hot-toast";
 import Tinyleaf from "@assets/images/tinyleaf.svg";
 import ProductDescription from "@components/products/ProductDescription";
+import ProductImageGallery from "@components/products/ProductImageGallery";
 import fallbackImage from "@assets/images/product1.png";
 import { apiErrorMessage } from "@api/axios";
 import ProductCard from "@components/products/ProductCard";
@@ -176,6 +177,8 @@ const ProductDetail = ({ identifier }) => {
   const location = useLocation();
   const { isAuthenticated, user } = useAuth();
   const { data: product, isLoading, isError } = useProduct(identifier);
+
+  console.log(product)
   const { data: related } = useRelatedProducts(product?.id);
   const { addItem } = useCart();
   const wishlist = useWishlist();
@@ -433,11 +436,10 @@ console.log(user, "user");
   return (
     <main className="mx-auto w-full max-w-[1380px] px-5 py-12 sm:px-8 lg:px-14">
       <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
-        <div className="rounded-[2rem] bg-[#f5f7f1] p-8 h-max">
-          <img
-            src={assetUrl(product.main_image, fallbackImage)}
-            alt={product.name}
-            className="mx-auto aspect-square w-full object-contain"
+        <div>
+          <ProductImageGallery
+            product={product}
+            selectedVariant={selectedVariant}
           />
         </div>
         <div className="py-4">
