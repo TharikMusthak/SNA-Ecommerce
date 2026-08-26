@@ -13,8 +13,15 @@ import { fail, ok, paginated } from "../../utils/apiResponse.js";
 
 const router = Router();
 router.use(requireCustomer);
-const orderCode = () =>
-  `SNA-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${randomBytes(4).toString("hex").toUpperCase()}`;
+const orderCode = () => {
+  const indiaDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date()).replaceAll("-", "");
+  return `SNA-${indiaDate}-${randomBytes(4).toString("hex").toUpperCase()}`;
+};
 
 router.post(
   "/create",
