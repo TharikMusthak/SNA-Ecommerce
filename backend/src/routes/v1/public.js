@@ -8,6 +8,25 @@ import { fail, ok, paginated } from "../../utils/apiResponse.js";
 import { parsePagination } from "../../utils/pagination.js";
 export const publicRouter = Router();
 publicRouter.get(
+  "/banners",
+  asyncHandler(async (req, res) => {
+    const allowedPositions = ["home_hero", "home_middle", "category_top", "product_top"];
+    const position = String(req.query.position || "home_hero");
+    if (!allowedPositions.includes(position)) return fail(res, 400, "Invalid banner position");
+    const [rows] = await pool.query(
+      `SELECT id,name,title,subtitle,button_text,button_link,image,mobile_image,
+              redirect_type,product_id,category_id,redirect_url,display_position,sort_order
+       FROM banners
+       WHERE status='Active' AND display_position=?
+         AND (start_at IS NULL OR start_at<=CURRENT_TIMESTAMP)
+         AND (end_at IS NULL OR end_at>=CURRENT_TIMESTAMP)
+       ORDER BY sort_order,id DESC`,
+      [position],
+    );
+    return ok(res, rows);
+  }),
+);
+publicRouter.get(
   "/categories",
   asyncHandler(async (req, res) => {
     const p=parsePagination(req.query,["id","name","sort_order","created_at"],"sort_order"),params=[],where=["status='Active'"];
