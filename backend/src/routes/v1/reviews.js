@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { pool } from "../../config/db.js";
 import { asyncHandler } from "../../middleware/asyncHandler.js";
-import { requireCustomer } from "../../middleware/customerAuth.js";
+import { optionalCustomer, requireCustomer } from "../../middleware/customerAuth.js";
 import { reviewFileUrl, reviewUpload } from "../../middleware/reviewUpload.js";
 import { deleteUploadedFiles, uploadedFiles } from "../../middleware/uploadSecurity.js";
 import { parsePositiveId } from "../../security/validation.js";
@@ -10,14 +10,14 @@ import { fail, ok, paginated } from "../../utils/apiResponse.js";
 
 const router = Router();
 
-router.get("/product/:productId", asyncHandler(async (req, res) => {
+router.get("/product/:productId", optionalCustomer, asyncHandler(async (req, res) => {
   const id = parsePositiveId(req.params.productId);
   const page = Math.max(Number(req.query.page) || 1, 1);
   const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
   if (!id) return fail(res, 400, "Invalid product ID");
   const [[counts], [rows]] = await Promise.all([
     pool.query("SELECT COUNT(*) AS total FROM reviews WHERE product_id=? AND status='approved'", [id]),
-    pool.query(`SELECT r.id,r.rating,r.title,r.review_text,r.image_url,r.video_url,r.is_verified_purchase,r.helpful_count,r.created_at,CONCAT(u.first_name,' ',LEFT(u.last_name,1),'.') AS reviewer FROM reviews r JOIN users u ON u.id=r.user_id WHERE r.product_id=? AND r.status='approved' ORDER BY r.id DESC LIMIT ? OFFSET ?`, [id, limit, (page - 1) * limit]),
+    pool.query(`SELECT r.id,r.rating,r.title,r.review_text,r.image_url,r.video_url,r.is_verified_purchase,r.helpful_count,r.created_at,r.updated_at,(r.user_id=?) AS is_owner,(r.edited_at IS NOT NULL) AS is_edited,CONCAT(u.first_name,' ',LEFT(u.last_name,1),'.') AS reviewer FROM reviews r JOIN users u ON u.id=r.user_id WHERE r.product_id=? AND r.status='approved' ORDER BY r.id DESC LIMIT ? OFFSET ?`, [req.user?.id || 0, id, limit, (page - 1) * limit]),
   ]);
   return paginated(res, rows, { page, limit, total: Number(counts[0].total) });
 }));
@@ -91,7 +91,7 @@ router.put("/:id", requireCustomer, ...reviewUpload, asyncHandler(async (req, re
   const imageUrl = reviewFileUrl(req.files?.image?.[0]) || (req.body.remove_image === "1" ? null : existing.image_url);
   const videoUrl = reviewFileUrl(req.files?.video?.[0]) || (req.body.remove_video === "1" ? null : existing.video_url);
   try {
-    await pool.query("UPDATE reviews SET rating=?,title=?,review_text=?,image_url=?,video_url=?,status='approved' WHERE id=? AND user_id=?", [input.rating, input.title, input.reviewText, imageUrl, videoUrl, id, req.user.id]);
+    await pool.query("UPDATE reviews SET rating=?,title=?,review_text=?,image_url=?,video_url=?,status='approved',edited_at=CURRENT_TIMESTAMP WHERE id=? AND user_id=?", [input.rating, input.title, input.reviewText, imageUrl, videoUrl, id, req.user.id]);
   } catch (error) {
     await safelyDeleteUploads(files.map(reviewFileUrl), "reviews");
     throw error;
