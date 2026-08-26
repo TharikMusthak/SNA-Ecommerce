@@ -793,8 +793,9 @@ const ProductDetail = ({ identifier }) => {
                               <CheckCircle2 size={13} /> Verified purchase
                             </span>
                           </div>
-                          <p className="mt-0.5 text-xs text-gray-500">
-                            {formatReviewDate(review.created_at || review.createdAt || review.date)}
+                          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-500">
+                            <span>{formatReviewDate(review.created_at || review.createdAt || review.date)}</span>
+                            {Boolean(review.is_edited) && <span aria-label="Review edited">· Edited</span>}
                           </p>
                         </div>
                       </div>
