@@ -13,6 +13,7 @@ export default function ProductFields({ form, setForm, item, field, onNotice, ca
       <fieldset className="form-section">
         <legend><span>1</span><b>Basic information</b><small>Name, category and customer-facing description</small></legend>
         {field("name", "Product name")}
+        {field("sku", "SKU (leave empty to generate automatically)", "text", { required: false, maxLength: "120", placeholder: "Example: SNA-ULUNTHU-LADDU" })}
         {categories.length > 0 ? (
           <label>Category<select value={form.category_id || ""} onChange={(event) => { const categoryId = event.target.value ? Number(event.target.value) : ""; const category = categories.find((categoryItem) => categoryItem.id === categoryId); setForm({ ...form, category_id: categoryId, category: category?.name || "" }); }} required><option value="">Select category</option>{categories.filter((category) => category.status === "Active").map((category) => <option key={category.id} value={category.id}>{category.parent_name ? `${category.parent_name} → ${category.name}` : category.name}</option>)}</select></label>
         ) : field("category", "Category")}
@@ -49,7 +50,7 @@ export default function ProductFields({ form, setForm, item, field, onNotice, ca
         <ImagePreviewField name="gallery" label={item ? "Add gallery images" : "Product gallery images"} multiple />
       </fieldset>
 
-      {["name", "category", "category_id", "price", "sale_price", "stock", "low_stock_threshold", "published_at"].map((name) => <input key={name} type="hidden" name={name} value={form[name] ?? ""} />)}
+      {["name", "sku", "category", "category_id", "price", "sale_price", "stock", "low_stock_threshold", "published_at"].map((name) => <input key={name} type="hidden" name={name} value={form[name] ?? ""} />)}
       <input type="hidden" name="status" value={form.status || "Active"} />
       <input type="hidden" name="is_featured" value={isFeatured ? "true" : "false"} />
     </>

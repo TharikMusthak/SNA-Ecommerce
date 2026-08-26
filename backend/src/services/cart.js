@@ -9,7 +9,7 @@ export async function getCart(queryable, userId, { lock = false } = {}) {
   const [items] = await queryable.query(
     `SELECT ci.id,ci.product_id,ci.variant_id,ci.quantity,p.name,p.slug,p.main_image,
             COALESCE(v.price,p.sale_price,p.price) AS unit_price,
-            COALESCE(v.stock,p.stock) AS available_stock,p.tax_rate,v.sku
+            COALESCE(v.stock,p.stock) AS available_stock,p.tax_rate,COALESCE(v.sku,p.sku) AS sku
      FROM cart_items ci JOIN products p ON p.id=ci.product_id
      LEFT JOIN product_variants v ON v.id=ci.variant_id AND v.product_id=p.id
      WHERE ci.cart_id=? AND p.status='Active' AND p.deleted_at IS NULL
