@@ -70,11 +70,21 @@ const defaultHeroSlides = [
   },
 ];
 
+function resolveBannerLink(banner) {
+  if (banner.redirect_type === "product" && banner.product_id) {
+    return `/products/${banner.product_id}`;
+  }
+  if (banner.redirect_type === "category" && banner.category_id) {
+    return `/products?category=${banner.category_id}`;
+  }
+  if (banner.redirect_type === "custom_url" && banner.redirect_url) {
+    return banner.redirect_url;
+  }
+  return "/products";
+}
+
 const HeroCarousel = () => {
-  const { data: bannersData } = useBanners();
-
-
-  console.log("bannersData",bannersData);
+  const { data: bannersData } = useBanners({ position: "home_hero" });
   
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -109,13 +119,7 @@ const HeroCarousel = () => {
         bannerImg,
       );
 
-      const productUrl =
-        banner.product_url ||
-        banner.button_link ||
-        banner.link ||
-        (banner.product_id
-          ? `/products/${banner.product_slug || banner.product_id}`
-          : "/products");
+      const productUrl = banner.button_link || resolveBannerLink(banner);
 
       const whatsappText =
         banner.whatsapp_button || banner.whatsapp_text || "Order on Whatsapp";
@@ -130,11 +134,7 @@ const HeroCarousel = () => {
         image: bannerImg,
         mobileImage: mobileImg,
         eyebrow: banner.eyebrow || "",
-        title: banner.title ? (
-          <span dangerouslySetInnerHTML={{ __html: banner.title }} />
-        ) : (
-          defaultHeroSlides[index % defaultHeroSlides.length].title
-        ),
+        title: banner.title || defaultHeroSlides[index % defaultHeroSlides.length].title,
         description:
           banner.description ||
           banner.subtitle ||
