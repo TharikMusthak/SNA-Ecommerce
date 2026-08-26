@@ -6,6 +6,7 @@ dotenv.config();
 
 const databaseUser = process.env.DB_USER || "root";
 const databasePassword = process.env.DB_PASSWORD || "";
+const databaseTimezone = process.env.DB_TIMEZONE || "+05:30";
 
 if (env.isProduction && (!databasePassword || databaseUser === "root")) {
   throw new Error(
@@ -24,7 +25,9 @@ export const pool = mysql.createPool({
   charset: "utf8mb4",
   enableKeepAlive: true,
   multipleStatements: false,
-  timezone: "Z",
+  // MySQL timestamps in this application use Indian Standard Time. Supplying
+  // the offset prevents mysql2 from interpreting an IST wall-clock value as UTC.
+  timezone: databaseTimezone,
 });
 
 export async function testDatabase() {
