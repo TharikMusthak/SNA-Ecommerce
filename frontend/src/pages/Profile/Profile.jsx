@@ -567,7 +567,7 @@ function CustomerOrderCard({ order }) {
   return (
     <article className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
       <header className="flex flex-col gap-3 border-b border-gray-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <div><h3 className="font-bold text-gray-900">Order #: {order.order_code}</h3><p className="mt-1 text-xs text-gray-500">{order.items?.length || 0} products · {new Date(order.created_at).toLocaleString("en-IN")}</p></div>
+        <div><h3 className="font-bold text-gray-900">Order #: {order.order_code}</h3><p className="mt-1 text-xs text-gray-500">{order.items?.length || 0} products · {formatOrderDate(order.created_at)}</p></div>
         <span className={`w-fit rounded-full px-3 py-1 text-xs font-bold ${isCod ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-700"}`}>{isCod ? "Cash on Delivery (COD)" : "Online payment · Paid"}</span>
       </header>
       <div className="grid gap-3 bg-gray-50/60 px-5 py-4 text-sm sm:grid-cols-4">
@@ -586,6 +586,18 @@ function CustomerOrderCard({ order }) {
 function parseAddress(value) {
   try { return typeof value === "string" ? JSON.parse(value) : value || {}; }
   catch { return {}; }
+}
+
+function formatOrderDate(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? String(value)
+    : date.toLocaleString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
 }
 
 function formatDeliveryDate(value) {
