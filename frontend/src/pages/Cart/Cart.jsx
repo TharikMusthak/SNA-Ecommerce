@@ -22,6 +22,7 @@ import { getAddresses } from "@api/address.api";
 import { createOrder } from "@api/order.api";
 import { createRazorpayPaymentOrder, verifyRazorpayPayment } from "@api/payment.api";
 import { getShippingQuote } from "@api/shipping.api";
+import { addToCart } from "@services/cart.service";
 import Spinner from "@components/ui/Spinner/Spinner";
 import { QUERY_KEYS } from "@config/constants";
 import { useCart } from "@hooks/useCart";
@@ -213,6 +214,16 @@ const Cart = () => {
       toast.error(shippingError || "Wait for the shipping rate to load");
       return;
     }
+
+    // Save cart items snapshot in case Razorpay payment is cancelled or fails
+    const cartSnapshot = cart.items.map((item) => ({
+      product_id: item.product_id,
+      quantity: item.quantity,
+      variant_id: item.variant_id || null,
+    }));
+
+    let orderCreated = false;
+
     try {
       setCheckingOut(true);
       const response = await createOrder(
@@ -224,6 +235,8 @@ const Cart = () => {
         crypto.randomUUID()
       );
       const order = response.data.data || response.data;
+      orderCreated = true;
+
       if (paymentMethod === "razorpay") {
         if (!order.payment_id) throw new Error("The order was created without a payment reference.");
         await loadRazorpayCheckout();
@@ -245,6 +258,20 @@ const Cart = () => {
       );
       navigate("/profile");
     } catch (error) {
+      // If order was created on backend but Razorpay payment was cancelled or failed, restore the cart!
+      if (orderCreated && paymentMethod === "razorpay" && cartSnapshot.length > 0) {
+        try {
+          await Promise.all(
+            cartSnapshot.map((item) =>
+              addToCart(item.product_id, item.quantity, item.variant_id)
+            )
+          );
+        } catch (restoreError) {
+          console.error("Could not restore cart items after cancelled payment:", restoreError);
+        } finally {
+          await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.cart });
+        }
+      }
       toast.error(apiErrorMessage(error, "Order could not be placed"));
     } finally {
       setCheckingOut(false);
