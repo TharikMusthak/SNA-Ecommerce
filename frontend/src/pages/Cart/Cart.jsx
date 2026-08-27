@@ -42,8 +42,7 @@ const Cart = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { cart, isLoading, updateItem, removeItem, clear, applyCoupon, removeCoupon } = useCart();
-  console.log("cart", cart);
-
+ 
   const [addressId, setAddressId] = useState("");
   const [checkingOut, setCheckingOut] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("razorpay");
@@ -271,7 +270,7 @@ const Cart = () => {
           <p className="mt-2 text-gray-500">Add items to it now.</p>
           <Link
             to="/products"
-            className="mt-6 inline-flex rounded-sm bg-[#079447] px-10 py-3 text-sm font-semibold uppercase tracking-wide text-white shadow-md transition hover:bg-[#057a3a]"
+            className="mt-6 inline-flex rounded-xl bg-[#079447] px-10 py-3 text-sm font-semibold uppercase tracking-wide text-white shadow-md transition hover:bg-[#057a3a]"
           >
             Shop Now
           </Link>
@@ -302,7 +301,7 @@ const Cart = () => {
           <div className="min-w-0 flex-1">
 
             {/*  Delivery Address Banner  */}
-            <div className="bg-white shadow-sm">
+            <div className="rounded-xl bg-white shadow-sm ring-1 ring-black/[0.03]">
               <div className="flex items-center justify-between px-4 py-4 sm:px-6">
                 <div className="flex min-w-0 items-center gap-3">
                   <MapPin size={20} className="shrink-0 text-[#079447]" />
@@ -329,7 +328,7 @@ const Cart = () => {
                 <button
                   id="cart-change-address-btn"
                   onClick={() => setShowAddressPicker((v) => !v)}
-                  className="ml-4 shrink-0 rounded-sm border border-[#079447] px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-[#079447] transition hover:bg-emerald-50"
+                  className="ml-4 shrink-0 rounded-xl border border-[#079447] px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-[#079447] transition hover:bg-emerald-50"
                 >
                   {selectedAddress ? "Change" : "Add Address"}
                   <ChevronDown
@@ -351,7 +350,7 @@ const Cart = () => {
                         return (
                           <label
                             key={addr.id}
-                            className={`flex cursor-pointer items-start gap-3 rounded border p-3 transition ${isSel ? "border-[#079447] bg-emerald-50" : "border-gray-200 bg-white hover:border-gray-300"}`}
+                            className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition ${isSel ? "border-[#079447] bg-emerald-50" : "border-gray-200 bg-white hover:border-gray-300"}`}
                           >
                             <input
                               type="radio"
@@ -368,7 +367,7 @@ const Cart = () => {
                               <p className="font-semibold text-gray-900">
                                 {addr.full_name}
                                 {addr.is_default && (
-                                  <span className="ml-2 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
+                                  <span className="ml-2 rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
                                     DEFAULT
                                   </span>
                                 )}
@@ -410,7 +409,7 @@ const Cart = () => {
             {/* END Address Banner */}
 
             {/*  Cart Items  */}
-            <div className="mt-0 bg-white shadow-sm">
+            <div className="mt-3 rounded-xl bg-white shadow-sm ring-1 ring-black/[0.03]">
               <div className="divide-y divide-gray-100">
                 {cart.items.map((item) => (
                   <div key={item.id} className="px-4 py-5 sm:px-6">
@@ -421,7 +420,7 @@ const Cart = () => {
                         className="shrink-0"
                         id={`cart-item-img-${item.id}`}
                       >
-                        <div className="h-[112px] w-[112px] overflow-hidden rounded bg-[#f0f0f0] p-2 transition hover:opacity-90 sm:h-[130px] sm:w-[130px]">
+                        <div className="h-[112px] w-[112px] overflow-hidden rounded-xl bg-[#f0f0f0] p-2 transition hover:opacity-90 sm:h-[130px] sm:w-[130px]">
                           <img
                             src={assetUrl(item.main_image, fallbackImage)}
                             alt={item.name}
@@ -476,8 +475,8 @@ const Cart = () => {
 
                         {/* Quantity + Actions */}
                         <div className="mt-4 flex flex-wrap items-center gap-4">
-                          {/* Quantity Control  Flipkart style */}
-                          <div className="flex items-center overflow-hidden rounded border border-gray-300 bg-white">
+                          {/* Quantity Control */}
+                          <div className="flex items-center overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xs">
                             <button
                               id={`cart-qty-dec-${item.id}`}
                               disabled={item.quantity <= 1 || updateItem.isPending}
@@ -491,7 +490,7 @@ const Cart = () => {
                             >
                               <Minus size={14} />
                             </button>
-                            <span className="flex h-8 min-w-[36px] items-center justify-center border-x border-gray-300 px-2 text-sm font-semibold text-gray-900">
+                            <span className="flex h-8 min-w-[36px] items-center justify-center border-x border-gray-200 px-2 text-sm font-semibold text-gray-900">
                               {item.quantity}
                             </span>
                             <button
@@ -516,7 +515,7 @@ const Cart = () => {
                           <button
                             id={`cart-remove-${item.id}`}
                             onClick={() => run(() => removeItem.mutateAsync(item.id), "Item removed")}
-                            className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500 transition hover:text-red-600"
+                            className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-gray-500 transition hover:bg-red-50 hover:text-red-600"
                           >
                             <Trash2 size={13} />
                             Remove
@@ -540,7 +539,7 @@ const Cart = () => {
             <div className="sticky top-20 space-y-0">
 
               {/* PRICE DETAILS Card */}
-              <div className="bg-white shadow-sm">
+              <div className="rounded-xl bg-white shadow-sm ring-1 ring-black/[0.03]">
                 <div className="border-b border-gray-200 px-5 py-4">
                   <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-gray-400">
                     Price Details
@@ -586,7 +585,7 @@ const Cart = () => {
                   </div>
 
                   {savings > 0 && (
-                    <div className="mt-4 rounded bg-[#e8f5e9] px-3 py-2 text-sm font-semibold text-[#388e3c]">
+                    <div className="mt-4 rounded-xl bg-[#e8f5e9] px-3 py-2 text-sm font-semibold text-[#388e3c]">
                       You will save {formatCurrency(savings)} on this order
                     </div>
                   )}
@@ -594,7 +593,7 @@ const Cart = () => {
               </div>
 
               {/* Coupon */}
-              <div className="mt-0 border-t border-gray-100 bg-white px-5 py-4 shadow-sm">
+              <div className="mt-3 rounded-xl bg-white px-5 py-4 shadow-sm ring-1 ring-black/[0.03]">
                 <div className="mb-2 flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                     <Tag size={15} className="text-[#079447]" />
@@ -603,7 +602,7 @@ const Cart = () => {
                 </div>
 
                 {appliedCouponCode ? (
-                  <div className="flex items-center justify-between rounded border border-emerald-200 bg-emerald-50/70 p-3">
+                  <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/70 p-3">
                     <div className="min-w-0 flex-1 pr-2">
                       <div className="flex items-center gap-1.5">
                         <CheckCircle2 size={16} className="shrink-0 text-[#079447]" />
@@ -622,7 +621,7 @@ const Cart = () => {
                       type="button"
                       disabled={removeCoupon.isPending}
                       onClick={handleRemoveCoupon}
-                      className="shrink-0 rounded border border-red-200 bg-white px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-red-600 shadow-xs transition hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
+                      className="shrink-0 rounded-xl border border-red-200 bg-white px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-red-600 shadow-xs transition hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
                     >
                       {removeCoupon.isPending ? "Removing..." : "Remove"}
                     </button>
@@ -634,14 +633,14 @@ const Cart = () => {
                       value={couponInput}
                       onChange={(e) => setCouponInput(e.target.value)}
                       placeholder="Enter coupon code"
-                      className="min-w-0 flex-1 rounded border border-gray-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-[#079447]"
+                      className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-[#079447] focus:ring-2 focus:ring-emerald-100"
                       maxLength={40}
                     />
                     <button
                       id="cart-apply-coupon"
                       type="submit"
                       disabled={applyCoupon.isPending || !couponInput.trim()}
-                      className="shrink-0 rounded border border-[#079447] px-4 py-2 text-xs font-bold uppercase tracking-wide text-[#079447] transition hover:bg-emerald-50 disabled:opacity-40"
+                      className="shrink-0 rounded-xl border border-[#079447] px-4 py-2 text-xs font-bold uppercase tracking-wide text-[#079447] transition hover:bg-emerald-50 disabled:opacity-40"
                     >
                       {applyCoupon.isPending ? "Applying..." : "Apply"}
                     </button>
@@ -650,13 +649,13 @@ const Cart = () => {
               </div>
 
               {/* Payment Method */}
-              <div className="mt-0 border-t border-gray-100 bg-white px-5 py-4 shadow-sm">
+              <div className="mt-3 rounded-xl bg-white px-5 py-4 shadow-sm ring-1 ring-black/[0.03]">
                 <p className="mb-3 text-xs font-bold uppercase tracking-[0.15em] text-gray-400">
                   Payment Method
                 </p>
                 <div className="space-y-2">
                   <label
-                    className={`flex cursor-pointer items-center gap-3 rounded border p-3 text-sm transition ${paymentMethod === "razorpay" ? "border-[#079447] bg-emerald-50" : "border-gray-200 hover:border-gray-300"}`}
+                    className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 text-sm transition ${paymentMethod === "razorpay" ? "border-[#079447] bg-emerald-50" : "border-gray-200 hover:border-gray-300"}`}
                   >
                     <input
                       type="radio"
@@ -670,7 +669,7 @@ const Cart = () => {
                     <span className="font-medium text-gray-800">Pay Now</span>
                   </label>
                   <label
-                    className={`flex cursor-pointer items-center gap-3 rounded border p-3 text-sm transition ${paymentMethod === "cod" ? "border-[#079447] bg-emerald-50" : "border-gray-200 hover:border-gray-300"}`}
+                    className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 text-sm transition ${paymentMethod === "cod" ? "border-[#079447] bg-emerald-50" : "border-gray-200 hover:border-gray-300"}`}
                   >
                     <input
                       type="radio"
@@ -686,29 +685,16 @@ const Cart = () => {
                 </div>
               </div>
 
-              {/* Shipping info shiprocket */}
-              {/* {(shippingQuote || shippingError) && (
-                <div
-                  className={`mt-0 border-t border-gray-100 px-5 py-3 text-xs font-medium shadow-sm ${shippingError ? "bg-red-50 text-red-600" : "bg-[#f0f9f4] text-[#388e3c]"}`}
-                >
-                  {shippingError
-                    ? shippingError
-                    : shippingQuote
-                    ? `${shippingQuote.courier?.courier_name || "Courier"} Â· ${isFreeShipping ? "Free shipping" : formatCurrency(shippingQuote.shipping_charge)}${shippingQuote.courier?.estimated_delivery_days ? ` Â· ~${shippingQuote.courier.estimated_delivery_days} days` : ""}`
-                    : null}
-                </div>
-              )} */}
-
               {/* Place Order CTA */}
-              <div className="">
+              <div className="mt-3">
                 <button
                   id="cart-place-order-btn"
                   onClick={checkout}
                   disabled={checkingOut || shippingLoading || !shippingQuote?.quote_id || !addresses.data?.length}
-                  className="w-full bg-[#079447] py-4 text-sm font-bold uppercase tracking-wider text-white shadow-md transition hover:bg-[#057a3a] disabled:cursor-not-allowed disabled:bg-gray-300 "
+                  className="w-full rounded-xl bg-[#079447] py-3.5 text-sm font-bold uppercase tracking-wider text-white shadow-md transition hover:bg-[#057a3a] hover:shadow-lg disabled:cursor-not-allowed disabled:bg-gray-300"
                 >
                   {checkingOut
-                    ? "Processing"
+                    ? "Processing..."
                     : paymentMethod === "razorpay"
                     ? "Place Order"
                     : "Place Order"}

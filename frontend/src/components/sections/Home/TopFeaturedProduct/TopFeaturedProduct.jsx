@@ -75,8 +75,7 @@ const TopFeaturedProduct = () => {
   const { data, isLoading, isError } = useFeaturedProducts({ limit: 1 });
 
   const product = data?.items?.[0] || null;
-console.log("product",product);
-
+ 
   const [selectedSize, setSelectedSize] = useState(null);
 
   const sizes = useMemo(() => normalizeSizes(product), [product]);

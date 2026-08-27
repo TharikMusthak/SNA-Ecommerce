@@ -275,8 +275,7 @@ const ProductDetail = ({ identifier }) => {
   const reviewFormRef = useRef(null);
   const [formHeight, setFormHeight] = useState(null);
 
-  console.log(product)
-  const { data: related } = useRelatedProducts(product?.id);
+   const { data: related } = useRelatedProducts(product?.id);
   const { addItem } = useCart();
   const wishlist = useWishlist();
   const [quantity, setQuantity] = useState(1);

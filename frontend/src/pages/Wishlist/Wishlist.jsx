@@ -13,8 +13,7 @@ import { assetUrl } from "@utils/helpers";
 const Wishlist = () => {
   const { items, isLoading, removeItem, moveItemToCart } = useWishlist();
 
-  console.log(items)
-  const run = async (operation, message) => {
+   const run = async (operation, message) => {
     try {
       await operation();
       toast.success(message);

@@ -70,22 +70,69 @@ const defaultHeroSlides = [
   },
 ];
 
-function resolveBannerLink(banner) {
-  if (banner.redirect_type === "product" && banner.product_id) {
-    return `/products/${banner.product_id}`;
+function extractBannerSlug(banner) {
+  if (!banner) return null;
+
+  const directSlug =
+    banner.slug ||
+    banner.product_slug ||
+    banner.product?.slug ||
+    banner.target_slug ||
+    banner.redirect_slug ||
+    banner.product_id_slug ||
+    banner.item_slug ||
+    banner.product_identifier ||
+    banner.identifier;
+
+  if (directSlug) return String(directSlug).trim();
+
+  if (typeof banner.button_link === "string" && banner.button_link.trim()) {
+    const link = banner.button_link.trim();
+    const match = link.match(/(?:\/products\/|\/product\/|^products\/|^product\/)([^/?#]+)/i);
+    if (match && match[1]) {
+      return match[1];
+    }
+    if (!link.startsWith("http") && !link.startsWith("/") && !link.includes(".")) {
+      return link;
+    }
   }
-  if (banner.redirect_type === "category" && banner.category_id) {
-    return `/products?category=${banner.category_id}`;
+
+  if (typeof banner.redirect_url === "string" && banner.redirect_url.trim()) {
+    const link = banner.redirect_url.trim();
+    const match = link.match(/(?:\/products\/|\/product\/)([^/?#]+)/i);
+    if (match && match[1]) {
+      return match[1];
+    }
+  }
+
+  return null;
+}
+
+function resolveBannerLink(banner) {
+  const slug = extractBannerSlug(banner);
+  if (slug) {
+    return `/products/${slug}`;
+  }
+
+  if (banner.redirect_type === "product" && (banner.product_id || banner.target_id || banner.id)) {
+    const fallbackId = banner.product_id || banner.target_id || banner.id;
+    return `/products/${fallbackId}`;
+  }
+  if (banner.redirect_type === "category" && (banner.category_slug || banner.category_id)) {
+    return `/products?category=${banner.category_slug || banner.category_id}`;
   }
   if (banner.redirect_type === "custom_url" && banner.redirect_url) {
     return banner.redirect_url;
+  }
+  if (banner.button_link) {
+    return banner.button_link;
   }
   return "/products";
 }
 
 const HeroCarousel = () => {
   const { data: bannersData } = useBanners({ position: "home_hero" });
-  
+   
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -119,7 +166,8 @@ const HeroCarousel = () => {
         bannerImg,
       );
 
-      const productUrl = banner.button_link || resolveBannerLink(banner);
+      const bannerSlug = extractBannerSlug(banner);
+      const productUrl = bannerSlug ? `/products/${bannerSlug}` : resolveBannerLink(banner);
 
       const whatsappText =
         banner.whatsapp_button || banner.whatsapp_text || "Order on Whatsapp";
