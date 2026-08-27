@@ -83,14 +83,17 @@ router.post("/shipments/:id/assign-courier", asyncHandler(async (req, res) => {
   const couriers = await availableCouriers(shipment);
   let assigned = null;
   const failures = [];
-  for (const courier of couriers.slice(0, 5)) {
+  const attempts = [
+    { id: null, name: "Shiprocket automatic courier" },
+    ...couriers.slice(0, 5),
+  ];
+  for (const courier of attempts) {
     try {
+      const body = { shipment_id: Number(shipment.provider_shipment_id) };
+      if (courier.id) body.courier_id = courier.id;
       const result = await shiprocketRequest("/courier/assign/awb", {
         method: "POST",
-        body: {
-          shipment_id: Number(shipment.provider_shipment_id),
-          courier_id: courier.id,
-        },
+        body,
       });
       const data = result.response?.data || result.data || result;
       if (data.awb_code) {
@@ -218,13 +221,37 @@ async function availableCouriers(shipment) {
 }
 function awbError(result) {
   const data = result?.response?.data || result?.data || {};
-  return data.awb_assign_error
+  const known = data.awb_assign_error
     || data.awb_assign_status_message
     || result?.response?.awb_assign_error
     || data.message
     || result?.response?.message
-    || result?.message
+    || result?.message;
+  if (known) return readableProviderError(known);
+  return findProviderError(result)
     || "Shiprocket could not assign an AWB to the selected courier";
+}
+function readableProviderError(value) {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map(readableProviderError).filter(Boolean).join(", ");
+  if (value && typeof value === "object") return Object.values(value).map(readableProviderError).filter(Boolean).join(", ");
+  return String(value || "");
+}
+function findProviderError(value, depth = 0) {
+  if (!value || depth > 4) return "";
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) {
+    return value.map((item) => findProviderError(item, depth + 1)).filter(Boolean).join(", ");
+  }
+  if (typeof value !== "object") return "";
+  for (const key of ["error", "errors", "message", "awb_assign_error", "reason"]) {
+    if (value[key]) return readableProviderError(value[key]);
+  }
+  for (const nested of Object.values(value)) {
+    const found = findProviderError(nested, depth + 1);
+    if (found) return found;
+  }
+  return "";
 }
 async function getShipment(value, res) { const id=parsePositiveId(value); if (!id) { fail(res,400,"Invalid shipment ID"); return null; } const [[row]]=await pool.query("SELECT * FROM shipments WHERE id=?",[id]); if (!row) { fail(res,404,"Shipment not found"); return null; } return row; }
 async function addEvent(shipmentId,status,description=null,location=null,eventTime=null) { const key=createHash("sha256").update(`${shipmentId}|${status}|${description}|${eventTime || ""}`).digest("hex"); await pool.query("INSERT IGNORE INTO shipment_events(shipment_id,provider_event_id,status,description,location,event_time,raw_event_reference) VALUES (?,?,?,?,?,COALESCE(?,UTC_TIMESTAMP()),?)",[shipmentId,key,status,String(description || "").slice(0,500)||null,String(location || "").slice(0,190)||null,eventTime,key]); }
