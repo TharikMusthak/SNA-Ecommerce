@@ -161,7 +161,7 @@ router.post(
           `UPDATE users SET failed_login_attempts = failed_login_attempts + 1, locked_until = IF(failed_login_attempts + 1 >= 5, DATE_ADD(UTC_TIMESTAMP(), INTERVAL 15 MINUTE), locked_until) WHERE id = ?`,
           [user.id],
         );
-      return fail(res, 401, "Invalid login or password");
+      return fail(res, 401, "Incorrect login details. Please check and try again.");
     }
     if (user.locked_until && new Date(user.locked_until) > new Date())
       return fail(res, 429, "Account is temporarily locked");
