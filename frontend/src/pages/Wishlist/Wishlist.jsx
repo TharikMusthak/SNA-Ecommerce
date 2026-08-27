@@ -105,11 +105,11 @@ const Wishlist = () => {
                         </button>
                       </div>
 
-                      <p className="mt-3 line-clamp-2 text-sm leading-6 text-gray-500">
+                      {/* <p className="mt-3 line-clamp-2 text-sm leading-6 text-gray-500">
                         {product.short_description || product.description || "Made with carefully selected ingredients."}
-                      </p>
+                      </p> */}
 
-                      <div className="mt-3 flex items-center gap-1.5 text-sm">
+                      {/* <div className="mt-3 flex items-center gap-1.5 text-sm">
                         <Star size={16} className="fill-amber-400 text-amber-400" />
                         <span className="font-semibold text-gray-800">
                           {rating ? rating.toFixed(1) : "New"}
@@ -117,7 +117,7 @@ const Wishlist = () => {
                         <span className="text-gray-400">
                           {reviewCount ? `(${reviewCount} review${reviewCount === 1 ? "" : "s"})` : "No reviews yet"}
                         </span>
-                      </div>
+                      </div> */}
                     </div>
 
                     <div className="mt-4">

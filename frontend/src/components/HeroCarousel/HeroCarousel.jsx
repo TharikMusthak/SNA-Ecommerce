@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import defaultBannerImage from "../../assets/images/bannerImage1.png";
 import { useBanners } from "@hooks/useBanners";
 import { assetUrl } from "@utils/helpers";
+import Spinner from "@components/ui/Spinner/Spinner";
 
 const AUTOPLAY_DURATION = 5000;
 
@@ -131,7 +132,7 @@ function resolveBannerLink(banner) {
 }
 
 const HeroCarousel = () => {
-  const { data: bannersData } = useBanners({ position: "home_hero" });
+  const { data: bannersData, isLoading } = useBanners({ position: "home_hero" });
    
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -264,6 +265,24 @@ const HeroCarousel = () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [nextSlide, previousSlide]);
+
+  if (isLoading) {
+    return (
+      <section
+        className="relative w-full overflow-hidden"
+        aria-label="Loading featured content"
+      >
+        <div className="relative aspect-[2/1] w-full flex items-center justify-center bg-[linear-gradient(110deg,#f0f4f1_0%,#f8faf9_50%,#f0f4f1_100%)] animate-pulse">
+          <div className="flex flex-col items-center gap-3">
+            <Spinner className="h-9 w-9 text-[#079447]" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Loading featured content...
+            </span>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section
