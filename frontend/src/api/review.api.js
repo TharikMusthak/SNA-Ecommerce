@@ -57,3 +57,5 @@ export const updateReview = (reviewId, payload) =>
   api.put(`${ENDPOINTS.reviews}/${reviewId}`, toReviewFormData(payload));
 export const markReviewHelpful = (reviewId) =>
   api.post(`${ENDPOINTS.reviews}/${reviewId}/helpful`);
+export const deleteReview = (reviewId) =>
+  api.delete(`${ENDPOINTS.reviews}/${reviewId}`);

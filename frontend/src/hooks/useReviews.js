@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   listProductReviews,
+  removeReview,
   saveReview,
   submitReview,
   voteReviewHelpful,
@@ -36,7 +37,19 @@ export function useUpdateReview(productId) {
     mutationFn: saveReview,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: reviewKey(productId) });
-         queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+}
+
+export function useDeleteReview(productId) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: removeReview,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: reviewKey(productId) });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
     },
   });
 }
@@ -51,3 +64,4 @@ export function useMarkReviewHelpful(productId) {
     },
   });
 }
+

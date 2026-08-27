@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Camera, CheckCircle2, ChevronLeft, ChevronRight, Heart, Minus, Pencil, Play, Plus, ShoppingBag, Star, ThumbsUp, Video, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AlertCircle, AlertTriangle, Camera, CheckCircle2, ChevronLeft, ChevronRight, Heart, Minus, Pencil, Play, Plus, ShoppingBag, Star, ThumbsUp, Trash2, Video, X } from "lucide-react";
 import {
   useLocation,
   useNavigate,
@@ -23,6 +23,7 @@ import {
 } from "@hooks/useProducts";
 import { useWishlist } from "@hooks/useWishlist";
 import {
+  useDeleteReview,
   useMarkReviewHelpful,
   useProductReviews,
   useSubmitReview,
@@ -243,11 +244,36 @@ const ProductList = () => {
   );
 };
 
+const HELPFUL_STORAGE_KEY_PREFIX = "sna_helpful_reviews_";
+
+const getSavedHelpfulReviews = (userId) => {
+  try {
+    const key = `${HELPFUL_STORAGE_KEY_PREFIX}${userId || "guest"}`;
+    const data = localStorage.getItem(key);
+    return data ? JSON.parse(data) : {};
+  } catch {
+    return {};
+  }
+};
+
+const saveHelpfulReviews = (userId, map) => {
+  try {
+    const key = `${HELPFUL_STORAGE_KEY_PREFIX}${userId || "guest"}`;
+    localStorage.setItem(key, JSON.stringify(map));
+  } catch {
+    // ignore
+  }
+};
+
 const ProductDetail = ({ identifier }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, user } = useAuth();
+  const userId = user?.id || user?.email || "guest";
   const { data: product, isLoading, isError } = useProduct(identifier);
+
+  const reviewFormRef = useRef(null);
+  const [formHeight, setFormHeight] = useState(null);
 
   console.log(product)
   const { data: related } = useRelatedProducts(product?.id);
@@ -261,10 +287,21 @@ const ProductDetail = ({ identifier }) => {
   const [reviewText, setReviewText] = useState("");
   const [reviewMedia, setReviewMedia] = useState([]);
   const [editingReviewId, setEditingReviewId] = useState(null);
+  const [deletingReviewId, setDeletingReviewId] = useState(null);
+  const [reviewErrors, setReviewErrors] = useState({});
+  const [reviewTouched, setReviewTouched] = useState({});
+  const [localHelpfulMap, setLocalHelpfulMap] = useState(() => getSavedHelpfulReviews(userId));
   const [lightboxMedia, setLightboxMedia] = useState(null);
+
+  useEffect(() => {
+    setLocalHelpfulMap(getSavedHelpfulReviews(userId));
+  }, [userId]);
+
+
   const { data: reviewsData, isLoading: reviewsLoading } = useProductReviews(product?.id);
   const submitReview = useSubmitReview(product?.id);
   const updateReview = useUpdateReview(product?.id);
+  const deleteReview = useDeleteReview(product?.id);
   const markReviewHelpful = useMarkReviewHelpful(product?.id);
 
   useEffect(
@@ -293,6 +330,40 @@ const ProductDetail = ({ identifier }) => {
     });
     return mediaList;
   }, [reviews]);
+
+  useEffect(() => {
+    const node = reviewFormRef.current;
+    if (!node) return;
+
+    const updateHeight = () => {
+      if (node) {
+        setFormHeight(node.offsetHeight);
+      }
+    };
+
+    updateHeight();
+
+    let observer = null;
+    if (typeof ResizeObserver !== "undefined") {
+      observer = new ResizeObserver(updateHeight);
+      observer.observe(node);
+    }
+    window.addEventListener("resize", updateHeight);
+
+    return () => {
+      if (observer) observer.disconnect();
+      window.removeEventListener("resize", updateHeight);
+    };
+  }, [
+    isLoading,
+    reviewsLoading,
+    reviews,
+    product?.id,
+    reviewMedia,
+    reviewErrors,
+    editingReviewId,
+    isAuthenticated,
+  ]);
 
   if (isLoading)
     return (
@@ -377,13 +448,32 @@ const ProductDetail = ({ identifier }) => {
     }
   };
 
+  const validateSingleReviewField = (name, value) => {
+    switch (name) {
+      case "rating": {
+        const score = Number(value);
+        if (!score || score < 1 || score > 5) return "Please select a star rating";
+        return "";
+      }
+      case "reviewText": {
+        if (!value || !value.trim()) return "Please enter your review text";
+        return "";
+      }
+      default:
+        return "";
+    }
+  };
+
   const cancelReviewEdit = () => {
     reviewMedia.forEach((media) => URL.revokeObjectURL(media.previewUrl));
     setEditingReviewId(null);
     setRating(0);
+    setHoveredRating(0);
     setReviewTitle("");
     setReviewText("");
     setReviewMedia([]);
+    setReviewErrors({});
+    setReviewTouched({});
   };
 
   const startReviewEdit = (review) => {
@@ -399,59 +489,109 @@ const ProductDetail = ({ identifier }) => {
       review.review_text || review.comment || review.review || review.content || "",
     );
     setReviewMedia([]);
+    setReviewErrors({});
+    setReviewTouched({});
   };
 
-  const validateReviewMedia = (files) => {
+  const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB limit
+  const MAX_VIDEO_SIZE_BYTES = 50 * 1024 * 1024; // 50MB limit
+
+  const formatFileSize = (bytes) => {
+    if (!bytes) return "0KB";
+    if (bytes >= 1024 * 1024) {
+      return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+    }
+    return `${Math.round(bytes / 1024)}KB`;
+  };
+
+  const validateReviewMediaFiles = (files) => {
     const nextMedia = [];
+    let mediaError = "";
+
     for (const file of files) {
-      const isImage = ["image/jpeg", "image/png", "image/webp"].includes(file.type);
-      const isVideo = ["video/mp4", "video/webm", "video/quicktime"].includes(file.type);
+      const isImage = file.type.startsWith("image/") || ["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml", "image/avif"].includes(file.type);
+      const isVideo = file.type.startsWith("video/") || ["video/mp4", "video/webm", "video/quicktime"].includes(file.type);
+
       if (!isImage && !isVideo) {
-        toast.error(`Unsupported file: ${file.name}`);
+        mediaError = `Unsupported file format: ${file.name}. Please upload an image or video.`;
         continue;
       }
-      const maxSize = isImage ? 5 * 1024 * 1024 : 50 * 1024 * 1024;
-      if (file.size > maxSize) {
-        toast.error(`${file.name} is too large`);
+
+      if (isImage && file.size > MAX_IMAGE_SIZE_BYTES) {
+        mediaError = `Image "${file.name}" (${formatFileSize(file.size)}) exceeds the maximum allowed size of 5MB.`;
         continue;
       }
+
+      if (isVideo && file.size > MAX_VIDEO_SIZE_BYTES) {
+        mediaError = `Video "${file.name}" (${formatFileSize(file.size)}) exceeds the maximum allowed size of 50MB.`;
+        continue;
+      }
+
       nextMedia.push({
-        id: `${file.name}-${file.lastModified}-${file.size}`,
+        id: `${file.name}-${file.lastModified}-${file.size}-${Math.random()}`,
         file,
         type: isImage ? "image" : "video",
         previewUrl: URL.createObjectURL(file),
       });
     }
-    return nextMedia;
+    return { nextMedia, mediaError };
   };
 
   const handleReviewMediaAdd = (event) => {
     const files = Array.from(event.target.files || []);
     if (!files.length) return;
-    const nextMedia = validateReviewMedia(files);
+
+    const { nextMedia, mediaError: fileTypeError } = validateReviewMediaFiles(files);
+
     if (!nextMedia.length) {
+      if (fileTypeError) {
+        setReviewErrors((prev) => ({ ...prev, media: fileTypeError }));
+      }
       event.target.value = "";
       return;
     }
+
     setReviewMedia((current) => {
-      const selectedByType = new Map(
-        nextMedia.map((media) => [media.type, media]),
-      );
-      const duplicateType = nextMedia.find(
-        (media, index) =>
-          nextMedia.findLastIndex((item) => item.type === media.type) !== index,
-      );
-      if (duplicateType) {
-        toast.error("A review can include one image and one video");
+      const currentImages = current.filter((m) => m.type === "image");
+      const currentVideos = current.filter((m) => m.type === "video");
+
+      const incomingImages = nextMedia.filter((m) => m.type === "image");
+      const incomingVideos = nextMedia.filter((m) => m.type === "video");
+
+      let errorMsg = fileTypeError || "";
+
+      const finalImages = [...currentImages];
+      if (incomingImages.length > 0) {
+        if (currentImages.length >= 1) {
+          errorMsg = "Maximum 1 image allowed per review.";
+          incomingImages.forEach((m) => URL.revokeObjectURL(m.previewUrl));
+        } else {
+          finalImages.push(incomingImages[0]);
+          if (incomingImages.length > 1) {
+            errorMsg = "Only 1 image allowed; extra images were ignored.";
+            incomingImages.slice(1).forEach((m) => URL.revokeObjectURL(m.previewUrl));
+          }
+        }
       }
 
-      const retained = current.filter((media) => {
-        if (!selectedByType.has(media.type)) return true;
-        URL.revokeObjectURL(media.previewUrl);
-        return false;
-      });
-      return [...retained, ...selectedByType.values()];
+      const finalVideos = [...currentVideos];
+      if (incomingVideos.length > 0) {
+        if (currentVideos.length >= 1) {
+          errorMsg = errorMsg || "Maximum 1 video allowed per review.";
+          incomingVideos.forEach((m) => URL.revokeObjectURL(m.previewUrl));
+        } else {
+          finalVideos.push(incomingVideos[0]);
+          if (incomingVideos.length > 1) {
+            errorMsg = errorMsg || "Only 1 video allowed; extra videos were ignored.";
+            incomingVideos.slice(1).forEach((m) => URL.revokeObjectURL(m.previewUrl));
+          }
+        }
+      }
+
+      setReviewErrors((prev) => ({ ...prev, media: errorMsg }));
+      return [...finalImages, ...finalVideos];
     });
+
     event.target.value = "";
   };
 
@@ -461,6 +601,7 @@ const ProductDetail = ({ identifier }) => {
       if (target) URL.revokeObjectURL(target.previewUrl);
       return current.filter((item) => item.id !== mediaId);
     });
+    setReviewErrors((prev) => ({ ...prev, media: "" }));
   };
 
   const submitRating = async (event) => {
@@ -470,21 +611,48 @@ const ProductDetail = ({ identifier }) => {
       toast.error("Product is required");
       return;
     }
+
+    setReviewTouched({
+      rating: true,
+      reviewText: true,
+      media: true,
+    });
+
+    const ratingErr = validateSingleReviewField("rating", rating);
+    const textErr = validateSingleReviewField("reviewText", reviewText);
+
+    let mediaErr = "";
+    const imageCount = reviewMedia.filter((m) => m.type === "image").length;
+    const videoCount = reviewMedia.filter((m) => m.type === "video").length;
+    if (imageCount > 1) mediaErr = "Maximum 1 image allowed per review.";
+    else if (videoCount > 1) mediaErr = "Maximum 1 video allowed per review.";
+
+    for (const item of reviewMedia) {
+      if (item.file) {
+        if (item.type === "image" && item.file.size > MAX_IMAGE_SIZE_BYTES) {
+          mediaErr = `Image "${item.file.name}" (${formatFileSize(item.file.size)}) exceeds maximum allowed size of 5MB.`;
+          break;
+        }
+        if (item.type === "video" && item.file.size > MAX_VIDEO_SIZE_BYTES) {
+          mediaErr = `Video "${item.file.name}" (${formatFileSize(item.file.size)}) exceeds maximum allowed size of 50MB.`;
+          break;
+        }
+      }
+    }
+
+    const errors = {};
+    if (ratingErr) errors.rating = ratingErr;
+    if (textErr) errors.reviewText = textErr;
+    if (mediaErr) errors.media = mediaErr;
+
+    setReviewErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
+
     const title = reviewTitle.trim();
     const review_text = reviewText.trim();
-
-    if (!product?.id) {
-      toast.error("Product is required");
-      return;
-    }
-    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
-      toast.error("Rating is required");
-      return;
-    }
-    if (!review_text) {
-      toast.error("Review text is required");
-      return;
-    }
 
     const reviewBeingEdited = reviews.find(
       (review) => String(review.id) === String(editingReviewId),
@@ -644,88 +812,254 @@ const ProductDetail = ({ identifier }) => {
           <span className="w-fit rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-[#079447] shadow-sm">{reviewCount} {reviewCount === 1 ? "review" : "reviews"}</span>
         </div>
 
-        <div className="mt-7 grid gap-6 lg:grid-cols-[minmax(0,.82fr)_minmax(0,1.18fr)]">
-          <div className="space-y-6">
-            <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/[0.03]">
-              <div className="flex items-center gap-5"><span className="text-5xl font-bold tracking-tight text-gray-900">{productRating ? productRating.toFixed(1) : "—"}</span><div><div className="flex gap-0.5" aria-label={`${productRating || 0} out of 5 stars`}>{[1, 2, 3, 4, 5].map((star) => <Star key={star} size={18} className={star <= Math.round(productRating) ? "fill-amber-400 text-amber-400" : "text-gray-200"} />)}</div><p className="mt-2 text-sm text-gray-500">Based on {reviewCount || "no"} customer {reviewCount === 1 ? "review" : "reviews"}</p></div></div>
-              <div className="mt-6 space-y-2.5">{ratingBreakdown.map(({ score, count }) => <div key={score} className="grid grid-cols-[1.5rem_1fr_1.75rem] items-center gap-2 text-xs text-gray-500"><span>{score} star</span><div className="h-1.5 overflow-hidden rounded-full bg-gray-100"><div className="h-full rounded-full bg-amber-400" style={{ width: `${(count / maxRatingCount) * 100}%` }} /></div><span className="text-right">{count}</span></div>)}</div>
+        {/* Rating Breakdown Banner */}
+        <div className="mt-7 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/[0.03]">
+          <div className="grid gap-6 md:grid-cols-[240px_minmax(0,1fr)] md:items-center md:divide-x md:divide-gray-100">
+            <div className="flex items-center gap-5 md:pr-6">
+              <span className="text-5xl font-bold tracking-tight text-gray-900">{productRating ? productRating.toFixed(1) : "—"}</span>
+              <div>
+                <div className="flex gap-0.5" aria-label={`${productRating || 0} out of 5 stars`}>
+                  {[1, 2, 3, 4, 5].map((star) => <Star key={star} size={18} className={star <= Math.round(productRating) ? "fill-amber-400 text-amber-400" : "text-gray-200"} />)}
+                </div>
+                <p className="mt-2 text-sm text-gray-500">Based on {reviewCount || "no"} customer {reviewCount === 1 ? "review" : "reviews"}</p>
+              </div>
             </div>
-            <div className="rounded-2xl border border-emerald-100 bg-white/70 p-5">
-              <h3 className="font-semibold text-gray-900">{editingReviewId != null ? "Edit your review" : "Share your experience"}</h3><p className="mt-1 text-sm leading-6 text-gray-600">{editingReviewId != null ? "Update your rating or feedback, then save your changes." : "Your review helps others shop with confidence."}</p>
-              {isAuthenticated ? (
-                <form onSubmit={submitRating} className="mt-5">
-                  <div className="flex gap-1" onMouseLeave={() => setHoveredRating(0)}>{[1, 2, 3, 4, 5].map((star) => <button key={star} type="button" onMouseEnter={() => setHoveredRating(star)} onFocus={() => setHoveredRating(star)} onBlur={() => setHoveredRating(0)} onClick={() => setRating(star)} className="rounded-md p-1 text-gray-200 transition hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447]" aria-label={`Rate ${star} out of 5 stars`} aria-pressed={rating === star}><Star size={28} className={star <= (hoveredRating || rating) ? "fill-amber-400 text-amber-400" : "text-current"} /></button>)}</div>
-                  <input type="text" value={reviewTitle} onChange={(event) => setReviewTitle(event.target.value)} maxLength={150} placeholder="Give your review a title" className="mt-4 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-[#079447] focus:ring-2 focus:ring-emerald-100" />
-                  <textarea value={reviewText} onChange={(event) => setReviewText(event.target.value)} maxLength={500} minLength={1} required rows={3} placeholder="What did you like about it?" className="mt-3 w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-[#079447] focus:ring-2 focus:ring-emerald-100" />
-                  <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4">
-                    <p className="text-sm font-semibold text-gray-900">Add a photo or video</p>
-                    <p className="mt-0.5 text-xs text-gray-500">Shoppers find images and videos more helpful than text alone.</p>
-                    
-                    <div className="mt-3.5 flex flex-wrap items-center gap-3">
-                      {/* Plus Upload Box */}
-                      <label className="flex h-20 w-20 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 transition hover:border-[#079447] hover:bg-emerald-50/40 group">
-                        <div className="flex items-center text-gray-400 group-hover:text-[#079447]">
-                          <Camera size={20} />
-                          <Plus size={12} className="-ml-0.5" />
-                        </div>
-                        <span className="mt-1 text-[11px] font-medium text-gray-600 group-hover:text-[#079447]">Add media</span>
-                        <input
-                          type="file"
-                          accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
-                          multiple
-                          className="hidden"
-                          onChange={handleReviewMediaAdd}
-                        />
-                      </label>
-
-                      {/* Selected Media Thumbnails */}
-                      {reviewMedia.map((media, mIdx) => (
-                        <div key={media.id} className="relative h-20 w-20 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-xs group">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setLightboxMedia({
-                                items: reviewMedia.map((m) => ({
-                                  url: m.previewUrl,
-                                  type: m.type,
-                                })),
-                                activeIndex: mIdx,
-                              })
-                            }
-                            className="h-full w-full focus:outline-none"
-                          >
-                            {media.type === "image" ? (
-                              <img src={media.previewUrl} alt={media.file.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
-                            ) : (
-                              <div className="relative flex h-full w-full items-center justify-center bg-black">
-                                <video src={media.previewUrl} className="h-full w-full object-cover opacity-80" />
-                                <div className="absolute flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-xs">
-                                  <Play size={12} className="ml-0.5 fill-white" />
-                                </div>
-                              </div>
-                            )}
-                          </button>
-
-                          {/* Delete Badge Button */}
-                          <button
-                            type="button"
-                            onClick={() => removeReviewMedia(media.id)}
-                            className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white transition hover:bg-red-600 focus:outline-none"
-                            aria-label="Remove media"
-                          >
-                            <X size={12} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+            <div className="space-y-2.5 md:pl-6">
+              {ratingBreakdown.map(({ score, count }) => (
+                <div key={score} className="grid grid-cols-[1.5rem_1fr_1.75rem] items-center gap-2 text-xs text-gray-500">
+                  <span>{score} star</span>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
+                    <div className="h-full rounded-full bg-amber-400" style={{ width: `${(count / maxRatingCount) * 100}%` }} />
                   </div>
-                  <div className="mt-3 flex flex-wrap items-center gap-3"><button disabled={submitReview.isPending || updateReview.isPending} className="rounded-xl bg-[#079447] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#057a3a] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447] disabled:bg-gray-300">{updateReview.isPending ? "Saving..." : submitReview.isPending ? "Submitting..." : editingReviewId != null ? "Save changes" : "Submit review"}</button>{editingReviewId != null && <button type="button" disabled={updateReview.isPending} onClick={cancelReviewEdit} className="rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447] disabled:opacity-50">Cancel</button>}</div>
-                </form>
-              ) : <button onClick={ensureLogin} className="mt-5 rounded-xl border border-[#079447] px-4 py-2.5 text-sm font-semibold text-[#079447] transition hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447]">Log in to write a review</button>}
+                  <span className="text-right">{count}</span>
+                </div>
+              ))}
             </div>
           </div>
-          <div className="rounded-2xl bg-white p-5 shadow-sm sm:p-6">
-            <div className="flex items-end justify-between gap-4">
+        </div>
+
+        {/* 2-Column Grid: Review Form (Left) & Customer Reviews (Right) - Heights Match Exactly */}
+        <div className="mt-6 grid gap-6 lg:grid-cols-2 lg:items-start">
+          <div ref={reviewFormRef} className="flex flex-col rounded-2xl border border-emerald-100 bg-white/90 p-5 sm:p-6 shadow-sm">
+            <h3 className="font-semibold text-gray-900">{editingReviewId != null ? "Edit your review" : "Share your experience"}</h3>
+            <p className="mt-1 text-sm leading-6 text-gray-600">{editingReviewId != null ? "Update your rating or feedback, then save your changes." : "Your review helps others shop with confidence."}</p>
+            {isAuthenticated ? (
+              <form onSubmit={submitRating} className="mt-5" noValidate>
+                {/* Star Rating Section */}
+                <div>
+                  <div className="flex gap-1" onMouseLeave={() => setHoveredRating(0)}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onMouseEnter={() => setHoveredRating(star)}
+                        onFocus={() => setHoveredRating(star)}
+                        onBlur={() => setHoveredRating(0)}
+                        onClick={() => {
+                          setRating(star);
+                          setReviewTouched((prev) => ({ ...prev, rating: true }));
+                          setReviewErrors((prev) => ({
+                            ...prev,
+                            rating: validateSingleReviewField("rating", star),
+                          }));
+                        }}
+                        className="rounded-md p-1 text-gray-200 transition hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447]"
+                        aria-label={`Rate ${star} out of 5 stars`}
+                        aria-pressed={rating === star}
+                      >
+                        <Star
+                          size={28}
+                          className={
+                            star <= (hoveredRating || rating)
+                              ? "fill-amber-400 text-amber-400"
+                              : reviewErrors.rating
+                              ? "text-red-300"
+                              : "text-current"
+                          }
+                        />
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-1 flex min-h-[14px] items-center gap-1 text-[11px] font-medium leading-4 text-red-600">
+                    {reviewErrors.rating && (
+                      <>
+                        <AlertCircle size={12} className="shrink-0 text-red-600" />
+                        <span>{reviewErrors.rating}</span>
+                      </>
+                    )}
+                  </p>
+                </div>
+
+                {/* Review Title Input */}
+                <input
+                  type="text"
+                  value={reviewTitle}
+                  onChange={(event) => setReviewTitle(event.target.value)}
+                  maxLength={150}
+                  placeholder="Give your review a title (optional)"
+                  className="mt-4 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-[#079447] focus:ring-2 focus:ring-emerald-100 placeholder:text-gray-400"
+                />
+
+                {/* Review Text Textarea */}
+                <div className="mt-3">
+                  <textarea
+                    value={reviewText}
+                    onChange={(event) => {
+                      const val = event.target.value;
+                      setReviewText(val);
+                      if (reviewTouched.reviewText) {
+                        setReviewErrors((prev) => ({
+                          ...prev,
+                          reviewText: validateSingleReviewField("reviewText", val),
+                        }));
+                      }
+                    }}
+                    onBlur={() => {
+                      setReviewTouched((prev) => ({ ...prev, reviewText: true }));
+                      setReviewErrors((prev) => ({
+                        ...prev,
+                        reviewText: validateSingleReviewField("reviewText", reviewText),
+                      }));
+                    }}
+                    maxLength={500}
+                    rows={3}
+                    placeholder="What did you like about it?"
+                    aria-invalid={Boolean(reviewErrors.reviewText)}
+                    className={`w-full resize-none rounded-xl border ${
+                      reviewErrors.reviewText
+                        ? "border-red-400 bg-red-50/20 text-[#333] focus:border-red-500 focus:bg-white focus:ring-4 focus:ring-red-500/10"
+                        : "border-gray-200 bg-white text-gray-800 focus:border-[#079447] focus:ring-2 focus:ring-emerald-100"
+                    } px-4 py-3 text-sm outline-none transition placeholder:text-gray-400`}
+                  />
+                  <p className="mt-0.5 flex min-h-[14px] items-center gap-1 text-[11px] font-medium leading-4 text-red-600">
+                    {reviewErrors.reviewText && (
+                      <>
+                        <AlertCircle size={12} className="shrink-0 text-red-600" />
+                        <span>{reviewErrors.reviewText}</span>
+                      </>
+                    )}
+                  </p>
+                </div>
+
+                {/* Media Upload Section */}
+                {(() => {
+                  const hasImage = reviewMedia.some((m) => m.type === "image");
+                  const hasVideo = reviewMedia.some((m) => m.type === "video");
+                  const isMediaMaxed = hasImage && hasVideo;
+
+                  return (
+                    <div className={`mt-4 rounded-xl border ${reviewErrors.media ? "border-red-300 bg-red-50/10" : "border-gray-200 bg-white"} p-4`}>
+                      <div className="flex flex-wrap items-center justify-between gap-1">
+                        <p className="text-sm font-semibold text-gray-900">Add a photo or video (Optional)</p>
+                        <span className="text-[11px] font-medium text-gray-400">
+                          {hasImage ? "1/1 Image" : "0/1 Image"} · {hasVideo ? "1/1 Video" : "0/1 Video"}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-xs text-gray-500">
+                        Shoppers find images and videos helpful. Max 1 image (up to 5MB) and 1 video (up to 50MB) allowed.
+                      </p>
+                      
+                      <div className="mt-3.5 flex flex-wrap items-center gap-3">
+                        {/* Plus Upload Box */}
+                        {!isMediaMaxed ? (
+                          <label className="flex h-20 w-20 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 transition hover:border-[#079447] hover:bg-emerald-50/40 group">
+                            <div className="flex items-center text-gray-400 group-hover:text-[#079447]">
+                              <Camera size={20} />
+                              <Plus size={12} className="-ml-0.5" />
+                            </div>
+                            <span className="mt-1 text-[11px] font-medium text-gray-600 group-hover:text-[#079447]">Add media</span>
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml,image/avif,video/mp4,video/webm,video/quicktime"
+                              multiple
+                              className="hidden"
+                              onChange={handleReviewMediaAdd}
+                            />
+                          </label>
+                        ) : (
+                          <div className="flex h-20 w-20 flex-col items-center justify-center rounded-xl border border-gray-200 bg-gray-100 p-2 text-center text-gray-400">
+                            <Camera size={18} />
+                            <span className="mt-1 text-[10px] font-medium leading-tight">Media limit reached</span>
+                          </div>
+                        )}
+
+                        {/* Selected Media Thumbnails */}
+                        {reviewMedia.map((media, mIdx) => (
+                          <div key={media.id} className="relative h-20 w-20 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-xs group">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setLightboxMedia({
+                                  items: reviewMedia.map((m) => ({
+                                    url: m.previewUrl,
+                                    type: m.type,
+                                  })),
+                                  activeIndex: mIdx,
+                                })
+                              }
+                              className="h-full w-full focus:outline-none"
+                            >
+                              {media.type === "image" ? (
+                                <img src={media.previewUrl} alt={media.file.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
+                              ) : (
+                                <div className="relative flex h-full w-full items-center justify-center bg-black">
+                                  <video src={media.previewUrl} className="h-full w-full object-cover opacity-80" />
+                                  <div className="absolute flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-xs">
+                                    <Play size={12} className="ml-0.5 fill-white" />
+                                  </div>
+                                </div>
+                              )}
+                            </button>
+
+                            {/* Delete Badge Button */}
+                            <button
+                              type="button"
+                              onClick={() => removeReviewMedia(media.id)}
+                              className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white transition hover:bg-red-600 focus:outline-none"
+                              aria-label="Remove media"
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+
+                      {reviewErrors.media && (
+                        <p className="mt-2.5 flex items-center gap-1 text-[11px] font-medium leading-4 text-red-600">
+                          <AlertCircle size={12} className="shrink-0 text-red-600" />
+                          <span>{reviewErrors.media}</span>
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <button
+                    disabled={submitReview.isPending || updateReview.isPending}
+                    className="rounded-xl bg-[#079447] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#057a3a] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447] disabled:bg-gray-300"
+                  >
+                    {updateReview.isPending ? "Saving..." : submitReview.isPending ? "Submitting..." : editingReviewId != null ? "Save changes" : "Submit review"}
+                  </button>
+                  {editingReviewId != null && (
+                    <button
+                      type="button"
+                      disabled={updateReview.isPending}
+                      onClick={cancelReviewEdit}
+                      className="rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447] disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </form>
+            ) : <button onClick={ensureLogin} className="mt-5 rounded-xl border border-[#079447] px-4 py-2.5 text-sm font-semibold text-[#079447] transition hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447]">Log in to write a review</button>}
+          </div>
+          <div
+            style={formHeight ? { height: `${formHeight}px` } : {}}
+            className="flex flex-col rounded-2xl bg-white p-5 shadow-sm sm:p-6 transition-[height] duration-200"
+          >
+            <div className="flex shrink-0 items-end justify-between gap-4">
               <div>
                 <h3 className="text-xl font-semibold text-gray-900">Customer reviews</h3>
                 <p className="mt-1 text-sm text-gray-500">Most recent feedback</p>
@@ -734,7 +1068,7 @@ const ProductDetail = ({ identifier }) => {
 
             {/* Customer Photos & Videos Gallery Strip */}
             {allCustomerReviewMedia.length > 0 && (
-              <div className="mt-5 rounded-2xl border border-emerald-100 bg-[#f5f7f1]/60 p-4">
+              <div className="mt-5 shrink-0 rounded-2xl border border-emerald-100 bg-[#f5f7f1]/60 p-4">
                 <p className="text-xs font-semibold uppercase tracking-wider text-[#079447]">
                   Photos & videos from customers
                 </p>
@@ -763,7 +1097,7 @@ const ProductDetail = ({ identifier }) => {
               </div>
             )}
 
-            <div className={`mt-5 space-y-0 ${reviews.length > 4 ? "max-h-[620px] overflow-y-auto pr-2" : ""}`}>
+            <div className="mt-5 flex-1 min-h-0 overflow-y-auto pr-2 space-y-0">
               {reviewsLoading && <p className="py-8 text-sm text-gray-500">Loading customer reviews...</p>}
               {!reviewsLoading && !reviews.length && (
                 <p className="py-8 text-sm leading-6 text-gray-500">
@@ -775,9 +1109,27 @@ const ProductDetail = ({ identifier }) => {
                 const score = Number(review.rating || 0);
                 const text = review.review_text || review.comment || review.review || review.content;
                 const initials = author.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase();
-                const helpfulCount = Number(review.helpful_count ?? review.helpful ?? 0);
                 const isOwnReview = isReviewOwnedByUser(review, user);
                 const reviewMediaList = extractReviewMedia(review);
+
+                const initialHelpful = Boolean(
+                  review.is_helpful ??
+                  review.isHelpful ??
+                  review.user_helpful ??
+                  review.is_voted ??
+                  review.voted ??
+                  review.user_voted ??
+                  review.helpful_by_me ??
+                  review.voted_by_me ??
+                  (Array.isArray(review.helpful_users) && user?.id != null && review.helpful_users.some((id) => String(id) === String(user.id)))
+                );
+                const isHelpful = localHelpfulMap[review.id] ?? initialHelpful;
+                const rawHelpfulCount = Number(review.helpful_count ?? review.helpful ?? 0);
+                const helpfulCount = isHelpful && !initialHelpful
+                  ? rawHelpfulCount + 1
+                  : !isHelpful && initialHelpful
+                  ? Math.max(0, rawHelpfulCount - 1)
+                  : rawHelpfulCount;
 
                 return (
                   <article key={review.id} className="border-b border-gray-100 py-5 first:pt-0 last:border-0 last:pb-0">
@@ -847,26 +1199,52 @@ const ProductDetail = ({ identifier }) => {
                       <button
                         type="button"
                         disabled={markReviewHelpful.isPending}
-                        onClick={() =>
+                        onClick={() => {
+                          const nextHelpful = !isHelpful;
+                          setLocalHelpfulMap((prev) => {
+                            const updated = { ...prev, [review.id]: nextHelpful };
+                            saveHelpfulReviews(userId, updated);
+                            return updated;
+                          });
                           markReviewHelpful.mutate(review.id, {
-                            onError: (error) =>
-                              toast.error(apiErrorMessage(error, "Could not record your feedback")),
-                          })
-                        }
-                        className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-gray-500 transition hover:bg-emerald-50 hover:text-[#079447] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447] disabled:opacity-50"
+                            onError: (error) => {
+                              setLocalHelpfulMap((prev) => {
+                                const reverted = { ...prev, [review.id]: isHelpful };
+                                saveHelpfulReviews(userId, reverted);
+                                return reverted;
+                              });
+                              toast.error(apiErrorMessage(error, "Could not record your feedback"));
+                            },
+                          });
+                        }}
+                        className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447] disabled:opacity-50 ${
+                          isHelpful
+                            ? "bg-emerald-50 text-[#079447]"
+                            : "text-gray-500 hover:bg-emerald-50 hover:text-[#079447]"
+                        }`}
                         aria-label={`Mark ${author}'s review as helpful`}
                       >
-                        <ThumbsUp size={14} /> Helpful{helpfulCount > 0 ? ` (${helpfulCount})` : ""}
+                        <ThumbsUp size={14} className={isHelpful ? "fill-[#079447] text-[#079447]" : ""} /> Helpful{helpfulCount > 0 ? ` (${helpfulCount})` : ""}
                       </button>
                       {isOwnReview && (
-                        <button
-                          type="button"
-                          disabled={updateReview.isPending}
-                          onClick={() => startReviewEdit(review)}
-                          className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-[#079447] transition hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447] disabled:opacity-50"
-                        >
-                          <Pencil size={14} /> Edit review
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={updateReview.isPending || deleteReview.isPending}
+                            onClick={() => startReviewEdit(review)}
+                            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-[#079447] transition hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447] disabled:opacity-50"
+                          >
+                            <Pencil size={14} /> Edit review
+                          </button>
+                          <button
+                            type="button"
+                            disabled={updateReview.isPending || deleteReview.isPending}
+                            onClick={() => setDeletingReviewId(review.id)}
+                            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:opacity-50"
+                          >
+                            <Trash2 size={14} /> Delete review
+                          </button>
+                        </div>
                       )}
                     </div>
                   </article>
@@ -1000,6 +1378,58 @@ const ProductDetail = ({ identifier }) => {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Delete Review Confirmation Modal */}
+      {deletingReviewId != null && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-fade-in"
+          onClick={() => setDeletingReviewId(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 text-red-600">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
+                <AlertTriangle size={20} />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">Delete Review</h3>
+            </div>
+            <p className="mt-3 text-sm text-gray-600">
+              Are you sure you want to delete your review? This action cannot be undone.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                disabled={deleteReview.isPending}
+                onClick={() => setDeletingReviewId(null)}
+                className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deleteReview.isPending}
+                onClick={async () => {
+                  try {
+                    await deleteReview.mutateAsync(deletingReviewId);
+                    toast.success("Review deleted successfully");
+                    if (editingReviewId === deletingReviewId) {
+                      cancelReviewEdit();
+                    }
+                    setDeletingReviewId(null);
+                  } catch (error) {
+                    toast.error(apiErrorMessage(error, "Could not delete review"));
+                  }
+                }}
+                className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteReview.isPending ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </main>

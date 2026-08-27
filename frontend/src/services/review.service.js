@@ -1,5 +1,6 @@
 import {
   createReview,
+  deleteReview,
   getProductReviews,
   markReviewHelpful,
   updateReview,
@@ -26,3 +27,7 @@ export const saveReview = async ({ reviewId, payload }) =>
 
 export const voteReviewHelpful = async (reviewId) =>
   markReviewHelpful(reviewId);
+
+export const removeReview = async (reviewId) =>
+  (await deleteReview(reviewId)).data;
+
