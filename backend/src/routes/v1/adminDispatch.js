@@ -80,16 +80,33 @@ router.post("/shipments", asyncHandler(async (req, res) => {
 
 router.post("/shipments/:id/assign-courier", asyncHandler(async (req, res) => {
   const shipment = await getShipment(req.params.id, res); if (!shipment) return;
-  const courier = await availableCourier(shipment);
-  const result = await shiprocketRequest("/courier/assign/awb", {
-    method: "POST",
-    body: {
-      shipment_id: Number(shipment.provider_shipment_id),
-      courier_id: courier.id,
-    },
-  });
-  const data = result.response?.data || result.data || result;
-  if (!data.awb_code) return fail(res, 502, awbError(result));
+  const couriers = await availableCouriers(shipment);
+  let assigned = null;
+  const failures = [];
+  for (const courier of couriers.slice(0, 5)) {
+    try {
+      const result = await shiprocketRequest("/courier/assign/awb", {
+        method: "POST",
+        body: {
+          shipment_id: Number(shipment.provider_shipment_id),
+          courier_id: courier.id,
+        },
+      });
+      const data = result.response?.data || result.data || result;
+      if (data.awb_code) {
+        assigned = { courier, data };
+        break;
+      }
+      failures.push(`${courier.name}: ${awbError(result)}`);
+    } catch (error) {
+      failures.push(`${courier.name}: ${error.providerPayload ? awbError(error.providerPayload) : error.message}`);
+    }
+  }
+  if (!assigned) {
+    const detail = failures.filter(Boolean).slice(0, 3).join("; ");
+    return fail(res, 502, detail || "Shiprocket could not assign an AWB to any serviceable courier");
+  }
+  const { courier, data } = assigned;
   await pool.query("UPDATE shipments SET courier_id=?,courier_name=?,awb_code=?,status='shipment_created' WHERE id=?", [data.courier_company_id || courier.id,data.courier_name || courier.name,data.awb_code,shipment.id]);
   await addEvent(shipment.id, "awb_assigned", `AWB ${data.awb_code} assigned`);
   return ok(res, data, "Courier and AWB assigned");
@@ -156,7 +173,7 @@ function shipmentSkuBase(value) {
     .replace(/^-+|-+$/g, "")
     .slice(0, 50);
 }
-async function availableCourier(shipment) {
+async function availableCouriers(shipment) {
   const [[context]] = await pool.query(
     `SELECT o.subtotal,o.phone,o.shipping_address_json,
             (SELECT provider FROM payments WHERE order_id=o.id ORDER BY id DESC LIMIT 1) AS payment_provider,
@@ -190,16 +207,20 @@ async function availableCourier(shipment) {
       name: item.courier_name || "Shiprocket courier",
       rate: Number(item.rate ?? item.freight_charge ?? Number.MAX_SAFE_INTEGER),
     }))
-    .filter((item) => item.id && item.raw.blocked !== 1);
+    .filter((item) => item.id && Number(item.raw.blocked || 0) !== 1);
   if (!usable.length) {
     throw Object.assign(new Error("No Shiprocket courier is currently serviceable for this route"), { status: 422 });
   }
-  return usable.find((item) => Number(item.raw.is_recommended) === 1)
-    || usable.sort((left, right) => left.rate - right.rate)[0];
+  return usable.sort((left, right) => {
+    const recommendation = Number(right.raw.is_recommended || 0) - Number(left.raw.is_recommended || 0);
+    return recommendation || left.rate - right.rate;
+  });
 }
 function awbError(result) {
   const data = result?.response?.data || result?.data || {};
   return data.awb_assign_error
+    || data.awb_assign_status_message
+    || result?.response?.awb_assign_error
     || data.message
     || result?.response?.message
     || result?.message
