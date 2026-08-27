@@ -47,7 +47,15 @@ export async function shiprocketRequest(path, { method = "GET", body, retry = tr
     return shiprocketRequest(path, { method, body, retry: false });
   }
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw Object.assign(new Error(payload.message || payload.error || "Shiprocket request failed"), { status: 502 });
+  if (!response.ok) {
+    const providerMessage = payload?.response?.data?.awb_assign_error
+      || payload?.response?.message
+      || payload?.data?.awb_assign_error
+      || payload?.message
+      || payload?.error
+      || "Shiprocket request failed";
+    throw Object.assign(new Error(providerMessage), { status: 502, providerPayload: payload });
+  }
   return payload;
 }
 
