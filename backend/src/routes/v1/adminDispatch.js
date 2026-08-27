@@ -3,7 +3,7 @@ import { Router } from "express";
 import { pool } from "../../config/db.js";
 import { allowRoles, requireAdmin } from "../../middleware/auth.js";
 import { asyncHandler } from "../../middleware/asyncHandler.js";
-import { shiprocketConfigured, shiprocketRequest } from "../../integrations/shipping/shiprocket.js";
+import { getShiprocketRates, shiprocketConfigured, shiprocketRequest } from "../../integrations/shipping/shiprocket.js";
 import { parsePositiveId } from "../../security/validation.js";
 import { fail, ok, paginated } from "../../utils/apiResponse.js";
 import { parsePagination } from "../../utils/pagination.js";
@@ -80,10 +80,17 @@ router.post("/shipments", asyncHandler(async (req, res) => {
 
 router.post("/shipments/:id/assign-courier", asyncHandler(async (req, res) => {
   const shipment = await getShipment(req.params.id, res); if (!shipment) return;
-  const result = await shiprocketRequest("/courier/assign/awb", { method: "POST", body: { shipment_id: Number(shipment.provider_shipment_id) } });
+  const courier = await availableCourier(shipment);
+  const result = await shiprocketRequest("/courier/assign/awb", {
+    method: "POST",
+    body: {
+      shipment_id: Number(shipment.provider_shipment_id),
+      courier_id: courier.id,
+    },
+  });
   const data = result.response?.data || result.data || result;
-  if (!data.awb_code) return fail(res, 502, result.response?.data?.awb_assign_error || "Shiprocket did not assign an AWB");
-  await pool.query("UPDATE shipments SET courier_id=?,courier_name=?,awb_code=?,status='shipment_created' WHERE id=?", [data.courier_company_id || null,data.courier_name || null,data.awb_code,shipment.id]);
+  if (!data.awb_code) return fail(res, 502, awbError(result));
+  await pool.query("UPDATE shipments SET courier_id=?,courier_name=?,awb_code=?,status='shipment_created' WHERE id=?", [data.courier_company_id || courier.id,data.courier_name || courier.name,data.awb_code,shipment.id]);
   await addEvent(shipment.id, "awb_assigned", `AWB ${data.awb_code} assigned`);
   return ok(res, data, "Courier and AWB assigned");
 }));
@@ -148,6 +155,55 @@ function shipmentSkuBase(value) {
     .replace(/[^A-Za-z0-9_-]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 50);
+}
+async function availableCourier(shipment) {
+  const [[context]] = await pool.query(
+    `SELECT o.subtotal,o.phone,o.shipping_address_json,
+            (SELECT provider FROM payments WHERE order_id=o.id ORDER BY id DESC LIMIT 1) AS payment_provider,
+            ss.pickup_pincode
+     FROM orders o
+     JOIN shipping_settings ss ON ss.id=1
+     WHERE o.id=? LIMIT 1`,
+    [shipment.order_id],
+  );
+  if (!context) throw Object.assign(new Error("Shipment order or shipping settings were not found"), { status: 404 });
+  const address = parseJson(context.shipping_address_json);
+  const pickup = String(context.pickup_pincode || "").replace(/\D/g, "");
+  const delivery = String(address.postal_code || address.pincode || "").replace(/\D/g, "");
+  if (!/^\d{6}$/.test(pickup) || !/^\d{6}$/.test(delivery)) {
+    throw Object.assign(new Error("Valid pickup and delivery pincodes are required before assigning a courier"), { status: 422 });
+  }
+  const couriers = await getShiprocketRates({
+    pickup_postcode: pickup,
+    delivery_postcode: delivery,
+    cod: String(context.payment_provider).toLowerCase() === "cod" ? 1 : 0,
+    weight: Math.max(Number(shipment.weight) || 0.5, 0.001).toFixed(3),
+    length: Number(shipment.length) || 10,
+    breadth: Number(shipment.width) || 10,
+    height: Number(shipment.height) || 10,
+    declared_value: Math.max(Number(context.subtotal) || 1, 1),
+  });
+  const usable = couriers
+    .map((item) => ({
+      raw: item,
+      id: Number(item.courier_company_id || item.courier_id),
+      name: item.courier_name || "Shiprocket courier",
+      rate: Number(item.rate ?? item.freight_charge ?? Number.MAX_SAFE_INTEGER),
+    }))
+    .filter((item) => item.id && item.raw.blocked !== 1);
+  if (!usable.length) {
+    throw Object.assign(new Error("No Shiprocket courier is currently serviceable for this route"), { status: 422 });
+  }
+  return usable.find((item) => Number(item.raw.is_recommended) === 1)
+    || usable.sort((left, right) => left.rate - right.rate)[0];
+}
+function awbError(result) {
+  const data = result?.response?.data || result?.data || {};
+  return data.awb_assign_error
+    || data.message
+    || result?.response?.message
+    || result?.message
+    || "Shiprocket could not assign an AWB to the selected courier";
 }
 async function getShipment(value, res) { const id=parsePositiveId(value); if (!id) { fail(res,400,"Invalid shipment ID"); return null; } const [[row]]=await pool.query("SELECT * FROM shipments WHERE id=?",[id]); if (!row) { fail(res,404,"Shipment not found"); return null; } return row; }
 async function addEvent(shipmentId,status,description=null,location=null,eventTime=null) { const key=createHash("sha256").update(`${shipmentId}|${status}|${description}|${eventTime || ""}`).digest("hex"); await pool.query("INSERT IGNORE INTO shipment_events(shipment_id,provider_event_id,status,description,location,event_time,raw_event_reference) VALUES (?,?,?,?,?,COALESCE(?,UTC_TIMESTAMP()),?)",[shipmentId,key,status,String(description || "").slice(0,500)||null,String(location || "").slice(0,190)||null,eventTime,key]); }
