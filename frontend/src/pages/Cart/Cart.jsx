@@ -129,8 +129,11 @@ const Cart = () => {
     }
   };
 
+  const USER_COUPON_STORAGE_KEY = "sna_user_applied_coupon";
+
   const handleRemoveCoupon = async () => {
     try {
+      localStorage.removeItem(USER_COUPON_STORAGE_KEY);
       await removeCoupon.mutateAsync();
       toast.success("Coupon removed");
       setCouponInput("");
@@ -151,15 +154,18 @@ const Cart = () => {
     try {
       const res = await applyCoupon.mutateAsync(code);
       if (res && (res.valid === false || res.is_valid === false)) {
+        localStorage.removeItem(USER_COUPON_STORAGE_KEY);
         await removeCoupon.mutateAsync();
         toast.error("Invalid coupon code. Removed automatically.");
         setCouponInput("");
         return;
       }
+      localStorage.setItem(USER_COUPON_STORAGE_KEY, code);
       toast.success("Coupon applied");
       setCouponInput("");
     } catch (error) {
       try {
+        localStorage.removeItem(USER_COUPON_STORAGE_KEY);
         await removeCoupon.mutateAsync();
       } catch {
         // ignore
@@ -169,12 +175,27 @@ const Cart = () => {
     }
   };
 
+  const rawCouponCode =
+    cart.coupon_code ||
+    cart.coupon ||
+    cart.applied_coupon ||
+    cart.summary?.coupon_code ||
+    cart.summary?.coupon;
+
+  useEffect(() => {
+    const userAppliedCode = localStorage.getItem(USER_COUPON_STORAGE_KEY);
+    if (rawCouponCode && !userAppliedCode) {
+      removeCoupon.mutateAsync().catch(() => {});
+    }
+  }, [rawCouponCode]);
+
   useEffect(() => {
     if (
       cart.coupon_invalid ||
       cart.is_coupon_valid === false ||
       cart.summary?.is_coupon_valid === false
     ) {
+      localStorage.removeItem(USER_COUPON_STORAGE_KEY);
       removeCoupon
         .mutateAsync()
         .then(() => {
@@ -266,13 +287,11 @@ const Cart = () => {
   const total = displaySummary.total ?? 0;
   const savings = discount;
   const isFreeShipping = shippingQuote?.free_shipping || shipping === 0;
+  const storedUserCoupon = localStorage.getItem(USER_COUPON_STORAGE_KEY);
   const appliedCouponCode =
-    cart.coupon_code ||
-    cart.coupon ||
-    cart.applied_coupon ||
-    cart.summary?.coupon_code ||
-    cart.summary?.coupon ||
-    (discount > 0 ? "APPLIED" : null);
+    rawCouponCode && storedUserCoupon && String(rawCouponCode).trim() === String(storedUserCoupon).trim()
+      ? rawCouponCode
+      : null;
 
   return (
     <main className="min-h-[70vh] bg-[#f1f3f6]">

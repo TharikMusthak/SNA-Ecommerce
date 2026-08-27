@@ -12,6 +12,16 @@ import {
   setCartCoupon,
 } from "@services/cart.service";
 
+const USER_COUPON_STORAGE_KEY = "sna_user_applied_coupon";
+
+const clearUserCouponState = () => {
+  try {
+    localStorage.removeItem(USER_COUPON_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+};
+
 export function useCart() {
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
@@ -67,26 +77,35 @@ export function useCart() {
     ...query,
     cart: query.data || EMPTY_CART,
     addItem: useMutation({
-      mutationFn: ({ productId, quantity, variantId }) =>
-        addToCart(productId, quantity, variantId),
+      mutationFn: async ({ productId, quantity, variantId }) => {
+        clearUserCouponState();
+        try {
+          await clearCartCoupon();
+        } catch {
+          // ignore
+        }
+        return addToCart(productId, quantity, variantId);
+      },
       onMutate: async ({ productId, quantity, variantId }) => {
         await queryClient.cancelQueries({ queryKey: QUERY_KEYS.cart });
         const previousCart = getCartData();
         setCartData((current) =>
-          recalculateSummary({
-            ...current,
-            items: [
-              ...current.items,
-              {
-                id: `optimistic-${productId}-${variantId || "default"}`,
-                product_id: productId,
-                quantity,
-                unit_price: 0,
-                line_total: 0,
-                __optimisticCartItem: true,
-              },
-            ],
-          }),
+          recalculateSummary(
+            clearCouponFromCart({
+              ...current,
+              items: [
+                ...current.items,
+                {
+                  id: `optimistic-${productId}-${variantId || "default"}`,
+                  product_id: productId,
+                  quantity,
+                  unit_price: 0,
+                  line_total: 0,
+                  __optimisticCartItem: true,
+                },
+              ],
+            })
+          )
         );
         return { previousCart };
       },
@@ -125,17 +144,27 @@ export function useCart() {
       onSettled: refresh,
     }),
     removeItem: useMutation({
-      mutationFn: deleteCartItem,
+      mutationFn: async (itemId) => {
+        clearUserCouponState();
+        try {
+          await clearCartCoupon();
+        } catch {
+          // ignore
+        }
+        return deleteCartItem(itemId);
+      },
       onMutate: async (itemId) => {
         await queryClient.cancelQueries({ queryKey: QUERY_KEYS.cart });
         const previousCart = getCartData();
         setCartData((current) =>
-          recalculateSummary({
-            ...current,
-            items: current.items.filter(
-              (item) => Number(item.id) !== Number(itemId),
-            ),
-          }),
+          recalculateSummary(
+            clearCouponFromCart({
+              ...current,
+              items: current.items.filter(
+                (item) => Number(item.id) !== Number(itemId)
+              ),
+            })
+          )
         );
         return { previousCart };
       },
@@ -147,7 +176,15 @@ export function useCart() {
       onSettled: refresh,
     }),
     clear: useMutation({
-      mutationFn: emptyCart,
+      mutationFn: async () => {
+        clearUserCouponState();
+        try {
+          await clearCartCoupon();
+        } catch {
+          // ignore
+        }
+        return emptyCart();
+      },
       onMutate: async () => {
         await queryClient.cancelQueries({ queryKey: QUERY_KEYS.cart });
         const previousCart = getCartData();
