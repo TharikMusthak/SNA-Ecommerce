@@ -1,216 +1,555 @@
-import cookieParser from "cookie-parser";
-import cors from "cors";
-import express from "express";
-import { rateLimit } from "express-rate-limit";
-import helmet from "helmet";
-import compression from "compression";
-import fs from "node:fs";
-import path from "node:path";
-import swaggerUi from "swagger-ui-express";
-import { env, isTrustedFrontendOrigin } from "./config/env.js";
-import { pool } from "./config/db.js";
-import { docsRoot, uploadsRoot } from "./config/paths.js";
-import { requireTrustedOrigin } from "./middleware/requestSecurity.js";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { api } from "./api";
+import Login from "./components/Login";
+import AdminLayout from "./components/AdminLayout";
+import { ConfirmDialog } from "./components/Dialog";
+import Editor from "./components/Editor";
+import InventoryDialog from "./components/InventoryDialog";
+import Dashboard from "./pages/Dashboard";
+import Products from "./pages/Products";
+import Categories from "./pages/Categories";
+import Inventory from "./pages/Inventory";
+import Attributes from "./pages/Attributes";
+import Banners from "./pages/Banners";
+import CmsPages from "./pages/CmsPages";
+import Orders from "./pages/Orders";
+import Faq from "./pages/Faq";
+import Users from "./pages/Users";
+import CommerceList from "./pages/CommerceList";
+import Dispatch from "./pages/Dispatch";
+import ShippingSettings from "./pages/ShippingSettings";
 import {
-  DUPLICATE_PRODUCT_MESSAGE,
-  isDuplicateProductNameError,
-} from "./security/productValidation.js";
-import authRoutes from "./routes/authSecure.js";
-import bannerRoutes from "./routes/banners.js";
-import categoryRoutes from "./routes/categories.js";
-import cmsRoutes from "./routes/cms.js";
-import dashboardRoutes from "./routes/dashboard.js";
-import inventoryRoutes from "./routes/inventory.js";
-import productRoutes from "./routes/products.js";
-import userRoutes from "./routes/users.js";
-import customerAuthRoutes from "./routes/v1/auth.js";
-import customerUserRoutes from "./routes/v1/users.js";
-import addressRoutes from "./routes/v1/addresses.js";
-import catalogRoutes from "./routes/v1/catalog.js";
-import cartRoutes from "./routes/v1/cart.js";
-import wishlistRoutes from "./routes/v1/wishlist.js";
-import orderRoutes from "./routes/v1/orders.js";
-import paymentRoutes from "./routes/v1/payments.js";
-import shippingRoutes from "./routes/v1/shipping.js";
-import reviewRoutes from "./routes/v1/reviews.js";
-import notificationRoutes from "./routes/v1/notifications.js";
-import returnRoutes from "./routes/v1/returns.js";
-import ticketRoutes from "./routes/v1/tickets.js";
-import { publicRouter, searchRouter, analyticsRouter } from "./routes/v1/public.js";
-import adminCommerceRoutes from "./routes/v1/adminCommerce.js";
-import adminReturnRoutes from "./routes/v1/adminReturns.js";
-import adminDispatchRoutes from "./routes/v1/adminDispatch.js";
-import webhookRoutes from "./routes/v1/webhooks.js";
+  getMenusForRole,
+  viewFromHash,
+  viewToHash,
+} from "./constants/navigation";
+import { useFormValidation } from "./utils/useFormValidation";
 
-const app = express();
+const emptyData = {
+  products: [],
+  variants: [],
+  banners: [],
+  orders: [],
+  faqs: [],
+  users: [],
+  categories: [],
+  inventory: [],
+  cmsPages: [],
+  dashboardSummary: {},
+  customers: [],
+  reviews: [],
+  returns: [],
+  tickets: [],
+  coupons: [],
+  refunds: [],
+  notifications: [],
+};
 
-// cPanel/Passenger may forward the public application mount (for example,
-// /sna-api) as part of req.url. Remove only the configured mount so the API
-// routes keep their canonical /api/... paths both locally and in production.
-if (env.appBasePath) {
-  app.use((req, _res, next) => {
-    req.url = stripBasePath(req.url, env.appBasePath);
-    req.originalUrl = stripBasePath(req.originalUrl, env.appBasePath);
-    next();
-  });
+export default function App() {
+  useFormValidation();
+  const [admin, setAdmin] = useState(null);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const [sessionMessage, setSessionMessage] = useState("");
+  const authenticatedRef = useRef(false);
+
+  useEffect(() => {
+    let active = true;
+
+    localStorage.removeItem("sna_token");
+    localStorage.removeItem("sna_admin");
+
+    api("/auth/me")
+      .then((data) => {
+        if (active) {
+          authenticatedRef.current = true;
+          setAdmin(data.admin);
+        }
+      })
+      .catch(() => {
+        if (active) setAdmin(null);
+      })
+      .finally(() => {
+        if (active) setCheckingSession(false);
+      });
+
+    const clearSession = () => {
+      if (authenticatedRef.current) {
+        setSessionMessage("Your session has expired. Please sign in again.");
+      }
+      authenticatedRef.current = false;
+      setAdmin(null);
+    };
+    window.addEventListener("sna:unauthorized", clearSession);
+
+    return () => {
+      active = false;
+      window.removeEventListener("sna:unauthorized", clearSession);
+    };
+  }, []);
+
+  function handleLogin(newAdmin) {
+    authenticatedRef.current = true;
+    setSessionMessage("");
+    setAdmin(newAdmin);
+  }
+
+  async function handleLogout() {
+    try {
+      await api("/auth/logout", { method: "POST" });
+    } finally {
+      authenticatedRef.current = false;
+      setSessionMessage("");
+      setAdmin(null);
+    }
+  }
+
+  if (checkingSession) {
+    return (
+      <div className="sna-session-loader" role="status">
+        <span>Checking secure session…</span>
+      </div>
+    );
+  }
+
+  if (!admin) return <Login onLogin={handleLogin} initialMessage={sessionMessage} />;
+  return <Cms admin={admin} onLogout={handleLogout} />;
 }
 
-if (env.trustProxy) {
-  const numericTrustProxy = Number(env.trustProxy);
-  app.set(
-    "trust proxy",
-    Number.isNaN(numericTrustProxy) ? env.trustProxy : numericTrustProxy,
+function Cms({ admin, onLogout }) {
+  const menus = getMenusForRole(admin?.role);
+  const [view, setView] = useState(() => viewFromHash());
+  const [data, setData] = useState(emptyData);
+  const [modal, setModal] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [notice, setNotice] = useState(null);
+  const [loadingViews, setLoadingViews] = useState({});
+  const [confirmation, setConfirmation] = useState(null);
+  const [confirming, setConfirming] = useState(false);
+  const [inventoryDialog, setInventoryDialog] = useState(null);
+  const noticeTimer = useRef(null);
+
+  const showNotice = useCallback((message, type = "success") => {
+    if (noticeTimer.current) clearTimeout(noticeTimer.current);
+
+    setNotice({ id: Date.now(), message, type });
+    noticeTimer.current = setTimeout(() => {
+      setNotice(null);
+      noticeTimer.current = null;
+    }, 3500);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (noticeTimer.current) clearTimeout(noticeTimer.current);
+    },
+    [],
   );
-}
 
-app.disable("x-powered-by");
-app.use(helmet());
-app.use(compression());
-app.use(
-  cors({
-    origin(origin, callback) {
-      if (!origin || isTrustedFrontendOrigin(origin)) {
-        return callback(null, true);
+  const loadDashboard = useCallback(async (days = 30, summaryOnly = false) => {
+    setLoadingViews((current) => ({ ...current, Dashboard: true }));
+    try {
+      const [dashboard, dashboardSummary] = await Promise.all([
+        summaryOnly ? Promise.resolve(null) : api("/cms/dashboard"),
+        api(`/dashboard/summary?days=${days}`),
+      ]);
+      setData((current) => ({
+        ...current,
+        ...(dashboard || {}),
+        dashboardSummary,
+      }));
+    } catch (error) {
+      showNotice(error.message, "error");
+    } finally {
+      setLoadingViews((current) => ({ ...current, Dashboard: false }));
+    }
+  }, [showNotice]);
+
+  const loadUsers = useCallback(async () => {
+    setLoadingViews((current) => ({ ...current, Users: true }));
+    try {
+      const users = await api("/users");
+      setData((current) => ({ ...current, users }));
+    } catch (error) {
+      showNotice(error.message, "error");
+    } finally {
+      setLoadingViews((current) => ({ ...current, Users: false }));
+    }
+  }, [showNotice]);
+
+  const loadCategories = useCallback(async () => {
+    setLoadingViews((current) => ({ ...current, Categories: true }));
+    try {
+      const categories = await api("/categories");
+      setData((current) => ({ ...current, categories }));
+    } catch (error) {
+      showNotice(error.message, "error");
+    } finally {
+      setLoadingViews((current) => ({ ...current, Categories: false }));
+    }
+  }, [showNotice]);
+
+  const loadInventory = useCallback(async () => {
+    setLoadingViews((current) => ({ ...current, Inventory: true }));
+    try {
+      const inventory = await api("/inventory");
+      setData((current) => ({ ...current, inventory }));
+    } catch (error) {
+      showNotice(error.message, "error");
+    } finally {
+      setLoadingViews((current) => ({ ...current, Inventory: false }));
+    }
+  }, [showNotice]);
+
+  const loadCmsPages = useCallback(async () => {
+    setLoadingViews((current) => ({ ...current, "CMS Pages": true }));
+    try {
+      const cmsPages = await api("/cms/pages");
+      setData((current) => ({ ...current, cmsPages }));
+    } catch (error) {
+      showNotice(error.message, "error");
+    } finally {
+      setLoadingViews((current) => ({ ...current, "CMS Pages": false }));
+    }
+  }, [showNotice]);
+
+  const loadViewData = useCallback(async (nextView) => {
+    if (["Dashboard", "Products", "Attributes", "Banners", "FAQ"].includes(nextView)) {
+      await loadDashboard();
+    }
+    if (nextView === "Users") await loadUsers();
+    if (nextView === "Products" || nextView === "Categories" || nextView === "Banners") {
+      await loadCategories();
+    }
+    if (nextView === "Inventory") await loadInventory();
+    if (nextView === "CMS Pages") await loadCmsPages();
+  }, [loadCategories, loadCmsPages, loadDashboard, loadInventory, loadUsers]);
+
+  useEffect(() => {
+    const allowedView = menus.includes(viewFromHash()) ? viewFromHash() : "Dashboard";
+    if (view !== allowedView) setView(allowedView);
+    if (window.location.hash !== viewToHash(allowedView)) {
+      window.history.replaceState(null, "", viewToHash(allowedView));
+    }
+
+    function restoreRoute() {
+      const nextView = viewFromHash();
+      setView(menus.includes(nextView) ? nextView : "Dashboard");
+    }
+
+    window.addEventListener("popstate", restoreRoute);
+    window.addEventListener("hashchange", restoreRoute);
+    return () => {
+      window.removeEventListener("popstate", restoreRoute);
+      window.removeEventListener("hashchange", restoreRoute);
+    };
+  }, [menus, view]);
+
+  useEffect(() => {
+    void loadViewData(view);
+  }, [loadViewData, view]);
+
+  function openView(nextView) {
+    if (!menus.includes(nextView)) return;
+    if (view !== nextView) {
+      window.history.pushState(null, "", viewToHash(nextView));
+    }
+    setView(nextView);
+  }
+
+  function openEditor(type, item = null) {
+    setEditing(item);
+    setModal(type);
+  }
+
+  function closeEditor() {
+    setEditing(null);
+    setModal(null);
+  }
+
+  async function save(type, form) {
+    try {
+      if (type === "cmsPage") {
+        await api(`/cms/pages/${form.slug}`, {
+          method: "PUT",
+          body: JSON.stringify(form),
+        });
+        closeEditor();
+        showNotice("CMS page updated successfully");
+        await loadCmsPages();
+        return;
       }
 
-      callback(null, false);
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "Idempotency-Key", "X-WATI-Signature", "X-API-Key"],
-  }),
-);
-app.use(express.json({
-  limit: "32kb",
-  verify(req, _res, buffer) {
-    if (/^\/api\/v1\/(?:(?:payments|shipping)\/webhook\/|webhooks\/wati)/.test(req.originalUrl)) {
-      req.rawBody = Buffer.from(buffer);
+      const route =
+        type === "variant"
+          ? "variants"
+          : type === "user"
+            ? "users"
+            : type === "category"
+              ? "categories"
+              : "faqs";
+      const prefix =
+        type === "user" || type === "category" ? "" : "/cms";
+      const method = editing ? "PUT" : "POST";
+      const path = `${prefix}/${route}${editing ? `/${editing.id}` : ""}`;
+      const wasEditing = Boolean(editing);
+
+      await api(path, { method, body: JSON.stringify(form) });
+      closeEditor();
+      showNotice(wasEditing ? "Updated successfully" : "Saved successfully");
+      if (type === "user") await loadUsers();
+      else if (type === "category") {
+        await Promise.all([loadCategories(), loadDashboard()]);
+      }
+      else await loadDashboard();
+    } catch (error) {
+      showNotice(error.message, "error");
     }
-  },
-}));
-app.use(cookieParser());
-app.use("/docs", express.static(docsRoot, { dotfiles: "deny", index: false }));
-if (env.apiDocsEnabled) {
-  const openapiPath = path.join(docsRoot, "openapi.yaml");
-  const openapiDocument = JSON.parse(fs.readFileSync(openapiPath, "utf8"));
-  app.get("/api/docs/openapi.yaml", (_req, res) => res.type("application/yaml").send(fs.readFileSync(openapiPath, "utf8")));
-  app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(openapiDocument, { customSiteTitle: "SNA API Documentation" }));
-}
-
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 300,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-});
-
-app.use("/api", apiLimiter, requireTrustedOrigin);
-app.use(
-  "/uploads",
-  express.static(uploadsRoot, {
-    dotfiles: "deny",
-    index: false,
-    maxAge: env.isProduction ? "1d" : 0,
-    setHeaders(res) {
-      res.setHeader("X-Content-Type-Options", "nosniff");
-      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-    },
-  }),
-);
-
-app.get("/api/health", async (_req, res) => {
-  try {
-    await pool.query("SELECT 1");
-    res.json({ success: true, status: "healthy", database: "connected", timestamp: new Date().toISOString() });
-  } catch {
-    res.status(503).json({ success: false, status: "unhealthy", database: "unavailable", timestamp: new Date().toISOString() });
-  }
-});
-app.get("/api/v1", (_req, res) => {
-  res.json({ success: true, message: "SNA E-commerce API v1", data: { health: "/api/health", documentation: "/docs/openapi.yaml" } });
-});
-app.use("/api/v1/auth", customerAuthRoutes);
-app.use("/api/v1/users", customerUserRoutes);
-app.use("/api/v1/addresses", addressRoutes);
-app.use("/api/v1/products", catalogRoutes);
-app.use("/api/v1/cart", cartRoutes);
-app.use("/api/v1/wishlist", wishlistRoutes);
-app.use("/api/v1/orders", orderRoutes);
-app.use("/api/v1/payments", paymentRoutes);
-app.use("/api/v1/shipping", shippingRoutes);
-app.use("/api/v1/reviews", reviewRoutes);
-app.use("/api/v1/notifications", notificationRoutes);
-app.use("/api/v1/returns", returnRoutes);
-app.use("/api/v1/tickets", ticketRoutes);
-app.use("/api/v1/webhooks", webhookRoutes);
-app.use("/api/v1/search", searchRouter);
-app.use("/api/v1/analytics", analyticsRouter);
-app.use("/api/v1", publicRouter);
-
-// Versioned admin aliases preserve the proven legacy handlers during migration.
-app.use("/api/v1/admin/products", productRoutes);
-app.use("/api/v1/admin/categories", categoryRoutes);
-app.use("/api/v1/admin/inventory", inventoryRoutes);
-app.use("/api/v1/admin/banners", bannerRoutes);
-app.use("/api/v1/admin/users", userRoutes);
-app.use("/api/v1/admin/dashboard", dashboardRoutes);
-app.use("/api/v1/admin", adminReturnRoutes);
-app.use("/api/v1/admin", adminDispatchRoutes);
-app.use("/api/v1/admin", adminCommerceRoutes);
-app.use("/api/auth", authRoutes);
-app.use("/api/cms", cmsRoutes);
-app.use("/api/banners", bannerRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/products", productRoutes);
-app.use("/api/categories", categoryRoutes);
-app.use("/api/inventory", inventoryRoutes);
-app.use("/api/dashboard", dashboardRoutes);
-
-app.use((_req, res) => {
-  res.status(404).json({ success: false, message: "Route not found" });
-});
-
-app.use((error, _req, res, _next) => {
-  if (error?.code === "LIMIT_FILE_SIZE") {
-    return res.status(400).json({ message: "Uploaded file is too large" });
   }
 
-  if (error?.code?.startsWith("LIMIT_")) {
-    const message = error.code === "LIMIT_UNEXPECTED_FILE"
-      ? "Use only one review image field named image and one review video field named video"
-      : "Invalid upload request";
-    return res.status(400).json({ message });
-  }
-
-  if (error?.message === "Only JPG, PNG and WEBP images are allowed") {
-    return res.status(400).json({ message: error.message });
-  }
-
-  if (error?.message === "Only MP4, WebM and MOV videos are allowed") {
-    return res.status(400).json({ message: error.message });
-  }
-
-  if (isDuplicateProductNameError(error)) {
-    return res.status(409).json({
-      message: DUPLICATE_PRODUCT_MESSAGE,
+  function remove(route, id, refreshTarget = "dashboard") {
+    const entity = route.split("/").at(-1)?.replace(/s$/, "") || "item";
+    setConfirmation({
+      title: `Delete ${entity}`,
+      description: "This action permanently removes the record and cannot be undone.",
+      confirmLabel: `Delete ${entity}`,
+      danger: true,
+      action: async () => {
+        await api(`/${route}/${id}`, { method: "DELETE" });
+        showNotice("Deleted successfully");
+        if (refreshTarget === "users") await loadUsers();
+        else if (refreshTarget === "categories") {
+          await Promise.all([loadCategories(), loadDashboard()]);
+        } else await loadDashboard();
+      },
     });
   }
 
-  if (error?.code === "ER_DUP_ENTRY") {
-    return res.status(409).json({
-      message: "A record with the same unique value already exists",
-    });
+  async function updateOrderStage(id, stage) {
+    try {
+      await api(`/cms/orders/${id}/stage`, {
+        method: "PUT",
+        body: JSON.stringify({ stage }),
+      });
+      showNotice("Order stage updated");
+      await loadDashboard();
+    } catch (error) {
+      showNotice(error.message, "error");
+    }
   }
 
-  console.error("Request failed:", error);
-  const status = Number(error?.status);
-  res.status(Number.isInteger(status) && status >= 400 && status < 600 ? status : 500).json({ success: false, message: status ? error.message : "Server error" });
-});
+  async function toggleFeaturedProduct(product) {
+    const isFeatured = Number(product.is_featured) === 1;
+    try {
+      await api(`/products/${product.id}/featured`, {
+        method: "PUT",
+        body: JSON.stringify({ is_featured: !isFeatured }),
+      });
+      showNotice(
+        isFeatured
+          ? "Product removed from featured products"
+          : "Product added to featured products",
+      );
+      await loadDashboard();
+    } catch (error) {
+      showNotice(error.message, "error");
+    }
+  }
 
-export default app;
+  function setInventoryStock(item) {
+    setInventoryDialog({ item, mode: "set" });
+  }
 
-function stripBasePath(url, basePath) {
-  if (url === basePath) return "/";
-  if (url.startsWith(`${basePath}/`)) return url.slice(basePath.length);
-  return url;
+  function restockInventory(item) {
+    setInventoryDialog({ item, mode: "restock" });
+  }
+
+  async function submitInventory({ quantity, threshold, reason }) {
+    const { item, mode } = inventoryDialog;
+    try {
+      await api(
+        `/inventory/${item.product_id}/${mode === "restock" ? "restock" : "stock"}`,
+        {
+          method: mode === "restock" ? "POST" : "PUT",
+          body: JSON.stringify(
+            mode === "restock"
+              ? { quantity, note: reason }
+              : { stock: quantity, low_stock_threshold: threshold, note: reason },
+          ),
+        },
+      );
+      showNotice(mode === "restock" ? "Product restocked successfully" : "Stock updated successfully");
+      await Promise.all([loadInventory(), loadDashboard()]);
+    } catch (error) {
+      showNotice(error.message, "error");
+      throw error;
+    }
+  }
+
+  async function runConfirmation() {
+    if (!confirmation || confirming) return;
+    setConfirming(true);
+    try {
+      await confirmation.action();
+      setConfirmation(null);
+    } catch (error) {
+      showNotice(error.message, "error");
+    } finally {
+      setConfirming(false);
+    }
+  }
+
+  return (
+    <AdminLayout
+      admin={admin}
+      view={view}
+      onViewChange={openView}
+      onLogout={onLogout}
+      onAdd={() => {
+        const types = {
+          Products: "product",
+          Categories: "category",
+          Attributes: "variant",
+          Banners: "banner",
+          FAQ: "faq",
+          Users: "user",
+        };
+        openEditor(types[view]);
+      }}
+    >
+      {notice && (
+        <div
+          key={notice.id}
+          className={`toast ${notice.type}`}
+          role="alert"
+          aria-live="assertive"
+        >
+          {notice.message}
+        </div>
+      )}
+      {view === "Dashboard" && (
+        <Dashboard
+          data={data}
+          admin={admin}
+          setView={openView}
+          loading={loadingViews.Dashboard}
+          onRangeChange={(days) => loadDashboard(days, true)}
+        />
+      )}
+      {view === "Products" && (
+        <Products
+          rows={data.products}
+          onEdit={(item) => openEditor("product", item)}
+          onDelete={(id) => remove("products", id)}
+          onToggleFeatured={toggleFeaturedProduct}
+        />
+      )}
+      {view === "Categories" && (
+        <Categories
+          rows={data.categories}
+          onEdit={(item) => openEditor("category", item)}
+          onDelete={(id) => remove("categories", id, "categories")}
+        />
+      )}
+      {view === "Inventory" && (
+        <Inventory
+          rows={data.inventory}
+          onSetStock={setInventoryStock}
+          onRestock={restockInventory}
+        />
+      )}
+      {view === "Attributes" && (
+        <Attributes
+          rows={data.variants}
+          onEdit={(item) => openEditor("variant", item)}
+          onDelete={(id) => remove("cms/variants", id)}
+        />
+      )}
+      {view === "Banners" && (
+        <Banners
+          rows={data.banners}
+          onEdit={(item) => openEditor("banner", item)}
+          onDelete={(id) => remove("banners", id)}
+        />
+      )}
+      {view === "CMS Pages" && (
+        <CmsPages
+          rows={data.cmsPages}
+          onEdit={(item) => openEditor("cmsPage", item)}
+        />
+      )}
+      {view === "Orders" && (
+        <Orders rows={data.orders} onStageChange={updateOrderStage} />
+      )}
+      {view === "Dispatch" && <Dispatch onNotice={showNotice} />}
+      {view === "Shipping Settings" && (
+        <ShippingSettings onNotice={showNotice} />
+      )}
+      {view === "FAQ" && (
+        <Faq
+          rows={data.faqs}
+          onEdit={(item) => openEditor("faq", item)}
+          onDelete={(id) => remove("cms/faqs", id)}
+        />
+      )}
+      {view === "Users" && (
+        <Users
+          rows={data.users || []}
+          currentId={admin?.id}
+          onEdit={(item) => openEditor("user", item)}
+          onDelete={(id) => remove("users", id, "users")}
+        />
+      )}
+      {["Customers", "Reviews", "Returns", "Refund Records", "Support Tickets", "Coupons", "Notifications"].includes(view) && (
+        <CommerceList type={view} admin={admin} onNotice={showNotice} />
+      )}
+
+      {modal && (
+        <Editor
+          type={modal}
+          item={editing}
+          products={data.products}
+          categories={data.categories}
+          onClose={closeEditor}
+          onSave={save}
+          onError={(message) => showNotice(message, "error")}
+          onNotice={showNotice}
+          onBannerSaved={async () => {
+            const wasEditing = Boolean(editing);
+            closeEditor();
+            showNotice(
+              wasEditing
+                ? "Banner updated successfully"
+                : "Banner saved successfully",
+            );
+            await loadDashboard();
+          }}
+          onProductSaved={async () => {
+            const wasEditing = Boolean(editing);
+            closeEditor();
+            showNotice(
+              wasEditing
+                ? "Product updated successfully"
+                : "Product saved successfully",
+            );
+            await loadDashboard();
+          }}
+        />
+      )}
+      {confirmation && (
+        <ConfirmDialog
+          {...confirmation}
+          busy={confirming}
+          onClose={() => !confirming && setConfirmation(null)}
+          onConfirm={runConfirmation}
+        />
+      )}
+      {inventoryDialog && (
+        <InventoryDialog
+          {...inventoryDialog}
+          onClose={() => setInventoryDialog(null)}
+          onSubmit={submitInventory}
+        />
+      )}
+    </AdminLayout>
+  );
 }
