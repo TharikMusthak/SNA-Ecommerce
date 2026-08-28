@@ -1,11 +1,59 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { Router } from "express";
+import { handleUpload } from "@vercel/blob/client";
+import jwt from "jsonwebtoken";
 import { pool } from "../../config/db.js";
 import { env } from "../../config/env.js";
 import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { fail, ok } from "../../utils/apiResponse.js";
 
 const router = Router();
+
+router.post("/blob-product-video", asyncHandler(async (req, res) => {
+  if (req.body?.type === "blob.generate-client-token") {
+    const authorization = String(req.get("authorization") || "");
+    const token = authorization.startsWith("Bearer ")
+      ? authorization.slice(7).trim()
+      : "";
+    if (!token) return fail(res, 401, "Product video upload authorization is required");
+
+    try {
+      const payload = jwt.verify(token, env.jwtSecret, {
+        algorithms: ["HS256"],
+        issuer: env.jwtIssuer,
+        audience: "sna-product-video-upload",
+      });
+      if (payload.scope !== "product-video-upload") {
+        return fail(res, 403, "Invalid product video upload authorization");
+      }
+    } catch {
+      return fail(res, 401, "Product video upload authorization expired or is invalid");
+    }
+  }
+
+  try {
+    const result = await handleUpload({
+      body: req.body,
+      request: req,
+      onBeforeGenerateToken: async (pathname) => {
+        if (!String(pathname).startsWith("products/videos/")) {
+          throw new Error("Invalid product video upload path");
+        }
+        return {
+          allowedContentTypes: ["video/mp4", "video/webm", "video/quicktime"],
+          maximumSizeInBytes: 50 * 1024 * 1024,
+          addRandomSuffix: true,
+          tokenPayload: JSON.stringify({ kind: "product-video" }),
+        };
+      },
+      onUploadCompleted: async () => {},
+    });
+    return res.json(result);
+  } catch (error) {
+    return fail(res, 400, error?.message || "Unable to authorize product video upload");
+  }
+}));
+
 router.post("/tracking", asyncHandler(async (req, res) => {
   if (!env.shiprocket.webhookToken) return fail(res, 503, "Tracking webhook is not configured");
   if (!safeEqual(String(req.get("x-api-key") || ""), env.shiprocket.webhookToken)) {
