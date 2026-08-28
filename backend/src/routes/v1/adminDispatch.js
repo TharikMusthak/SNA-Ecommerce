@@ -37,11 +37,22 @@ router.get("/dispatch/:orderId", asyncHandler(async (req, res) => {
   const [[order]] = await pool.query("SELECT * FROM orders WHERE id=?", [orderId]);
   if (!order) return fail(res, 404, "Order not found");
   const [[shipment]] = await pool.query("SELECT * FROM shipments WHERE order_id=? LIMIT 1", [orderId]);
+  const [packageItemsResult, packageSettingsResult] = await Promise.all([
+    pool.query(`SELECT oi.quantity,p.weight_grams,p.package_length_cm,p.package_width_cm,p.package_height_cm
+                  FROM order_items oi LEFT JOIN products p ON p.id=oi.product_id WHERE oi.order_id=?`, [orderId]),
+    pool.query("SELECT default_weight_grams,default_length_cm,default_width_cm,default_height_cm FROM shipping_settings WHERE id=1"),
+  ]);
   const [timeline] = shipment ? await pool.query("SELECT id,status,description,location,event_time,created_at FROM shipment_events WHERE shipment_id=? ORDER BY event_time,id", [shipment.id]) : [[]];
   const address = parseJson(order.shipping_address_json);
   order.delivery_address = [address.address_line_1, address.address_line_2, address.city, address.state, address.postal_code].filter(Boolean).join(", ");
   order.delivery_pincode = order.delivery_pincode || address.postal_code || null;
-  return ok(res, { order, shipment: shipment || null, tracking: { timeline }, shiprocketEnabled: shiprocketConfigured() });
+  const calculatedPackage = shipmentPackage(packageItemsResult[0], packageSettingsResult[0][0] || {});
+  return ok(res, { order, shipment: shipment || null, tracking: { timeline }, shiprocketEnabled: shiprocketConfigured(), suggestedPackage: {
+    weight_grams: Math.round(calculatedPackage.weight * 1000),
+    length_cm: calculatedPackage.length,
+    width_cm: calculatedPackage.width,
+    height_cm: calculatedPackage.height,
+  } });
 }));
 
 router.post("/shipments", asyncHandler(async (req, res) => {
@@ -51,7 +62,11 @@ router.post("/shipments", asyncHandler(async (req, res) => {
   if (existing) return fail(res, 409, "A shipment already exists for this order");
   const [orderResult, itemsResult, settingsResult, userResult] = await Promise.all([
     pool.query("SELECT * FROM orders WHERE id=?", [orderId]),
-    pool.query("SELECT id,product_id,variant_id,product_name,sku,unit_price,quantity FROM order_items WHERE order_id=?", [orderId]),
+    pool.query(`SELECT oi.id,oi.product_id,oi.variant_id,oi.product_name,oi.sku,oi.unit_price,oi.quantity,
+                       p.weight_grams,p.package_length_cm,p.package_width_cm,p.package_height_cm
+                  FROM order_items oi
+                  LEFT JOIN products p ON p.id=oi.product_id
+                 WHERE oi.order_id=?`, [orderId]),
     pool.query("SELECT * FROM shipping_settings WHERE id=1", []),
     pool.query("SELECT email FROM users WHERE id=(SELECT user_id FROM orders WHERE id=?)", [orderId]),
   ]);
@@ -64,6 +79,8 @@ router.post("/shipments", asyncHandler(async (req, res) => {
   const settings = settingsRows[0];
   if (!settings?.pickup_location) return fail(res, 422, "Configure the exact Shiprocket pickup location name in Shipping Settings");
   if (!items.length) return fail(res, 422, "The order has no items to send to Shiprocket");
+  const packageDetails = requestedShipmentPackage(req.body, shipmentPackage(items, settings));
+  if (packageDetails.error) return fail(res, 422, packageDetails.error);
   const address = parseJson(order.shipping_address_json);
   const paymentMethod = String((await pool.query("SELECT provider FROM payments WHERE order_id=? ORDER BY id DESC LIMIT 1", [orderId]))[0][0]?.provider || "cod").toLowerCase();
   const nameParts = String(address.full_name || order.customer || "Customer").trim().split(/\s+/);
@@ -73,7 +90,7 @@ router.post("/shipments", asyncHandler(async (req, res) => {
     billing_city: address.city, billing_pincode: String(address.postal_code), billing_state: address.state, billing_country: address.country || "India", billing_email: userRows[0]?.email || "", billing_phone: address.phone || order.phone,
     shipping_is_billing: true, order_items: shiprocketOrderItems(items, order.id),
     payment_method: paymentMethod === "cod" ? "COD" : "Prepaid", sub_total: Number(order.subtotal),
-    length: Number(settings.default_length_cm || 10), breadth: Number(settings.default_width_cm || 10), height: Number(settings.default_height_cm || 10), weight: Number(settings.default_weight_grams || 500) * items.reduce((sum, item) => sum + Number(item.quantity), 0) / 1000,
+    length: packageDetails.value.length, breadth: packageDetails.value.width, height: packageDetails.value.height, weight: packageDetails.value.weight,
   }});
   const providerOrderId = Number(provider.order_id);
   const providerShipmentId = Number(provider.shipment_id);
@@ -85,7 +102,7 @@ router.post("/shipments", asyncHandler(async (req, res) => {
   if (Number(verifiedOrder?.id) !== providerOrderId) {
     return fail(res, 502, "Shiprocket returned an order ID but the order could not be verified in the connected account");
   }
-  const [result] = await pool.query(`INSERT INTO shipments(order_id,provider,provider_order_id,provider_shipment_id,pickup_location,shipping_charge,weight,length,width,height,status) VALUES (?,?,?,?,?,?,?,?,?,?,'shipment_created')`, [order.id,"shiprocket",providerOrderId,providerShipmentId,settings.pickup_location,order.shipping_amount || 0,Number(settings.default_weight_grams || 500) * items.reduce((sum, item) => sum + Number(item.quantity), 0) / 1000,settings.default_length_cm || 10,settings.default_width_cm || 10,settings.default_height_cm || 10]);
+  const [result] = await pool.query(`INSERT INTO shipments(order_id,provider,provider_order_id,provider_shipment_id,pickup_location,shipping_charge,weight,length,width,height,status) VALUES (?,?,?,?,?,?,?,?,?,?,'shipment_created')`, [order.id,"shiprocket",providerOrderId,providerShipmentId,settings.pickup_location,order.shipping_amount || 0,packageDetails.value.weight,packageDetails.value.length,packageDetails.value.width,packageDetails.value.height]);
   await addEvent(result.insertId, "shipment_created", "Shipment created in Shiprocket");
   return ok(res, { id: result.insertId, provider_order_id: provider.order_id, provider_shipment_id: provider.shipment_id }, "Shipment created", 201);
 }));
@@ -187,6 +204,49 @@ function shipmentSkuBase(value) {
     .replace(/[^A-Za-z0-9_-]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 50);
+}
+function shipmentPackage(items, settings) {
+  const fallback = {
+    weightGrams: Math.max(Number(settings.default_weight_grams) || 500, 1),
+    length: Math.max(Number(settings.default_length_cm) || 10, 0.01),
+    width: Math.max(Number(settings.default_width_cm) || 10, 0.01),
+    height: Math.max(Number(settings.default_height_cm) || 10, 0.01),
+  };
+  let totalWeightGrams = 0;
+  let length = 0;
+  let width = 0;
+  let height = 0;
+  for (const item of items) {
+    const quantity = Math.max(Number(item.quantity) || 1, 1);
+    totalWeightGrams += Math.max(Number(item.weight_grams) || fallback.weightGrams, 1) * quantity;
+    length = Math.max(length, Number(item.package_length_cm) || fallback.length);
+    width = Math.max(width, Number(item.package_width_cm) || fallback.width);
+    height += Math.max(Number(item.package_height_cm) || fallback.height, 0.01) * quantity;
+  }
+  return {
+    weight: Number(Math.max(totalWeightGrams / 1000, 0.001).toFixed(3)),
+    length: Number(length.toFixed(2)),
+    width: Number(width.toFixed(2)),
+    height: Number(height.toFixed(2)),
+  };
+}
+function requestedShipmentPackage(body, calculated) {
+  const supplied = [body.weight_grams, body.length_cm, body.width_cm, body.height_cm]
+    .some((value) => String(value ?? "").trim() !== "");
+  if (!supplied) return { value: calculated };
+  const weightGrams = Number(body.weight_grams);
+  const length = Number(body.length_cm);
+  const width = Number(body.width_cm);
+  const height = Number(body.height_cm);
+  if (![weightGrams, length, width, height].every((value) => Number.isFinite(value) && value > 0)) {
+    return { error: "Packed parcel weight, length, width and height must all be positive numbers" };
+  }
+  return { value: {
+    weight: Number(Math.max(weightGrams / 1000, 0.001).toFixed(3)),
+    length: Number(length.toFixed(2)),
+    width: Number(width.toFixed(2)),
+    height: Number(height.toFixed(2)),
+  } };
 }
 async function availableCouriers(shipment) {
   const [[context]] = await pool.query(
