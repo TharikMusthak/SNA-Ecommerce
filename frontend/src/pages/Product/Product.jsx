@@ -9,7 +9,7 @@ import {
 import toast from "react-hot-toast";
 import Tinyleaf from "@assets/images/tinyleaf.svg";
 import ProductDescription from "@components/products/ProductDescription";
-import ProductImageGallery from "@components/products/ProductImageGallery";
+import ProductImageGallery, { normalizeProductMedia } from "@components/products/ProductImageGallery";
 import fallbackImage from "@assets/images/product1.png";
 import { apiErrorMessage } from "@api/axios";
 import ProductCard from "@components/products/ProductCard";
@@ -283,6 +283,9 @@ const ProductDetail = ({ identifier }) => {
   const [reviewTouched, setReviewTouched] = useState({});
   const [localHelpfulMap, setLocalHelpfulMap] = useState(() => getSavedHelpfulReviews(userId));
   const [lightboxMedia, setLightboxMedia] = useState(null);
+
+  const productMediaList = useMemo(() => normalizeProductMedia(product), [product]);
+  const productVideos = useMemo(() => productMediaList.filter((m) => m.type === "video"), [productMediaList]);
 
   useEffect(() => {
     setLocalHelpfulMap(getSavedHelpfulReviews(userId));
@@ -793,6 +796,47 @@ const ProductDetail = ({ identifier }) => {
          
         </div>
       </div>
+
+      {/* Dedicated Product Video Showcase Section */}
+      {productVideos.length > 0 && (
+        <section className="mt-16 rounded-[2rem] border border-emerald-100 bg-[#f5f7f1] p-6 sm:p-8 lg:p-10" aria-label="Product video showcase">
+          <div className="mx-auto max-w-4xl text-center">
+            <div className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-[#079447] shadow-xs">
+              <Video size={15} />
+              <span>Product Showcase Video</span>
+            </div>
+            <h2 className="mt-3 text-2xl font-bold text-gray-900 sm:text-3xl">
+              Watch {product.name} in Action
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              See traditional preparation, organic ingredients, and authentic quality.
+            </p>
+          </div>
+          <div className="mt-8 mx-auto max-w-4xl overflow-hidden rounded-3xl bg-black shadow-2xl">
+            {productVideos[0].isEmbed ? (
+              <div className="aspect-video w-full">
+                <iframe
+                  src={productVideos[0].embedUrl}
+                  title={`${product.name} video`}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="h-full w-full border-0"
+                />
+              </div>
+            ) : (
+              <video
+                src={productVideos[0].url}
+                controls
+                playsInline
+                preload="metadata"
+                poster={productVideos[0].thumbnail}
+                className="w-full max-h-[550px] object-contain"
+              />
+            )}
+          </div>
+        </section>
+      )}
+
       <section className="mt-20 rounded-[2rem] border border-emerald-100 bg-[#f5f7f1] p-5 sm:p-8 lg:p-10" aria-labelledby="reviews-heading">
         <div className="flex flex-col justify-between gap-4 border-b border-emerald-100 pb-6 sm:flex-row sm:items-end">
           <div>
