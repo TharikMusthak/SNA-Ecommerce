@@ -110,6 +110,7 @@ router.get("/dashboard", async (req, res) => {
   if (req.admin.role !== "Product Manager") {
     const [orders] = await pool.query(
       `SELECT o.*,
+              (SELECT COALESCE(SUM(oi.quantity),0) FROM order_items oi WHERE oi.order_id=o.id) AS item_count,
               (SELECT p.provider FROM payments p WHERE p.order_id=o.id ORDER BY p.id DESC LIMIT 1) AS payment_provider,
               (SELECT p.status FROM payments p WHERE p.order_id=o.id ORDER BY p.id DESC LIMIT 1) AS provider_payment_status
          FROM orders o
