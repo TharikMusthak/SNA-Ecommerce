@@ -13,6 +13,7 @@ import { queueUserEvent } from "../../integrations/notifications/notification.se
 import { reviewFileUrl, reviewUpload } from "../../middleware/reviewUpload.js";
 import { deleteUploadedFiles, uploadedFiles } from "../../middleware/uploadSecurity.js";
 import { safelyDeleteUpload, safelyDeleteUploads } from "../../services/uploadFiles.js";
+import { shiprocketRequest } from "../../integrations/shipping/shiprocket.js";
 
 const router = Router();
 const productRoles = allowRoles("Super Admin", "Product Manager");
@@ -572,6 +573,15 @@ router.delete(
 );
 
 router.get(
+  "/shipping/pickup-locations",
+  allowRoles("Super Admin"),
+  asyncHandler(async (_req, res) => {
+    if (!shiprocketConfigured()) return fail(res, 409, "Configure Shiprocket credentials first");
+    return ok(res, await shiprocketPickupLocations());
+  }),
+);
+
+router.get(
   "/shipping/settings",
   allowRoles("Super Admin"),
   asyncHandler(async (_req, res) => {
@@ -613,6 +623,12 @@ router.put(
       return fail(res, 409, "Configure Shiprocket credentials before enabling the provider");
     }
     const value = input.value;
+    if (value.providerEnabled) {
+      const locations = await shiprocketPickupLocations();
+      const selected = locations.find((location) => location.pickup_location === value.pickupLocation);
+      if (!selected) return fail(res, 422, "Select a pickup location returned by Shiprocket");
+      value.pickupPincode = selected.pin_code;
+    }
     await pool.query(
       `INSERT INTO shipping_settings
         (id,provider_enabled,pickup_location,pickup_pincode,
@@ -895,6 +911,20 @@ function shiprocketConfigured() {
       (String(process.env.SHIPROCKET_EMAIL || "").trim() &&
         String(process.env.SHIPROCKET_PASSWORD || "").trim()),
   );
+}
+async function shiprocketPickupLocations() {
+  const result = await shiprocketRequest("/settings/company/pickup");
+  const addresses = result?.data?.shipping_address || [];
+  return addresses
+    .map((address) => ({
+      id: Number(address.id) || null,
+      pickup_location: String(address.pickup_location || "").trim(),
+      pin_code: String(address.pin_code || "").replace(/\D/g, ""),
+      city: String(address.city || "").trim(),
+      state: String(address.state || "").trim(),
+      address: [address.address, address.address_2].filter(Boolean).join(", "),
+    }))
+    .filter((address) => address.pickup_location && /^\d{6}$/.test(address.pin_code));
 }
 function shippingSettingsInput(body) {
   const value = {
