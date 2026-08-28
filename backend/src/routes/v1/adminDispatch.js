@@ -62,6 +62,8 @@ router.post("/shipments", asyncHandler(async (req, res) => {
   if (!order) return fail(res, 404, "Order not found");
   if (!['packed','ready_to_dispatch'].includes(order.status)) return fail(res, 409, "Pack the order before creating its shipment");
   const settings = settingsRows[0];
+  if (!settings?.pickup_location) return fail(res, 422, "Configure the exact Shiprocket pickup location name in Shipping Settings");
+  if (!items.length) return fail(res, 422, "The order has no items to send to Shiprocket");
   const address = parseJson(order.shipping_address_json);
   const paymentMethod = String((await pool.query("SELECT provider FROM payments WHERE order_id=? ORDER BY id DESC LIMIT 1", [orderId]))[0][0]?.provider || "cod").toLowerCase();
   const nameParts = String(address.full_name || order.customer || "Customer").trim().split(/\s+/);
@@ -73,7 +75,17 @@ router.post("/shipments", asyncHandler(async (req, res) => {
     payment_method: paymentMethod === "cod" ? "COD" : "Prepaid", sub_total: Number(order.subtotal),
     length: Number(settings.default_length_cm || 10), breadth: Number(settings.default_width_cm || 10), height: Number(settings.default_height_cm || 10), weight: Number(settings.default_weight_grams || 500) * items.reduce((sum, item) => sum + Number(item.quantity), 0) / 1000,
   }});
-  const [result] = await pool.query(`INSERT INTO shipments(order_id,provider,provider_order_id,provider_shipment_id,pickup_location,shipping_charge,weight,length,width,height,status) VALUES (?,?,?,?,?,?,?,?,?,?,'shipment_created')`, [order.id,"shiprocket",provider.order_id,provider.shipment_id,settings.pickup_location,order.shipping_amount || 0,Number(settings.default_weight_grams || 500) * items.reduce((sum, item) => sum + Number(item.quantity), 0) / 1000,settings.default_length_cm || 10,settings.default_width_cm || 10,settings.default_height_cm || 10]);
+  const providerOrderId = Number(provider.order_id);
+  const providerShipmentId = Number(provider.shipment_id);
+  if (!Number.isInteger(providerOrderId) || providerOrderId <= 0 || !Number.isInteger(providerShipmentId) || providerShipmentId <= 0) {
+    return fail(res, 502, `Shiprocket did not create the order: ${findProviderError(provider) || "missing order_id or shipment_id"}`);
+  }
+  const verification = await shiprocketRequest(`/orders/show/${encodeURIComponent(providerOrderId)}`);
+  const verifiedOrder = verification?.data || verification;
+  if (Number(verifiedOrder?.id) !== providerOrderId) {
+    return fail(res, 502, "Shiprocket returned an order ID but the order could not be verified in the connected account");
+  }
+  const [result] = await pool.query(`INSERT INTO shipments(order_id,provider,provider_order_id,provider_shipment_id,pickup_location,shipping_charge,weight,length,width,height,status) VALUES (?,?,?,?,?,?,?,?,?,?,'shipment_created')`, [order.id,"shiprocket",providerOrderId,providerShipmentId,settings.pickup_location,order.shipping_amount || 0,Number(settings.default_weight_grams || 500) * items.reduce((sum, item) => sum + Number(item.quantity), 0) / 1000,settings.default_length_cm || 10,settings.default_width_cm || 10,settings.default_height_cm || 10]);
   await addEvent(result.insertId, "shipment_created", "Shipment created in Shiprocket");
   return ok(res, { id: result.insertId, provider_order_id: provider.order_id, provider_shipment_id: provider.shipment_id }, "Shipment created", 201);
 }));
