@@ -57,9 +57,41 @@ body {
 a,
 button,
 label,
-select
- {
+select,
+summary,
+option,
+input[type="button"],
+input[type="submit"],
+input[type="reset"],
+input[type="checkbox"],
+input[type="radio"],
+input[type="file"],
+input[type="image"],
+input[type="range"],
+input[type="color"],
+[role="button"],
+[role="link"],
+[role="checkbox"],
+[role="radio"],
+[role="switch"],
+[role="tab"],
+[role="menuitem"],
+[role="menuitemcheckbox"],
+[role="menuitemradio"],
+[role="option"],
+[role="treeitem"],
+[onclick],
+[data-clickable="true"],
+.clickable,
+.cursor-pointer {
   cursor: pointer;
+}
+
+:disabled,
+[disabled],
+[aria-disabled="true"],
+.disabled {
+  cursor: not-allowed;
 }
 
 #root {
