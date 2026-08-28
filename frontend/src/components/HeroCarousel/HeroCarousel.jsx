@@ -272,7 +272,7 @@ const HeroCarousel = () => {
         className="relative w-full overflow-hidden"
         aria-label="Loading featured content"
       >
-        <div className="relative aspect-[2/1] w-full flex items-center justify-center bg-[linear-gradient(110deg,#f0f4f1_0%,#f8faf9_50%,#f0f4f1_100%)] animate-pulse">
+        <div className="relative h-[85vh] min-h-[500px] w-full flex items-center justify-center bg-[linear-gradient(110deg,#f0f4f1_0%,#f8faf9_50%,#f0f4f1_100%)] animate-pulse md:h-auto md:min-h-0 md:aspect-[2/1]">
           <div className="flex flex-col items-center gap-3">
             <Spinner className="h-9 w-9 text-[#079447]" />
             <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">
@@ -292,7 +292,7 @@ const HeroCarousel = () => {
       onMouseLeave={() => setIsPaused(false)}
     >
       <div
-        className="relative aspect-[2/1] w-full overflow-hidden touch-pan-y select-none"
+        className="relative h-[85vh] min-h-[520px] max-h-[850px] w-full overflow-hidden touch-pan-y select-none md:h-auto md:min-h-0 md:max-h-none md:aspect-[2/1]"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -317,15 +317,18 @@ const HeroCarousel = () => {
             {/* Background Image with Responsive Mobile Picture Source */}
             <picture className="absolute inset-0 h-full w-full">
               <source
-                media="(max-width: 640px)"
+                media="(max-width: 767px)"
                 srcSet={item.mobileImage || item.image}
               />
               <img
                 src={item.image}
                 alt=""
-                className="h-full w-full object-cover"
+                className="h-full w-full object-cover object-center md:object-center"
               />
             </picture>
+
+            {/* Gradient Overlay for Mobile Legibility */}
+            <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/85 via-black/40 to-black/10 md:bg-none" />
 
             {/* Content overlay */}
             <div className="absolute inset-0 z-20">
@@ -333,31 +336,18 @@ const HeroCarousel = () => {
                 <div
                   className="
                     absolute
-                    left-[5%]
-                    top-1/3
-                    w-[43%]
-                    max-w-[600px]
-                    -translate-y-1/2
+                    bottom-12 left-[6%] right-[6%]
+                    md:bottom-auto md:right-auto
+                    md:left-[5%] md:top-1/3 md:w-[43%] md:max-w-[600px] md:-translate-y-1/2
                     text-white
-                    max-[1024px]:left-[6%]
-                    max-[1024px]:w-[44%]
-                    max-[767px]:left-[5%]
-                    max-[767px]:w-[46%]
-                    max-[480px]:left-[4%]
-                    max-[480px]:w-[48%]
                   "
                 >
                   {/* TITLE */}
                   <h1
                     className="
-                      text-[clamp(20px,3vw,50px)]
-                      font-normal
-                      leading-[1.15]
-                      tracking-[-0.02em]
-                      max-[1024px]:text-[clamp(17px,3vw,36px)]
-                      max-[767px]:text-[clamp(13px,3.4vw,24px)]
-                      max-[767px]:leading-[1.18]
-                      max-[480px]:text-[clamp(11px,3.5vw,18px)]
+                      text-2xl font-bold leading-[1.2] tracking-[-0.02em]
+                      sm:text-3xl
+                      md:text-[clamp(20px,3vw,50px)] md:font-normal md:leading-[1.15]
                     "
                   >
                     {item.title}
@@ -366,17 +356,10 @@ const HeroCarousel = () => {
                   {/* DESCRIPTION */}
                   <p
                     className="
-                      mt-[clamp(8px,1vw,18px)]
-                      max-w-[550px]
-                      text-[clamp(10px,1.05vw,17px)]
-                      leading-[1.5]
-                      text-white/95
-                      max-[1024px]:text-[clamp(9px,1.1vw,14px)]
-                      max-[767px]:mt-[6px]
-                      max-[767px]:text-[clamp(8px,1.8vw,12px)]
-                      max-[767px]:leading-[1.35]
-                      max-[480px]:mt-[4px]
-                      max-[480px]:text-[clamp(7px,1.9vw,10px)]
+                      mt-2.5 max-w-[550px]
+                      text-sm leading-relaxed text-white/90
+                      sm:text-base
+                      md:mt-[clamp(8px,1vw,18px)] md:text-[clamp(10px,1.05vw,17px)] md:leading-[1.5] md:text-white/95
                     "
                   >
                     {item.description}
@@ -385,41 +368,22 @@ const HeroCarousel = () => {
                   {/* BUTTONS */}
                   <div
                     className="
-                      mt-[clamp(12px,1.5vw,24px)]
-                      flex
-                      items-center
-                      gap-[clamp(7px,1vw,16px)]
-                      max-[767px]:mt-[7px]
-                      max-[767px]:gap-[6px]
-                      max-[480px]:mt-[5px]
-                      max-[480px]:gap-[4px]
+                      mt-5 flex flex-wrap items-center gap-3
+                      sm:gap-4
+                      md:mt-[clamp(12px,1.5vw,24px)] md:gap-[clamp(7px,1vw,16px)]
                     "
                   >
                     {/* VIEW PRODUCT */}
                     <Link
                       to={item.productUrl}
                       className="
-                        inline-flex
-                        items-center
-                        justify-center
-                        rounded-full
-                        border
-                        border-white
-                        px-[clamp(14px,1.8vw,30px)]
-                        py-[clamp(6px,0.55vw,10px)]
-                        text-[clamp(9px,0.85vw,14px)]
-                        font-medium
-                        whitespace-nowrap
-                        transition-all
-                        duration-300
-                        hover:bg-white
-                        hover:text-[#222]
-                        max-[767px]:px-3
-                        max-[767px]:py-1
-                        max-[767px]:text-[8px]
-                        max-[480px]:px-2
-                        max-[480px]:py-[3px]
-                        max-[480px]:text-[7px]
+                        inline-flex items-center justify-center
+                        rounded-full border border-white
+                        px-5 py-2.5 text-xs font-semibold whitespace-nowrap text-white
+                        shadow-md backdrop-blur-xs transition-all duration-300
+                        hover:bg-white hover:text-[#222]
+                        sm:px-6 sm:py-3 sm:text-sm
+                        md:px-[clamp(14px,1.8vw,30px)] md:py-[clamp(6px,0.55vw,10px)] md:text-[clamp(9px,0.85vw,14px)] md:font-medium md:shadow-none
                       "
                     >
                       {item.productButton}
@@ -431,27 +395,13 @@ const HeroCarousel = () => {
                       target="_blank"
                       rel="noopener noreferrer"
                       className="
-                        inline-flex
-                        items-center
-                        justify-center
-                        rounded-full
-                        bg-white
-                        px-[clamp(14px,1.8vw,30px)]
-                        py-[clamp(6px,0.55vw,10px)]
-                        text-[clamp(9px,0.85vw,14px)]
-                        font-medium
-                        whitespace-nowrap
-                        text-[#444]
-                        transition-all
-                        duration-300
-                        hover:bg-[#079447]
-                        hover:text-white
-                        max-[767px]:px-3
-                        max-[767px]:py-1
-                        max-[767px]:text-[8px]
-                        max-[480px]:px-2
-                        max-[480px]:py-[3px]
-                        max-[480px]:text-[7px]
+                        inline-flex items-center justify-center
+                        rounded-full bg-white
+                        px-5 py-2.5 text-xs font-semibold whitespace-nowrap text-[#333]
+                        shadow-md transition-all duration-300
+                        hover:bg-[#079447] hover:text-white
+                        sm:px-6 sm:py-3 sm:text-sm
+                        md:px-[clamp(14px,1.8vw,30px)] md:py-[clamp(6px,0.55vw,10px)] md:text-[clamp(9px,0.85vw,14px)] md:font-medium md:shadow-none
                       "
                     >
                       {item.whatsappText}
@@ -462,6 +412,25 @@ const HeroCarousel = () => {
             </div>
           </div>
         ))}
+
+        {/* Slide Indicators for Mobile & Desktop */}
+        {totalSlides > 1 && (
+          <div className="absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2">
+            {heroSlides.map((_, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => setCurrentSlide(idx)}
+                aria-label={`Go to slide ${idx + 1}`}
+                className={`h-2.5 rounded-full transition-all duration-300 ${
+                  idx === currentSlide
+                    ? "w-7 bg-[#079447] shadow-sm"
+                    : "w-2.5 bg-white/60 hover:bg-white"
+                }`}
+              />
+            ))}
+          </div>
+        )}
 
         {totalSlides > 1 && (
           <>
