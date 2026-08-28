@@ -19,6 +19,9 @@ function resolveApiBase(configuredUrl) {
 
 const BASE = resolveApiBase(import.meta.env.VITE_API_URL || DEFAULT_API_URL);
 
+export const apiEndpoint = (path) =>
+  `${BASE}${path.startsWith("/") ? path : `/${path}`}`;
+
 export const assetUrl = (path) =>
   /^https?:\/\//i.test(path || "") ? path : `${BASE}${path || ""}`;
 
