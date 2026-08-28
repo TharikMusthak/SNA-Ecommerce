@@ -338,9 +338,10 @@ export default function Orders({ onStageChange }) {
 
 function OrderCard({ order, saving, onStatusChange, onView }) {
   const items = order.items || [];
-  const itemCount = Number.isFinite(Number(order.item_count))
-    ? Number(order.item_count)
-    : items.reduce((total, item) => total + Number(item.quantity || 0), 0);
+  const apiItemCount = Number(order.item_count);
+  const itemCount = Number.isFinite(apiItemCount) && apiItemCount > 0
+    ? apiItemCount
+    : items.reduce((total, item) => total + Number(item.quantity || 0), 0) || legacyItemCount(order.product);
   const address = order.shipping_address || safeJson(order.shipping_address_json);
   const summary = order.summary || {
     total: Number(order.amount || 0),
@@ -513,6 +514,12 @@ function safeJson(value) {
   } catch {
     return {};
   }
+}
+function legacyItemCount(productSummary) {
+  const value = String(productSummary || "").trim();
+  if (!value) return 0;
+  const match = value.match(/^(\d+)\s+items?$/i);
+  return match ? Number(match[1]) : 1;
 }
 function filterLegacyOrders(orders, query) {
   const search = String(query.search || "").trim().toLocaleLowerCase();
