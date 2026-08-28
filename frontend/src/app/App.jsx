@@ -18,6 +18,33 @@ const AppContent = () => {
     return () => window.clearTimeout(timer);
   }, []);
 
+  // Disable right-click save, context menu, and dragging on media elements project-wide
+  useEffect(() => {
+    const preventMediaSave = (e) => {
+      const target = e.target;
+      if (!target) return;
+      const isMedia =
+        target.tagName === "IMG" ||
+        target.tagName === "VIDEO" ||
+        target.tagName === "AUDIO" ||
+        target.closest?.("img") ||
+        target.closest?.("video") ||
+        target.closest?.("audio");
+
+      if (isMedia) {
+        e.preventDefault();
+      }
+    };
+
+    document.addEventListener("contextmenu", preventMediaSave, true);
+    document.addEventListener("dragstart", preventMediaSave, true);
+
+    return () => {
+      document.removeEventListener("contextmenu", preventMediaSave, true);
+      document.removeEventListener("dragstart", preventMediaSave, true);
+    };
+  }, []);
+
   if (isStarting || loading) {
     return <Loaders />;
   }

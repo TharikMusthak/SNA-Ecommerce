@@ -317,6 +317,9 @@ const ProductImageGallery = ({ product, selectedVariant = null }) => {
                           src={item.url}
                           className="h-full w-full object-cover opacity-60"
                           preload="metadata"
+                          controlsList="nodownload noplaybackrate"
+                          disablePictureInPicture
+                          onContextMenu={(e) => e.preventDefault()}
                         />
                       )}
                       <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/10 transition-colors">
@@ -372,9 +375,13 @@ const ProductImageGallery = ({ product, selectedVariant = null }) => {
               <video
                 src={currentMedia.url}
                 controls
+                controlsList="nodownload noplaybackrate"
+                disablePictureInPicture
+                disableRemotePlayback
                 playsInline
                 preload="auto"
                 poster={currentMedia.thumbnail}
+                onContextMenu={(e) => e.preventDefault()}
                 className="h-full w-full rounded-[2rem] object-contain"
               />
             )}
@@ -554,9 +561,13 @@ const ProductImageGallery = ({ product, selectedVariant = null }) => {
                 <video
                   src={currentMedia.url}
                   controls
+                  controlsList="nodownload noplaybackrate"
+                  disablePictureInPicture
+                  disableRemotePlayback
                   autoPlay
                   playsInline
                   poster={currentMedia.thumbnail}
+                  onContextMenu={(e) => e.preventDefault()}
                   className="max-h-full max-w-full rounded-2xl bg-black shadow-2xl"
                 />
               )
@@ -625,7 +636,14 @@ const ProductImageGallery = ({ product, selectedVariant = null }) => {
                         {item.thumbnail ? (
                           <img src={item.thumbnail} alt="" className="h-full w-full object-cover opacity-75" />
                         ) : (
-                          <video src={item.url} className="h-full w-full object-cover opacity-60" preload="metadata" />
+                          <video
+                            src={item.url}
+                            className="h-full w-full object-cover opacity-60"
+                            preload="metadata"
+                            controlsList="nodownload noplaybackrate"
+                            disablePictureInPicture
+                            onContextMenu={(e) => e.preventDefault()}
+                          />
                         )}
                         <Play size={12} className="absolute text-white fill-white" />
                       </div>

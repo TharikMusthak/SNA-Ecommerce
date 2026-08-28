@@ -827,9 +827,13 @@ const ProductDetail = ({ identifier }) => {
               <video
                 src={productVideos[0].url}
                 controls
+                controlsList="nodownload noplaybackrate"
+                disablePictureInPicture
+                disableRemotePlayback
                 playsInline
                 preload="metadata"
                 poster={productVideos[0].thumbnail}
+                onContextMenu={(e) => e.preventDefault()}
                 className="w-full max-h-[550px] object-contain"
               />
             )}
@@ -1038,7 +1042,13 @@ const ProductDetail = ({ identifier }) => {
                                 <img src={media.previewUrl} alt={media.file.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
                               ) : (
                                 <div className="relative flex h-full w-full items-center justify-center bg-black">
-                                  <video src={media.previewUrl} className="h-full w-full object-cover opacity-80" />
+                                  <video
+                                    src={media.previewUrl}
+                                    className="h-full w-full object-cover opacity-80"
+                                    controlsList="nodownload noplaybackrate"
+                                    disablePictureInPicture
+                                    onContextMenu={(e) => e.preventDefault()}
+                                  />
                                   <div className="absolute flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-xs">
                                     <Play size={12} className="ml-0.5 fill-white" />
                                   </div>
@@ -1120,7 +1130,13 @@ const ProductDetail = ({ identifier }) => {
                         <img src={item.url} alt="Customer upload" className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
                       ) : (
                         <div className="relative flex h-full w-full items-center justify-center bg-black">
-                          <video src={item.url} className="h-full w-full object-cover opacity-80" />
+                          <video
+                            src={item.url}
+                            className="h-full w-full object-cover opacity-80"
+                            controlsList="nodownload noplaybackrate"
+                            disablePictureInPicture
+                            onContextMenu={(e) => e.preventDefault()}
+                          />
                           <div className="absolute flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-xs">
                             <Play size={12} className="ml-0.5 fill-white" />
                           </div>
@@ -1219,7 +1235,13 @@ const ProductDetail = ({ identifier }) => {
                               />
                             ) : (
                               <div className="relative flex h-full w-full items-center justify-center bg-black">
-                                <video src={media.url} className="h-full w-full object-cover opacity-80" />
+                                <video
+                                  src={media.url}
+                                  className="h-full w-full object-cover opacity-80"
+                                  controlsList="nodownload noplaybackrate"
+                                  disablePictureInPicture
+                                  onContextMenu={(e) => e.preventDefault()}
+                                />
                                 <div className="absolute flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-xs">
                                   <Play size={12} className="ml-0.5 fill-white" />
                                 </div>
@@ -1338,7 +1360,11 @@ const ProductDetail = ({ identifier }) => {
               <video
                 src={lightboxMedia.items[lightboxMedia.activeIndex].url}
                 controls
+                controlsList="nodownload noplaybackrate"
+                disablePictureInPicture
+                disableRemotePlayback
                 autoPlay
+                onContextMenu={(e) => e.preventDefault()}
                 className="max-h-full max-w-full rounded-lg bg-black shadow-2xl"
               />
             )}
@@ -1405,7 +1431,13 @@ const ProductDetail = ({ identifier }) => {
                     <img src={item.url} alt="" className="h-full w-full object-cover" />
                   ) : (
                     <div className="relative flex h-full w-full items-center justify-center bg-black">
-                      <video src={item.url} className="h-full w-full object-cover opacity-70" />
+                      <video
+                        src={item.url}
+                        className="h-full w-full object-cover opacity-70"
+                        controlsList="nodownload noplaybackrate"
+                        disablePictureInPicture
+                        onContextMenu={(e) => e.preventDefault()}
+                      />
                       <Play size={12} className="absolute text-white fill-white" />
                     </div>
                   )}
