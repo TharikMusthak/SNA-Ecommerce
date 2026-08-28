@@ -226,6 +226,10 @@ function formatOrder({
   returns,
   includeInternal,
 }) {
+  const recordedItemCount = items.reduce(
+    (total, item) => total + Number(item.quantity || 0),
+    0,
+  );
   const shippingAddress = parseJson(order.shipping_address_json);
   const customerDetails = {
     id: order.user_id,
@@ -270,10 +274,7 @@ function formatOrder({
       currency: order.currency,
     },
     items,
-    item_count: items.reduce(
-      (total, item) => total + Number(item.quantity || 0),
-      0,
-    ),
+    item_count: recordedItemCount || legacyItemCount(order.product),
     history: statusHistory,
     status_history: statusHistory,
     payments: normalizedPayments,
@@ -287,6 +288,13 @@ function formatOrder({
       can_reorder: items.length > 0,
     },
   };
+}
+
+function legacyItemCount(productSummary) {
+  const value = String(productSummary || "").trim();
+  if (!value) return 0;
+  const match = value.match(/^(\d+)\s+items?$/i);
+  return match ? Number(match[1]) : 1;
 }
 
 async function shipmentDetails(database, shipment, includeInternal) {
