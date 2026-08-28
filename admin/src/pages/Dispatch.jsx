@@ -104,8 +104,14 @@ export default function Dispatch({ onNotice }) {
 }
 
 function DispatchModal({ data, saving, onClose, onAction, onRequestCancel }) {
-  const { order, shipment, tracking, shiprocketEnabled } = data;
+  const { order, shipment, tracking, shiprocketEnabled, suggestedPackage = {} } = data;
   const shipmentId = shipment?.id;
+  const [parcel, setParcel] = useState({
+    weight_grams: suggestedPackage.weight_grams || 500,
+    length_cm: suggestedPackage.length_cm || 10,
+    width_cm: suggestedPackage.width_cm || 10,
+    height_cm: suggestedPackage.height_cm || 10,
+  });
   return (
     <Dialog title={`Dispatch ${order.order_code}`} description="Shipment, courier and tracking controls" onClose={saving ? () => {} : onClose} size="large">
         {!shiprocketEnabled && <p className="table-state--error">Shiprocket is disabled. Configure live credentials before dispatching.</p>}
@@ -117,8 +123,15 @@ function DispatchModal({ data, saving, onClose, onAction, onRequestCancel }) {
           <div><dt>Courier</dt><dd>{shipment?.courier_name || "Not assigned"}</dd></div>
           <div><dt>AWB</dt><dd>{shipment?.awb_code || "Not generated"}</dd></div>
         </dl>
+        {!shipmentId && <form className="settings-form" onSubmit={(event) => { event.preventDefault(); onAction("/v1/admin/shipments", { order_id: order.id, ...parcel }); }}>
+          <fieldset className="form-section settings-section">
+            <legend><span>1</span><b>Packed parcel</b><small>Enter the final measurements after packing</small></legend>
+            <div className="row"><label>Weight (grams)<input type="number" min="1" step="1" value={parcel.weight_grams} onChange={(event) => setParcel({ ...parcel, weight_grams: event.target.value })} required /></label><label>Length (cm)<input type="number" min="0.01" step="0.01" value={parcel.length_cm} onChange={(event) => setParcel({ ...parcel, length_cm: event.target.value })} required /></label></div>
+            <div className="row"><label>Width (cm)<input type="number" min="0.01" step="0.01" value={parcel.width_cm} onChange={(event) => setParcel({ ...parcel, width_cm: event.target.value })} required /></label><label>Height (cm)<input type="number" min="0.01" step="0.01" value={parcel.height_cm} onChange={(event) => setParcel({ ...parcel, height_cm: event.target.value })} required /></label></div>
+          </fieldset>
+          <div className="modal-actions"><button disabled={saving || !shiprocketEnabled || !["packed", "ready_to_dispatch"].includes(order.status)}>{saving ? "Creating…" : "Create shipment"}</button></div>
+        </form>}
         <div className="modal-actions">
-          {!shipmentId && <button disabled={saving || !shiprocketEnabled || !["packed", "ready_to_dispatch"].includes(order.status)} onClick={() => onAction("/v1/admin/shipments", { order_id: order.id })}>Create shipment</button>}
           {shipmentId && !shipment.awb_code && <button disabled={saving} onClick={() => onAction(`/v1/admin/shipments/${shipmentId}/assign-courier`)}>Assign courier &amp; AWB</button>}
           {shipmentId && shipment.awb_code && shipment.status === "shipment_created" && <button disabled={saving} onClick={() => onAction(`/v1/admin/shipments/${shipmentId}/schedule-pickup`)}>Schedule pickup</button>}
           {shipmentId && <button disabled={saving} onClick={() => onAction(`/v1/admin/shipments/${shipmentId}/refresh`)}>Refresh tracking</button>}
