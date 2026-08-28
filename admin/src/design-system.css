@@ -918,7 +918,46 @@ button:disabled {
 .order-detail-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px;
+  align-items: start;
+  gap: 30px;
+}
+
+.order-summary-section .commerce-detail {
+  margin: 0;
+}
+
+.order-summary-section .commerce-detail > div {
+  grid-template-columns: minmax(125px, 34%) minmax(0, 1fr);
+  align-items: start;
+  column-gap: 18px;
+}
+
+.order-summary-section .commerce-detail dd {
+  min-width: 0;
+  line-height: 1.45;
+}
+
+.order-payment-detail {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.order-payment-detail > small {
+  margin: 0;
+}
+
+.order-customer-detail > span,
+.order-customer-detail > small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.order-customer-detail > small {
+  margin-top: 3px;
+  color: var(--color-text-muted);
+  font-size: 11px;
 }
 
 .modal-body section > h3 {
@@ -959,6 +998,21 @@ button:disabled {
 .detail-items b, .detail-items small { display: block; }
 .detail-items b { font-size: 12px; }
 .detail-items small { margin-top: 4px; color: var(--color-text-muted); font-size: 10px; }
+
+.detail-items > .order-product-detail-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.order-product-detail-row > span {
+  min-width: 0;
+}
+
+.order-product-detail-row > b:last-child {
+  text-align: right;
+  white-space: nowrap;
+}
 
 .timeline { display: grid; gap: 0; }
 .timeline > div { position: relative; min-height: 48px; display: flex; gap: 12px; }
