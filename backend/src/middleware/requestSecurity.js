@@ -4,7 +4,7 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 export function requireTrustedOrigin(req, res, next) {
   if (SAFE_METHODS.has(req.method)) return next();
-  if (/^\/api\/v1\/(?:(?:payments|shipping)\/webhook\/|webhooks\/wati)/.test(req.originalUrl)) {
+  if (/^\/api\/v1\/(?:(?:payments|shipping)\/webhook\/|webhooks\/(?:wati|tracking))/.test(req.originalUrl)) {
     return next();
   }
 
