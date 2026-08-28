@@ -6,6 +6,47 @@ import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { fail, ok } from "../../utils/apiResponse.js";
 
 const router = Router();
+router.post("/tracking", asyncHandler(async (req, res) => {
+  if (!env.shiprocket.webhookToken) return fail(res, 503, "Tracking webhook is not configured");
+  if (!safeEqual(String(req.get("x-api-key") || ""), env.shiprocket.webhookToken)) {
+    return fail(res, 401, "Invalid webhook token");
+  }
+  const awb = String(req.body?.awb || req.body?.awb_code || "").trim().slice(0, 120);
+  if (!awb) return fail(res, 400, "AWB is required");
+  const [[shipment]] = await pool.query("SELECT id,order_id,status FROM shipments WHERE awb_code=? LIMIT 1", [awb]);
+  if (!shipment) return ok(res, null, "Webhook accepted");
+  const providerStatus = req.body?.shipment_status || req.body?.current_status || req.body?.status;
+  const status = shipmentStatus(providerStatus, req.body?.shipment_status_id || req.body?.current_status_id);
+  const courier = String(req.body?.courier_name || "").trim().slice(0, 190) || null;
+  const location = String(req.body?.location || req.body?.current_location || "").trim().slice(0, 190) || null;
+  const description = String(req.body?.current_status || req.body?.shipment_status || status).trim().slice(0, 500);
+  const eventTime = webhookDate(req.body?.updated_time || req.body?.event_time || req.body?.timestamp);
+  const providerEventId = createHash("sha256").update(`${awb}|${status}|${description}|${location || ""}|${eventTime || ""}`).digest("hex");
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    await connection.query(
+      `UPDATE shipments SET status=?,courier_name=COALESCE(?,courier_name),
+       delivered_at=IF(?='delivered',COALESCE(delivered_at,UTC_TIMESTAMP()),delivered_at)
+       WHERE id=?`,
+      [status, courier, status, shipment.id],
+    );
+    await connection.query(
+      `INSERT IGNORE INTO shipment_events
+       (shipment_id,provider_event_id,status,description,location,event_time,raw_event_reference)
+       VALUES (?,?,?,?,?,COALESCE(?,UTC_TIMESTAMP()),?)`,
+      [shipment.id, providerEventId, status, description, location, eventTime, providerEventId],
+    );
+    const orderStatus = customerOrderStatus(status);
+    if (orderStatus) await connection.query("UPDATE orders SET status=? WHERE id=? AND status NOT IN ('cancelled','returned','refunded')", [orderStatus, shipment.order_id]);
+    await connection.commit();
+    return ok(res, null, "Webhook processed");
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally { connection.release(); }
+}));
+
 router.post("/wati", asyncHandler(async (req, res) => {
   if (!env.wati.webhookSecret) return fail(res, 503, "WATI webhook is not configured");
   if (!Buffer.isBuffer(req.rawBody)) return fail(res, 400, "Raw webhook body unavailable");
@@ -50,6 +91,37 @@ function webhookStatus(body) {
   if (value.includes("deliver")) return "delivered";
   if (value.includes("fail")) return "failed";
   return "sent";
+}
+
+function shipmentStatus(value, statusId) {
+  const byId = { 3: "pickup_scheduled", 6: "in_transit", 7: "delivered", 8: "cancelled", 9: "rto_initiated", 10: "rto_delivered", 17: "out_for_delivery", 18: "in_transit", 19: "picked_up", 21: "delivery_failed", 42: "picked_up", 46: "rto_in_transit" };
+  if (byId[Number(statusId)]) return byId[Number(statusId)];
+  const text = String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  if (text.includes("rto") && text.includes("delivered")) return "rto_delivered";
+  if (text.includes("rto") && text.includes("transit")) return "rto_in_transit";
+  if (text.includes("rto")) return "rto_initiated";
+  if (text.includes("out_for_delivery")) return "out_for_delivery";
+  if (text.includes("undeliver") || text.includes("failed")) return "delivery_failed";
+  if (text.includes("deliver")) return "delivered";
+  if (text.includes("cancel")) return "cancelled";
+  if (text.includes("picked_up") || text.includes("out_for_pickup")) return "picked_up";
+  if (text.includes("pickup")) return "pickup_scheduled";
+  if (text.includes("transit") || text.includes("shipped")) return "in_transit";
+  return "shipment_created";
+}
+
+function customerOrderStatus(status) {
+  if (status === "delivered") return "delivered";
+  if (status === "out_for_delivery") return "out_for_delivery";
+  if (["picked_up", "in_transit"].includes(status)) return "shipped";
+  if (status === "cancelled") return "cancelled";
+  return null;
+}
+
+function webhookDate(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 19).replace("T", " ");
 }
 
 function safeEqual(left, right) {
