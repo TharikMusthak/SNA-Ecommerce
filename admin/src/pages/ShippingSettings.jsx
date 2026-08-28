@@ -76,7 +76,7 @@ export default function ShippingSettings({ onNotice }) {
   return (
     <section>
       <div className="section-heading"><div><h2>Shipping settings</h2><p>Shiprocket provider, package defaults and checkout rules</p></div></div>
-      <form className="settings-form" onSubmit={save} aria-busy={saving}>
+      <form className="settings-form" noValidate onSubmit={save} aria-busy={saving}>
         <fieldset className="form-section settings-section">
           <legend><span>1</span><b>Provider</b><small>Runtime status and pickup identity</small></legend>
           <div className={`configuration-status ${settings.shiprocketConfigured ? "configured" : "missing"}`}>{settings.shiprocketConfigured ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}<span><b>Shiprocket credentials</b><small>{settings.shiprocketConfigured ? "Configured securely in the environment" : "Not configured in the environment"}</small></span></div>
