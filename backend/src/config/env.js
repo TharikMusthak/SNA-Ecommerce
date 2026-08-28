@@ -200,6 +200,7 @@ export const env = Object.freeze({
     password: String(process.env.SHIPROCKET_PASSWORD || ""),
     token: String(process.env.SHIPROCKET_TOKEN || "").trim(),
     timeoutMs: positiveInteger(process.env.SHIPROCKET_TIMEOUT_MS, 12_000),
+    webhookToken: String(process.env.SHIPROCKET_WEBHOOK_TOKEN || "").trim(),
   }),
   pincodeVerification: Object.freeze({
     enabled: booleanValue(process.env.PINCODE_VERIFICATION_ENABLED, true),
