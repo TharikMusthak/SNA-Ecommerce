@@ -77,7 +77,7 @@ app.use(
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Idempotency-Key", "X-WATI-Signature", "X-API-Key"],
+    allowedHeaders: ["Content-Type", "Authorization", "Idempotency-Key", "X-WATI-Signature", "X-API-Key"],
   }),
 );
 app.use(express.json({
