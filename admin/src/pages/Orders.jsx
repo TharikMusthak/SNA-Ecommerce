@@ -338,6 +338,9 @@ export default function Orders({ onStageChange }) {
 
 function OrderCard({ order, saving, onStatusChange, onView }) {
   const items = order.items || [];
+  const itemCount = Number.isFinite(Number(order.item_count))
+    ? Number(order.item_count)
+    : items.reduce((total, item) => total + Number(item.quantity || 0), 0);
   const address = order.shipping_address || safeJson(order.shipping_address_json);
   const summary = order.summary || {
     total: Number(order.amount || 0),
@@ -352,7 +355,7 @@ function OrderCard({ order, saving, onStatusChange, onView }) {
         <div>
           <h3>Order #: {order.order_number || order.order_code}</h3>
           <p>
-            {order.item_count || items.length} products · {formatDateOnly(order.created_at)}
+            {itemCount} {itemCount === 1 ? "product" : "products"} · {formatDateOnly(order.created_at)}
           </p>
         </div>
         <div className="order-card__actions">
