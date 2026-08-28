@@ -7,13 +7,28 @@ export default function ShippingSettings({ onNotice }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [pickupLocations, setPickupLocations] = useState([]);
+  const [pickupLocation, setPickupLocation] = useState("");
+  const [pickupPincode, setPickupPincode] = useState("");
+  const [pickupError, setPickupError] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
       const response = await api("/v1/admin/shipping/settings");
-      setSettings(response.data || response);
+      const loadedSettings = response.data || response;
+      setSettings(loadedSettings);
+      setPickupLocation(loadedSettings.pickupLocation || "");
+      setPickupPincode(loadedSettings.pickupPincode || "");
+      try {
+        const locationsResponse = await api("/v1/admin/shipping/pickup-locations");
+        setPickupLocations(locationsResponse.data || []);
+        setPickupError("");
+      } catch (pickupRequestError) {
+        setPickupLocations([]);
+        setPickupError(pickupRequestError.message);
+      }
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -66,7 +81,7 @@ export default function ShippingSettings({ onNotice }) {
           <legend><span>1</span><b>Provider</b><small>Runtime status and pickup identity</small></legend>
           <div className={`configuration-status ${settings.shiprocketConfigured ? "configured" : "missing"}`}>{settings.shiprocketConfigured ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}<span><b>Shiprocket credentials</b><small>{settings.shiprocketConfigured ? "Configured securely in the environment" : "Not configured in the environment"}</small></span></div>
           <label className="toggle-row"><input name="provider_enabled" type="checkbox" defaultChecked={Boolean(settings.provider_enabled)} disabled={!settings.shiprocketConfigured} /><span><b>Enable Shiprocket</b><small>Use live provider rates and fulfilment actions.</small></span></label>
-          <div className="row"><label>Pickup location<input name="pickup_location" defaultValue={settings.pickupLocation || ""} required /></label><label>Pickup pincode<input name="pickup_pincode" inputMode="numeric" pattern="[0-9]{6}" maxLength="6" defaultValue={settings.pickupPincode || ""} required /></label></div>
+          <div className="row"><label>Pickup location<select name="pickup_location" value={pickupLocation} onChange={(event) => { const value = event.target.value; const selected = pickupLocations.find((location) => location.pickup_location === value); setPickupLocation(value); if (selected) setPickupPincode(selected.pin_code); }} required><option value="">Select Shiprocket pickup location</option>{pickupLocations.map((location) => <option key={location.id || location.pickup_location} value={location.pickup_location}>{location.pickup_location} — {location.city}, {location.state} ({location.pin_code})</option>)}</select>{pickupError && <small className="field-error">{pickupError}</small>}</label><label>Pickup pincode<input name="pickup_pincode" inputMode="numeric" pattern="[0-9]{6}" maxLength="6" value={pickupPincode} readOnly required /></label></div>
         </fieldset>
 
         <fieldset className="form-section settings-section">
