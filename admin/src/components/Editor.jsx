@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { api } from "../api";
+import { upload } from "@vercel/blob/client";
+import { api, apiEndpoint } from "../api";
 import BannerFields from "./BannerFields";
 import ProductFields from "./ProductFields";
 import { compressFormDataImages } from "../utils/compressImage";
@@ -78,6 +79,38 @@ export default function Editor({
           throw new Error(
             "Product name already exists. Please use a different name.",
           );
+        }
+
+        const videoFile = productFormData.get("video");
+        if (videoFile instanceof File && videoFile.size > 0) {
+          onNotice?.("Uploading product video...");
+          const tokenResponse = await api(
+            "/v1/admin/uploads/product-video-token",
+            { method: "POST" },
+          );
+          const safeName = videoFile.name
+            .replace(/[^a-z0-9._-]+/gi, "-")
+            .replace(/^-+|-+$/g, "") || "product-video";
+          const blob = await upload(
+            `products/videos/${Date.now()}-${safeName}`,
+            videoFile,
+            {
+              access: "public",
+              contentType: videoFile.type,
+              handleUploadUrl: apiEndpoint(
+                "/api/v1/webhooks/blob-product-video",
+              ),
+              headers: {
+                Authorization: `Bearer ${tokenResponse.data.token}`,
+              },
+              multipart: true,
+            },
+          );
+          productFormData.delete("video");
+          productFormData.set("video_blob_url", blob.url);
+          onNotice?.("Product video uploaded.");
+        } else {
+          productFormData.delete("video");
         }
 
         await api(`/products${item ? `/${item.id}` : ""}`, {
