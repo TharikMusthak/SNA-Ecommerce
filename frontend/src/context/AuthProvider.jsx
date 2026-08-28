@@ -7,7 +7,9 @@ import {
   useMemo,
   useState,
 } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
+import { EMPTY_CART, QUERY_KEYS } from "@config/constants";
 import {
   getProfile,
   loginUser,
@@ -20,6 +22,20 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  const clearAuthData = useCallback(() => {
+    setUser(null);
+    queryClient.setQueryData(QUERY_KEYS.cart, EMPTY_CART);
+    queryClient.setQueryData(QUERY_KEYS.wishlist, []);
+    queryClient.removeQueries({ queryKey: QUERY_KEYS.cart });
+    queryClient.removeQueries({ queryKey: QUERY_KEYS.wishlist });
+    try {
+      localStorage.removeItem("sna_user_applied_coupon");
+    } catch {
+      // ignore
+    }
+  }, [queryClient]);
 
   // Get currently authenticated user
   const refreshUser = useCallback(async () => {
@@ -61,9 +77,9 @@ export const AuthProvider = ({ children }) => {
     try {
       await logoutUser();
     } finally {
-      setUser(null);
+      clearAuthData();
     }
-  }, []);
+  }, [clearAuthData]);
 
   // Update user locally
   const updateProfile = useCallback((updatedUser) => {
@@ -109,7 +125,7 @@ export const AuthProvider = ({ children }) => {
   // Clear user when API reports unauthorized
   useEffect(() => {
     const clearSession = () => {
-      setUser(null);
+      clearAuthData();
     };
 
     window.addEventListener("sna:unauthorized", clearSession);
@@ -117,7 +133,7 @@ export const AuthProvider = ({ children }) => {
     return () => {
       window.removeEventListener("sna:unauthorized", clearSession);
     };
-  }, []);
+  }, [clearAuthData]);
 
   const value = useMemo(
     () => ({

@@ -34,7 +34,7 @@ export function useWishlist() {
 
   return {
     ...query,
-    items: query.data || [],
+    items: isAuthenticated ? (query.data || []) : [],
     addItem: useMutation({
       mutationFn: addToWishlist,
       onMutate: async (productId) => {

@@ -2,15 +2,20 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   AlertTriangle,
+  BookOpen,
+  ChevronRight,
   Heart,
+  Home,
   LogOut,
   Menu,
+  Package,
+  Phone,
   Search,
   ShoppingCart,
   UserRound,
   X,
 } from "lucide-react";
-import { Link, NavLink, useNavigate ,useLocation} from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import Tinyleaf from "@assets/images/tinyleaf.svg";
 
 import Logo from "@assets/images/Navbar/snaNavbarLogo.svg";
@@ -98,7 +103,7 @@ const CountBadge = ({ value }) =>
 const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
- 
+
   const { user, isAuthenticated, logout } = useAuth();
   const { cart } = useCart();
   const { items: wishlist } = useWishlist();
@@ -113,6 +118,7 @@ const Navbar = () => {
   const debouncedSearch = useDebounce(search.trim(), 250);
   const normalizedSearch = normalizeText(debouncedSearch);
   const searchTokens = normalizedSearch.split(" ").filter(Boolean);
+
   const { data: suggestionData } = useProducts({
     q: debouncedSearch,
     limit: 5,
@@ -122,10 +128,39 @@ const Navbar = () => {
     limit: 20,
     available: "true",
   });
-  let cartCount = cart.items.reduce(
-    (total, item) => total + Number(item.quantity),
-    0,
-  );
+
+  const cartCount = isAuthenticated
+    ? cart.items.reduce((total, item) => total + Number(item.quantity), 0)
+    : 0;
+
+  // Body scroll lock on mobile drawer open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [mobileMenuOpen]);
+
+  // Close drawer on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
+
+  // Close drawer on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") setMobileMenuOpen(false);
+    };
+    if (mobileMenuOpen) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [mobileMenuOpen]);
+
   const suggestions = useMemo(
     () =>
       [...(suggestionData?.items || []), ...(catalogData?.items || [])]
@@ -139,6 +174,7 @@ const Navbar = () => {
         .slice(0, 5),
     [suggestionData, catalogData, normalizedSearch],
   );
+
   const didYouMean = useMemo(() => {
     if (!normalizedSearch || suggestions.length) return null;
     const pool = [...(catalogData?.items || [])].filter(Boolean);
@@ -159,6 +195,7 @@ const Navbar = () => {
         return a._distance - b._distance;
       })[0];
   }, [catalogData, normalizedSearch, suggestions.length]);
+
   const showSuggestions =
     searchTokens.length >= 1 &&
     suggestions.length > 0 &&
@@ -242,16 +279,27 @@ const Navbar = () => {
     }
   };
 
+  const mobileNavItems = [
+    { to: "/", label: "Home", icon: Home },
+    { to: "/products", label: "Products", icon: Package },
+    { to: "/ourstory", label: "Our Story", icon: BookOpen },
+    { to: "/contactus", label: "Contact Us", icon: Phone },
+    { to: isAuthenticated ? "/wishlist" : "/auth/login", label: "Wishlist", icon: Heart, badge: isAuthenticated ? wishlist.length : 0 },
+    { to: isAuthenticated ? "/cart" : "/auth/login", label: "Cart", icon: ShoppingCart, badge: isAuthenticated ? cartCount : 0 },
+    ...(isAuthenticated ? [{ to: "/profile", label: "My Profile", icon: UserRound }] : []),
+  ];
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-gray-200 bg-white/95 backdrop-blur">
-      <div className="mx-auto flex h-[76px] w-[94vw] items-center px-4 sm:px-6 lg:px-0">
+      <div className="mx-auto flex h-[76px] w-[94vw] items-center px-4 sm:px-6 xl:px-0">
         <Link to="/" className="shrink-0" aria-label="SNA Sundaram Home">
           <img src={Logo} alt="SNA Sundaram Logo" className="h-12 w-auto" />
         </Link>
 
+        {/* Desktop Search Bar */}
         <form
           onSubmit={submitSearch}
-          className="relative ml-14 hidden w-[355px] md:block lg:ml-16"
+          className="relative ml-14 hidden w-[355px] xl:block xl:ml-16"
           ref={searchWrapRef}
         >
           <div className="flex h-10 items-center rounded-full border border-gray-300 px-4 focus-within:border-[#12A94B]">
@@ -305,7 +353,8 @@ const Navbar = () => {
           )}
         </form>
 
-        <nav className="ml-auto hidden items-center gap-8 lg:flex">
+        {/* Desktop Navigation */}
+        <nav className="ml-auto hidden items-center gap-8 xl:flex">
           <NavLink to="/" end className={navLinkClass}>
             Home
           </NavLink>
@@ -320,13 +369,12 @@ const Navbar = () => {
           </NavLink>
         </nav>
 
-        <div className="ml-8 hidden items-center gap-6 lg:flex">
+        {/* Desktop Header Actions */}
+        <div className="ml-8 hidden items-center gap-6 xl:flex">
           <Link
             to={isAuthenticated ? "/profile" : "/auth/login"}
             title={user ? `${user.first_name}'s account` : "Sign in"}
-            className={location.pathname === "/profile"
-      ? "text-[#079447]"
-      : "text-[#333] hover:text-[#079447]"}
+            className={location.pathname === "/profile" ? "text-[#079447]" : "text-[#333] hover:text-[#079447]"}
           >
             <UserRound size={23} />
           </Link>
@@ -336,13 +384,11 @@ const Navbar = () => {
             aria-label="Wishlist"
           >
             <Heart size={24} fill="currentColor" />
-           {isAuthenticated&&<CountBadge value={wishlist.length} />} 
+            {isAuthenticated && <CountBadge value={wishlist.length} />}
           </Link>
           <Link
             to={isAuthenticated ? "/cart" : "/auth/login"}
-            className={location.pathname === "/cart"
-      ? "text-[#079447] relative"
-      : "text-[#333] hover:text-[#079447] relative"}
+            className={location.pathname === "/cart" ? "text-[#079447] relative" : "text-[#333] hover:text-[#079447] relative"}
             aria-label="Shopping cart"
           >
             <ShoppingCart size={25} />
@@ -359,37 +405,36 @@ const Navbar = () => {
           )}
         </div>
 
-        <div className="ml-auto flex items-center gap-4 lg:hidden">
+        {/* Mobile Header Actions */}
+        <div className="ml-auto flex items-center gap-4 xl:hidden">
           <Link
             to={isAuthenticated ? "/profile" : "/auth/login"}
             aria-label="Account"
-            className={location.pathname === "/profile"
-      ? "text-[#079447] relative"
-      : "text-[#333] hover:text-[#079447]"}
+            className={location.pathname === "/profile" ? "text-[#079447] relative" : "text-[#333] hover:text-[#079447]"}
           >
             <UserRound size={21} />
           </Link>
           <Link
             to={isAuthenticated ? "/cart" : "/auth/login"}
-            className={location.pathname === "/cart"
-      ? "text-[#079447] relative"
-      : "text-[#333] hover:text-[#079447] relative"}
+            className={location.pathname === "/cart" ? "text-[#079447] relative" : "text-[#333] hover:text-[#079447] relative"}
             aria-label="Shopping cart"
           >
             <ShoppingCart size={23} />
-            <CountBadge value={cartCount} />
+            {isAuthenticated && <CountBadge value={cartCount} />}
           </Link>
           <button
+            type="button"
             aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
             onClick={() => setMobileMenuOpen((open) => !open)}
-            className="flex h-9 w-9 items-center justify-center rounded-md hover:bg-gray-100"
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50/70 text-[#079447] transition hover:bg-emerald-100"
           >
-            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            <Menu size={22} />
           </button>
         </div>
       </div>
 
-      <form onSubmit={submitSearch} className="border-t border-gray-100 px-4 py-3 md:hidden" ref={mobileSearchWrapRef}>
+      {/* Mobile Search Bar */}
+      <form onSubmit={submitSearch} className="border-t border-gray-100 px-4 py-3 xl:hidden" ref={mobileSearchWrapRef}>
         <div className="flex h-10 items-center rounded-full border border-gray-300 px-4 focus-within:border-[#12A94B]">
           <input
             value={search}
@@ -405,100 +450,167 @@ const Navbar = () => {
         </div>
         {showSuggestions && (
           <div className="mt-2 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.12)]">
-              {suggestions.map((item, index) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  aria-selected={index === activeSuggestion}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => goToSuggestion(item.name)}
-                  className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm transition ${
-                    index === activeSuggestion ? "bg-emerald-50" : "hover:bg-gray-50"
-                  }`}
-                >
-                  <span className="min-w-0 truncate text-gray-800">{item.name}</span>
-                  <span className="shrink-0 text-xs text-gray-500">
-                    {item.category_name || item.brand_name || "Product"}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-          {showDidYouMean && (
-            <div className="mt-2 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.12)]">
+            {suggestions.map((item, index) => (
+              <button
+                key={item.id}
+                type="button"
+                aria-selected={index === activeSuggestion}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => goToSuggestion(item.name)}
+                className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm transition ${
+                  index === activeSuggestion ? "bg-emerald-50" : "hover:bg-gray-50"
+                }`}
+              >
+                <span className="min-w-0 truncate text-gray-800">{item.name}</span>
+                <span className="shrink-0 text-xs text-gray-500">
+                  {item.category_name || item.brand_name || "Product"}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+        {showDidYouMean && (
+          <div className="mt-2 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.12)]">
+            <button
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => goToSuggestion(didYouMean.name)}
+              className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm hover:bg-emerald-50"
+            >
+              <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Did you mean
+              </span>
+              <span className="min-w-0 truncate text-gray-800">{didYouMean.name}</span>
+            </button>
+          </div>
+        )}
+      </form>
+
+      {/* =========================================================
+          MOBILE NATIVE APP-STYLE SIDE DRAWER NAVIGATION (PORTAL)
+      ========================================================= */}
+      {createPortal(
+        <div
+          className={`fixed inset-0 z-[100] xl:hidden transition-all duration-300 ${
+            mobileMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          }`}
+        >
+          {/* Dark Backdrop Overlay */}
+          <div
+            className={`absolute inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300 ${
+              mobileMenuOpen ? "opacity-100" : "opacity-0"
+            }`}
+            onClick={() => setMobileMenuOpen(false)}
+          />
+
+          {/* Slide-in App Drawer Panel */}
+          <div
+            className={`
+              absolute top-0 bottom-0 left-0 w-[85vw] max-w-[340px] bg-white shadow-2xl
+              flex flex-col overflow-y-auto transition-transform duration-300 ease-out
+              ${mobileMenuOpen ? "translate-x-0" : "-translate-x-full"}
+            `}
+          >
+            {/* Drawer Brand Header */}
+            <div className="flex items-center justify-between border-b border-gray-100 p-5 bg-gradient-to-r from-emerald-50/60 via-white to-white">
+              <Link to="/" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
+                <img src={Logo} alt="SNA Sundaram" className="h-9 w-auto" />
+              </Link>
               <button
                 type="button"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => goToSuggestion(didYouMean.name)}
-                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm hover:bg-emerald-50"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-900 transition"
+                aria-label="Close menu"
               >
-                <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Did you mean
-                </span>
-                <span className="min-w-0 truncate text-gray-800">{didYouMean.name}</span>
+                <X size={20} />
               </button>
             </div>
-          )}
-        </form>
 
-      <div
-        className={`overflow-hidden border-t border-gray-100 bg-white transition-all duration-300 lg:hidden ${mobileMenuOpen ? "max-h-[460px] opacity-100" : "max-h-0 opacity-0"}`}
-      >
-        <nav className="space-y-1 px-5 py-4">
-        {[
-  ["/", "Home"],
-  ["/ourstory", "Our Story"],
-  ["/products", "Products"],
-  ["/contactus", "Contact Us"],
-  [isAuthenticated ? "/wishlist" : "/auth/login", "Wishlist"],
-].map(([to, label]) => (
-  <NavLink
-    key={`${to}-${label}`}
-    to={to}
-    end={to === "/"}
-    onClick={() => setMobileMenuOpen(false)}
-    className={({ isActive }) =>
-      `flex items-center gap-2 border-b border-gray-100 py-3 transition-colors ${
-        isActive
-          ? "font-medium text-[#079447]"
-          : "text-gray-700 hover:text-[#079447]"
-      }`
-    }
-  >
-    {({ isActive }) => (
-      <>
+            {/* App Profile Status Header */}
+            <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/60">
+              <Link
+                to={isAuthenticated ? "/profile" : "/auth/login"}
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 group"
+              >
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#079447] text-white font-bold text-base shadow-sm">
+                  {(user?.first_name || user?.name || user?.email || "G")[0].toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-gray-900 truncate group-hover:text-[#079447] transition text-sm">
+                    {user?.first_name ? `${user.first_name} ${user.last_name || ""}` : user?.name || "Guest User"}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">{user?.email || "No email"}</p>
+                </div>
+                <ChevronRight size={18} className="text-gray-400 group-hover:text-[#079447] transition" />
+              </Link>
+            </div>
 
-        <span>{label}</span>
-        {isActive && (
-          <img
-            className="h-auto w-[17px]"
-            alt="Tiny leaf"
-            aria-hidden="true"
-            src={Tinyleaf}
-          />
-        )}
+            {/* Drawer App Navigation List */}
+            <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+              {mobileNavItems.map(({ to, label, icon: Icon, badge }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  end={to === "/"}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center justify-between rounded-xl px-4 py-3 text-sm font-medium transition-all ${
+                      isActive
+                        ? "bg-[#079447]/10 text-[#079447] font-semibold border-l-4 border-[#079447]"
+                        : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <div className="flex items-center gap-3">
+                        <Icon size={19} className={isActive ? "text-[#079447]" : "text-gray-500"} />
+                        <span>{label}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {badge > 0 && (
+                          <span className="rounded-full bg-[#079447] px-2 py-0.5 text-[11px] font-bold text-white">
+                            {badge > 99 ? "99+" : badge}
+                          </span>
+                        )}
+                        {isActive && (
+                          <img src={Tinyleaf} alt="" className="h-4 w-auto" aria-hidden="true" />
+                        )}
+                      </div>
+                    </>
+                  )}
+                </NavLink>
+              ))}
+            </nav>
 
-      
-      </>
-    )}
-  </NavLink>
-))}
-          {isAuthenticated && (
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                setShowLogoutConfirm(true);
-              }}
-              className="block w-full py-3 text-left text-red-600"
-            >
-              Sign out
-            </button>
-          )}
-        </nav>
-      </div>
+            {/* Drawer Footer */}
+            <div className="p-4 border-t border-gray-100 bg-gray-50/50 space-y-3">
+              {isAuthenticated && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    setShowLogoutConfirm(true);
+                  }}
+                  className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 transition"
+                >
+                  <LogOut size={18} />
+                  <span>Sign out</span>
+                </button>
+              )}
+              <div className="text-center pt-1">
+                <p className="text-[11px] font-medium text-gray-400">SNA Sundaram Organic Foods</p>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
 
+      {/* Logout Confirmation Modal */}
       {showLogoutConfirm && createPortal(
-        <div className="fixed inset-0 z-[60] grid place-items-center bg-gray-950/45 p-5 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[120] grid place-items-center bg-gray-950/45 p-5 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-[2rem] bg-white p-6 shadow-2xl sm:p-8">
             <div className="grid h-12 w-12 place-items-center rounded-2xl bg-red-50 text-red-600">
               <AlertTriangle size={24} />

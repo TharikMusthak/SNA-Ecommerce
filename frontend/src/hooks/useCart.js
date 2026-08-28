@@ -75,7 +75,7 @@ export function useCart() {
 
   return {
     ...query,
-    cart: query.data || EMPTY_CART,
+    cart: isAuthenticated ? (query.data || EMPTY_CART) : EMPTY_CART,
     addItem: useMutation({
       mutationFn: async ({ productId, quantity, variantId }) => {
         clearUserCouponState();
