@@ -23,6 +23,7 @@ import {
   viewFromHash,
   viewToHash,
 } from "./constants/navigation";
+import { useFormValidation } from "./utils/useFormValidation";
 
 const emptyData = {
   products: [],
@@ -45,6 +46,7 @@ const emptyData = {
 };
 
 export default function App() {
+  useFormValidation();
   const [admin, setAdmin] = useState(null);
   const [checkingSession, setCheckingSession] = useState(true);
   const [sessionMessage, setSessionMessage] = useState("");
