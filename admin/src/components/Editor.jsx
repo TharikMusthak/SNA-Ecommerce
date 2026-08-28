@@ -160,6 +160,7 @@ export default function Editor({
     <div className="overlay" role="presentation">
       <form
         className="modal"
+        noValidate
         onSubmit={submit}
         aria-busy={saving}
         role="dialog"

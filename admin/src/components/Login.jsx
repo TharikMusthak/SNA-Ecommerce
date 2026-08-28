@@ -166,6 +166,7 @@ export default function Login({ onLogin, initialMessage = "" }) {
 
         <form
           className="sna-login-card"
+          noValidate
           onSubmit={submit}
           aria-busy={loading}
         >
