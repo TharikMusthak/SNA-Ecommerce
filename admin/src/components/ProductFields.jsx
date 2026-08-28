@@ -42,7 +42,14 @@ export default function ProductFields({ form, setForm, item, field, onNotice, ca
       </fieldset>
 
       <fieldset className="form-section">
-        <legend><span>3</span><b>Product media</b><small>JPG, PNG or WebP up to 5 MB per image</small></legend>
+        <legend><span>3</span><b>Dispatch package</b><small>Used for courier rates and Shiprocket shipment creation</small></legend>
+        <div className="row">{field("weight_grams", "Weight (grams)", "number", { min: "1", step: "1", required: false })}{field("package_length_cm", "Length (cm)", "number", { min: "0.01", step: "0.01", required: false })}</div>
+        <div className="row">{field("package_width_cm", "Width (cm)", "number", { min: "0.01", step: "0.01", required: false })}{field("package_height_cm", "Height (cm)", "number", { min: "0.01", step: "0.01", required: false })}</div>
+        <small>Empty values use the fallback package configured in Shipping Settings.</small>
+      </fieldset>
+
+      <fieldset className="form-section">
+        <legend><span>4</span><b>Product media</b><small>JPG, PNG or WebP up to 5 MB per image</small></legend>
         <ImagePreviewField name="main_image" label="Main product image" existingImage={form.main_image || item?.main_image} removeFieldName="remove_main_image" />
         <ImagePreviewField name="future_image" label="Future product image" existingImage={form.future_image || item?.future_image} removeFieldName="remove_future_image" />
         <VideoUploadField existingVideo={form.video_url || item?.video_url} />
@@ -50,7 +57,7 @@ export default function ProductFields({ form, setForm, item, field, onNotice, ca
         <ImagePreviewField name="gallery" label={item ? "Add gallery images" : "Product gallery images"} multiple />
       </fieldset>
 
-      {["name", "sku", "category", "category_id", "price", "sale_price", "stock", "low_stock_threshold", "published_at"].map((name) => <input key={name} type="hidden" name={name} value={form[name] ?? ""} />)}
+      {["name", "sku", "category", "category_id", "price", "sale_price", "stock", "low_stock_threshold", "published_at", "weight_grams", "package_length_cm", "package_width_cm", "package_height_cm"].map((name) => <input key={name} type="hidden" name={name} value={form[name] ?? ""} />)}
       <input type="hidden" name="status" value={form.status || "Active"} />
       <input type="hidden" name="is_featured" value={isFeatured ? "true" : "false"} />
     </>
