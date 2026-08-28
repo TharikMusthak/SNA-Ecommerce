@@ -33,7 +33,7 @@ export default function InventoryDialog({ item, mode, onClose, onSubmit }) {
       onClose={saving ? () => {} : onClose}
       size="small"
     >
-      <form className="dialog-form" noValidate onSubmit={submit}>
+      <form className="dialog-form" noValidate onInvalidCapture={(event) => event.preventDefault()} onSubmit={submit}>
         <label>
           {restocking ? "Quantity to add" : "Available quantity"}
           <input

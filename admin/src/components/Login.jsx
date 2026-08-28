@@ -167,6 +167,7 @@ export default function Login({ onLogin, initialMessage = "" }) {
         <form
           className="sna-login-card"
           noValidate
+          onInvalidCapture={(event) => event.preventDefault()}
           onSubmit={submit}
           aria-busy={loading}
         >

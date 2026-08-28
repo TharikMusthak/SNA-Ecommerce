@@ -161,6 +161,7 @@ export default function Editor({
       <form
         className="modal"
         noValidate
+        onInvalidCapture={(event) => event.preventDefault()}
         onSubmit={submit}
         aria-busy={saving}
         role="dialog"
