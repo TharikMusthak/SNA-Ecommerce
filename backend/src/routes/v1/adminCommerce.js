@@ -740,17 +740,23 @@ router.get(
       params.push(req.query.to);
     }
     const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
-    const [[count], [orderIds]] = await Promise.all([
-      pool.query(`SELECT COUNT(*) total FROM orders o ${clause}`, params),
-      pool.query(
-        `SELECT o.id FROM orders o ${clause} ORDER BY o.${p.sort} ${p.order} LIMIT ? OFFSET ?`,
-        [...params, p.limit, p.offset],
-      ),
-    ]);
-    const rows = await findAdminOrdersDetails(
-      orderIds.map((order) => order.id),
-    );
-    return paginated(res, rows, { ...p, total: Number(count[0].total) });
+    const connection = await pool.getConnection();
+    try {
+      const [[count], [orderIds]] = await Promise.all([
+        connection.query(`SELECT COUNT(*) total FROM orders o ${clause}`, params),
+        connection.query(
+          `SELECT o.id FROM orders o ${clause} ORDER BY o.${p.sort} ${p.order} LIMIT ? OFFSET ?`,
+          [...params, p.limit, p.offset],
+        ),
+      ]);
+      const rows = await findAdminOrdersDetails(
+        orderIds.map((order) => order.id),
+        connection,
+      );
+      return paginated(res, rows, { ...p, total: Number(count[0].total) });
+    } finally {
+      connection.release();
+    }
   }),
 );
 router.get(
@@ -759,10 +765,17 @@ router.get(
   asyncHandler(async (req, res) => {
     const id = parsePositiveId(req.params.id);
     if (!id) return fail(res, 400, "Invalid order ID");
-    const order = await findOrderDetails({
-      orderId: id,
-      includeInternal: true,
-    });
+    const connection = await pool.getConnection();
+    let order;
+    try {
+      order = await findOrderDetails({
+        orderId: id,
+        includeInternal: true,
+        database: connection,
+      });
+    } finally {
+      connection.release();
+    }
     if (!order) return fail(res, 404, "Order not found");
     return ok(res, order);
   }),
