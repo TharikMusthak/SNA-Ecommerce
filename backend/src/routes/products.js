@@ -207,8 +207,9 @@ router.post("/", productUploadWithVideo, verifyProductMedia, async (req, res) =>
       `INSERT INTO products
           (name, category, category_id, price, stock, low_stock_threshold,
            status, short_description, description, sale_price, video_url,
-           is_featured, published_at, main_image, future_image, slug, sku)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           is_featured, published_at, main_image, future_image, slug, sku,
+           weight_grams, package_length_cm, package_width_cm, package_height_cm)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         input.value.name,
         category.name,
@@ -227,6 +228,10 @@ router.post("/", productUploadWithVideo, verifyProductMedia, async (req, res) =>
         req.files?.future_image?.[0] ? imageUrl(req.files.future_image[0]) : null,
         slug,
         sku,
+        input.value.weightGrams,
+        input.value.packageLength,
+        input.value.packageWidth,
+        input.value.packageHeight,
       ],
     );
 
@@ -355,7 +360,8 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
          SET name = ?, category = ?, category_id = ?, price = ?, stock = ?,
              low_stock_threshold = ?, status = ?, short_description = ?,
              description = ?, sale_price = ?, video_url = ?, is_featured = ?,
-             published_at = ?, main_image = ?, future_image = ?, slug = ?, sku = ?
+             published_at = ?, main_image = ?, future_image = ?, slug = ?, sku = ?,
+             weight_grams = ?, package_length_cm = ?, package_width_cm = ?, package_height_cm = ?
          WHERE id = ?`,
       [
         input.value.name,
@@ -375,6 +381,10 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
         futureImage,
         slug,
         sku,
+        input.value.weightGrams,
+        input.value.packageLength,
+        input.value.packageWidth,
+        input.value.packageHeight,
         id,
       ],
     );
@@ -773,6 +783,10 @@ function parseProduct(body) {
       ? 1
       : 0,
     publishedAt: parsePublishedAt(body.published_at),
+    weightGrams: optionalPositiveNumber(body.weight_grams),
+    packageLength: optionalPositiveNumber(body.package_length_cm),
+    packageWidth: optionalPositiveNumber(body.package_width_cm),
+    packageHeight: optionalPositiveNumber(body.package_height_cm),
   };
 
   if (rawCategoryId && !categoryId) {
@@ -808,8 +822,17 @@ function parseProduct(body) {
   if (!isAllowed(value.status, PRODUCT_STATUSES)) {
     return { error: "Invalid product status" };
   }
+  if ([value.weightGrams, value.packageLength, value.packageWidth, value.packageHeight].includes(false)) {
+    return { error: "Product package weight and dimensions must be positive numbers or left empty" };
+  }
 
   return { value };
+}
+
+function optionalPositiveNumber(value) {
+  if (String(value ?? "").trim() === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : false;
 }
 
 function parsePublishedAt(value) {
