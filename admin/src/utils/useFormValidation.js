@@ -97,6 +97,8 @@ export function useFormValidation() {
     }
 
     function handleInvalid(event) {
+      // Suppress the browser tooltip; the same error is rendered inline.
+      event.preventDefault();
       showError(event.target);
     }
 
