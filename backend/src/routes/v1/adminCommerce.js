@@ -1,5 +1,7 @@
 import { Router } from "express";
+import jwt from "jsonwebtoken";
 import { pool } from "../../config/db.js";
+import { env } from "../../config/env.js";
 import { allowRoles, requireAdmin } from "../../middleware/auth.js";
 import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { parsePositiveId } from "../../security/validation.js";
@@ -19,6 +21,25 @@ const router = Router();
 const productRoles = allowRoles("Super Admin", "Product Manager");
 const orderRoles = allowRoles("Super Admin", "Order Manager");
 router.use(requireAdmin);
+
+router.post(
+  "/uploads/product-video-token",
+  productRoles,
+  asyncHandler(async (req, res) => {
+    const token = jwt.sign(
+      { scope: "product-video-upload" },
+      env.jwtSecret,
+      {
+        algorithm: "HS256",
+        issuer: env.jwtIssuer,
+        audience: "sna-product-video-upload",
+        subject: String(req.admin.id),
+        expiresIn: "5m",
+      },
+    );
+    return ok(res, { token });
+  }),
+);
 
 router.get(
   "/customers",
