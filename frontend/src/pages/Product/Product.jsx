@@ -13,6 +13,7 @@ import ProductImageGallery from "@components/products/ProductImageGallery";
 import fallbackImage from "@assets/images/product1.png";
 import { apiErrorMessage } from "@api/axios";
 import ProductCard from "@components/products/ProductCard";
+import ProductSortDropdown from "@components/products/ProductSortDropdown";
 import Spinner from "@components/ui/Spinner/Spinner";
 import { useAuth } from "@context/AuthProvider";
 import { useCart } from "@hooks/useCart";
@@ -178,16 +179,7 @@ const ProductList = () => {
             {data?.pagination?.total ?? 0} products available
           </p>
         </div>
-        <select
-          value={params.sort}
-          onChange={(event) => setSort(event.target.value)}
-          className="rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-[#079447]"
-        >
-          <option value="newest">Newest</option>
-          <option value="name">Name</option>
-          <option value="price_asc">Price: low to high</option>
-          <option value="price_desc">Price: high to low</option>
-        </select>
+        <ProductSortDropdown value={params.sort} onChange={setSort} />
       </div>
       {isLoading && (
         <div className="flex justify-center py-24">
