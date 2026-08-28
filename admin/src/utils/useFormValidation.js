@@ -4,6 +4,23 @@ const FIELD_SELECTOR = "input, select, textarea";
 
 export function useFormValidation() {
   useEffect(() => {
+    function enableJavaScriptValidation(root) {
+      if (root instanceof HTMLFormElement) root.noValidate = true;
+      root.querySelectorAll?.("form").forEach((form) => {
+        form.noValidate = true;
+      });
+    }
+
+    enableJavaScriptValidation(document);
+    const formObserver = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          if (node instanceof Element) enableJavaScriptValidation(node);
+        });
+      });
+    });
+    formObserver.observe(document.body, { childList: true, subtree: true });
+
     function fieldLabel(field) {
       const explicit = field.getAttribute("aria-label");
       if (explicit) return explicit.trim();
@@ -108,7 +125,6 @@ export function useFormValidation() {
         event.stopPropagation();
         firstInvalid.focus({ preventScroll: true });
         firstInvalid.scrollIntoView({ behavior: "smooth", block: "center" });
-        firstInvalid.reportValidity();
       }
     }
 
@@ -117,6 +133,7 @@ export function useFormValidation() {
     document.addEventListener("change", handleInput, true);
     document.addEventListener("submit", handleSubmit, true);
     return () => {
+      formObserver.disconnect();
       document.removeEventListener("invalid", handleInvalid, true);
       document.removeEventListener("input", handleInput, true);
       document.removeEventListener("change", handleInput, true);
