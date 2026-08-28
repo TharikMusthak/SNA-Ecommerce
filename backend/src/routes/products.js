@@ -26,6 +26,7 @@ import {
   productNameExists,
 } from "../security/productValidation.js";
 import {
+  isProductBlobUrl,
   safelyDeleteUpload,
   safelyDeleteUploads,
 } from "../services/uploadFiles.js";
@@ -165,10 +166,13 @@ router.get("/:id", async (req, res) => {
 router.post("/", productUploadWithVideo, verifyProductMedia, async (req, res) => {
   const input = parseProduct(req.body);
   const newFiles = uploadedFiles(req);
+  const blobVideo = String(req.body.video_blob_url || "").trim();
 
-  if (input.error) {
+  if (input.error || (blobVideo && !isProductBlobUrl(blobVideo))) {
     await deleteUploadedFiles(newFiles);
-    return res.status(400).json({ message: input.error });
+    return res.status(400).json({
+      message: input.error || "Invalid product video upload URL",
+    });
   }
 
   let connection;
@@ -221,7 +225,7 @@ router.post("/", productUploadWithVideo, verifyProductMedia, async (req, res) =>
         input.value.shortDescription,
         input.value.description,
         input.value.salePrice,
-        req.files?.video?.[0] ? imageUrl(req.files.video[0]) : null,
+        req.files?.video?.[0] ? imageUrl(req.files.video[0]) : blobVideo || null,
         input.value.isFeatured,
         input.value.publishedAt,
         mainImage,
@@ -258,11 +262,12 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
   const id = parsePositiveId(req.params.id);
   const input = parseProduct(req.body);
   const newFiles = uploadedFiles(req);
+  const blobVideo = String(req.body.video_blob_url || "").trim();
 
-  if (!id || input.error) {
+  if (!id || input.error || (blobVideo && !isProductBlobUrl(blobVideo))) {
     await deleteUploadedFiles(newFiles);
     return res.status(400).json({
-      message: input.error || "Invalid product ID",
+      message: input.error || (blobVideo ? "Invalid product video upload URL" : "Invalid product ID"),
     });
   }
 
@@ -314,9 +319,11 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
         ? null
         : existingProduct.main_image;
     const newVideoFile = req.files?.video?.[0];
-    const removeVideo = req.body.remove_video === "1" && !newVideoFile;
+    const removeVideo = req.body.remove_video === "1" && !newVideoFile && !blobVideo;
     const video = newVideoFile
       ? imageUrl(newVideoFile)
+      : blobVideo
+        ? blobVideo
       : removeVideo
         ? null
         : existingProduct.video_url;
@@ -402,7 +409,7 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
     if ((newMainFile || removeMainImage) && oldMainImage !== mainImage) {
       await safelyDeleteUpload(oldMainImage, "products");
     }
-    if ((newVideoFile || removeVideo) && oldVideo !== video) {
+    if ((newVideoFile || blobVideo || removeVideo) && oldVideo !== video) {
       await safelyDeleteUpload(oldVideo, "products");
     }
     if ((newFutureImageFile || removeFutureImage) && oldFutureImage !== futureImage) {
