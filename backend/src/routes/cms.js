@@ -94,7 +94,21 @@ router.get("/dashboard", async (req, res) => {
 
   if (req.admin.role !== "Order Manager") {
     const [[products], [faqs], [banners], [variants]] = await Promise.all([
-      pool.query("SELECT * FROM products ORDER BY id DESC"),
+      pool.query(
+        `SELECT p.*,
+                COALESCE((
+                  SELECT ROUND(AVG(r.rating), 1)
+                  FROM reviews r
+                  WHERE r.product_id = p.id AND r.status = 'approved'
+                ), 0) AS average_rating,
+                (
+                  SELECT COUNT(*)
+                  FROM reviews r
+                  WHERE r.product_id = p.id AND r.status = 'approved'
+                ) AS review_count
+         FROM products p
+         ORDER BY p.id DESC`,
+      ),
       pool.query("SELECT * FROM faqs ORDER BY sort_order, id"),
       pool.query("SELECT * FROM banners ORDER BY sort_order, id DESC"),
       pool.query(
