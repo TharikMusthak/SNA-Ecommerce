@@ -129,7 +129,7 @@ export function useFormValidation() {
         firstInvalid.scrollIntoView({ behavior: "smooth", block: "center" });
       }
     }
-
+    
     document.addEventListener("invalid", handleInvalid, true);
     document.addEventListener("input", handleInput, true);
     document.addEventListener("change", handleInput, true);
