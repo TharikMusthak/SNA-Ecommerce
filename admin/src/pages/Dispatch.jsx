@@ -123,7 +123,7 @@ function DispatchModal({ data, saving, onClose, onAction, onRequestCancel }) {
           <div><dt>Courier</dt><dd>{shipment?.courier_name || "Not assigned"}</dd></div>
           <div><dt>AWB</dt><dd>{shipment?.awb_code || "Not generated"}</dd></div>
         </dl>
-        {!shipmentId && <form className="settings-form" noValidate onSubmit={(event) => { event.preventDefault(); onAction("/v1/admin/shipments", { order_id: order.id, ...parcel }); }}>
+        {!shipmentId && <form className="settings-form" noValidate onInvalidCapture={(event) => event.preventDefault()} onSubmit={(event) => { event.preventDefault(); onAction("/v1/admin/shipments", { order_id: order.id, ...parcel }); }}>
           <fieldset className="form-section settings-section">
             <legend><span>1</span><b>Packed parcel</b><small>Enter the final measurements after packing</small></legend>
             <div className="row"><label>Weight (grams)<input type="number" min="1" step="1" value={parcel.weight_grams} onChange={(event) => setParcel({ ...parcel, weight_grams: event.target.value })} required /></label><label>Length (cm)<input type="number" min="0.01" step="0.01" value={parcel.length_cm} onChange={(event) => setParcel({ ...parcel, length_cm: event.target.value })} required /></label></div>
