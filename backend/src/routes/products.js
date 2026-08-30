@@ -104,10 +104,13 @@ router.get("/", async (req, res) => {
     `SELECT
        p.*,
        c.name AS category_name,
-       COUNT(pi.id) AS gallery_count
+       COUNT(DISTINCT pi.id) AS gallery_count,
+       ROUND(COALESCE(AVG(r.rating), 0), 1) AS average_rating,
+       COUNT(DISTINCT r.id) AS review_count
      FROM products p
      LEFT JOIN categories c ON c.id = p.category_id
      LEFT JOIN product_images pi ON pi.product_id = p.id
+     LEFT JOIN reviews r ON r.product_id = p.id AND r.status = 'approved'
      ${where}
      GROUP BY p.id
      ORDER BY p.${pagination.sort} ${pagination.order}
