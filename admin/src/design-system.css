@@ -928,11 +928,23 @@ label.has-validation-error::after {
   width: 44px;
   height: 44px;
   display: grid;
+  flex: 0 0 44px;
   place-items: center;
-  margin-bottom: 12px;
   color: var(--color-danger);
   background: #fff0ef;
   border-radius: 50%;
+}
+
+.dialog-warning-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 2px 0 4px;
+}
+
+.dialog-warning-row .confirmation-copy {
+  min-width: 0;
+  margin: 0;
 }
 
 .order-detail-grid {
