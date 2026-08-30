@@ -3,7 +3,7 @@ import { Dialog } from "./Dialog";
 
 export default function InventoryDialog({ item, mode, onClose, onSubmit }) {
   const [saving, setSaving] = useState(false);
-
+  
   async function submit(event) {
     event.preventDefault();
     if (saving) return;
