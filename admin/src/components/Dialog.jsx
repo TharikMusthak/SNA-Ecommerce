@@ -83,14 +83,17 @@ export function ConfirmDialog({
   return (
     <Dialog
       title={title}
-      description={description}
+      description={danger ? undefined : description}
       onClose={busy ? () => {} : onClose}
       size="small"
       tone={danger ? "danger" : "default"}
     >
       {danger && (
-        <div className="dialog-warning" aria-hidden="true">
-          <AlertTriangle size={22} />
+        <div className="dialog-warning-row" role="alert">
+          <span className="dialog-warning" aria-hidden="true">
+            <AlertTriangle size={22} />
+          </span>
+          <p className="confirmation-copy">{description}</p>
         </div>
       )}
       <footer className="modal-actions-footer">
