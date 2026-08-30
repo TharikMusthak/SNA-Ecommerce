@@ -613,7 +613,7 @@ export default function CommerceList({ type, onNotice }) {
               onCancel={() => setModal(null)}
             />
           ) : (
-            <form noValidate onSubmit={submitAction}>
+            <form noValidate onInvalidCapture={(event) => event.preventDefault()} onSubmit={submitAction}>
               <p className="confirmation-copy">This action changes persisted data. Review the action before continuing.</p>
               <footer>
                 <button type="button" onClick={() => setModal(null)}>
@@ -740,7 +740,7 @@ function DetailView({ type, response, setModal }) {
 }
 function ActionForm({ modal, saving, onSubmit, onCancel }) {
   return (
-    <form noValidate onSubmit={onSubmit}>
+    <form noValidate onInvalidCapture={(event) => event.preventDefault()} onSubmit={onSubmit}>
       {modal.formType === "reply" && (
         <label>
           Message
