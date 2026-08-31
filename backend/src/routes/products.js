@@ -212,13 +212,14 @@ router.post("/", productUploadWithVideo, verifyProductMedia, async (req, res) =>
     }
     const [result] = await connection.query(
       `INSERT INTO products
-          (name, category, category_id, price, stock, low_stock_threshold,
+          (name, option_label, category, category_id, price, stock, low_stock_threshold,
            status, short_description, description, sale_price, video_url,
            is_featured, published_at, main_image, future_image, slug, sku,
            weight_grams, package_length_cm, package_width_cm, package_height_cm)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         input.value.name,
+        input.value.optionLabel,
         category.name,
         category.id,
         input.value.price,
@@ -367,7 +368,7 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
 
     await connection.query(
       `UPDATE products
-         SET name = ?, category = ?, category_id = ?, price = ?, stock = ?,
+         SET name = ?, option_label = ?, category = ?, category_id = ?, price = ?, stock = ?,
              low_stock_threshold = ?, status = ?, short_description = ?,
              description = ?, sale_price = ?, video_url = ?, is_featured = ?,
              published_at = ?, main_image = ?, future_image = ?, slug = ?, sku = ?,
@@ -375,6 +376,7 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
          WHERE id = ?`,
       [
         input.value.name,
+        input.value.optionLabel,
         category.name,
         category.id,
         input.value.price,
@@ -774,6 +776,7 @@ function parseProduct(body) {
   const categoryId = rawCategoryId ? parsePositiveId(rawCategoryId) : null;
   const value = {
     name: normalizeProductName(body.name),
+    optionLabel: cleanText(body.option_label, 120),
     sku: normalizeSku(body.sku),
     category: cleanText(body.category, 120),
     categoryId,
@@ -802,8 +805,8 @@ function parseProduct(body) {
   if (rawCategoryId && !categoryId) {
     return { error: "Invalid category ID" };
   }
-  if (!value.name || (!value.category && !categoryId)) {
-    return { error: "Product name and category are required" };
+  if (!value.name || !value.optionLabel || (!value.category && !categoryId)) {
+    return { error: "Product name, main product option, and category are required" };
   }
   if (!Number.isFinite(value.price) || value.price < 0) {
     return { error: "Price must be a positive number" };
