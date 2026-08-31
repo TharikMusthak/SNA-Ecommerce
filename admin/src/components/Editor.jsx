@@ -66,9 +66,6 @@ export default function Editor({
     try {
       if (type === "product") {
         const productFormData = new FormData(formElement);
-        const requestedOptionLabel = String(
-          productFormData.get("option_label") || "",
-        ).trim();
         const requestedName = normalizeProductName(
           productFormData.get("name"),
         );
@@ -116,19 +113,10 @@ export default function Editor({
           productFormData.delete("video");
         }
 
-        const savedProduct = await api(`/products${item ? `/${item.id}` : ""}`, {
+        await api(`/products${item ? `/${item.id}` : ""}`, {
           method: item ? "PUT" : "POST",
           body: productFormData,
         });
-        const savedProductId = item?.id || savedProduct?.id || savedProduct?.data?.id;
-        const persistedProduct = savedProductId
-          ? await api(`/products/${savedProductId}?verify=${Date.now()}`)
-          : null;
-        if (persistedProduct?.option_label !== requestedOptionLabel) {
-          throw new Error(
-            "Main product option was not persisted. Deploy the updated backend and run migration 019_product_main_option.sql.",
-          );
-        }
 
         await onProductSaved();
         return;
