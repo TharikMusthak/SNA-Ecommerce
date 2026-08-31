@@ -741,7 +741,7 @@ const ProductDetail = ({ identifier }) => {
                   onClick={() => setVariantId("base")}
                   className={`rounded-xl border px-4 py-2 text-sm ${variantId === "base" ? "border-[#079447] bg-[#079447] text-white" : "border-gray-300"}`}
                 >
-                  {product.option_label || "Standard"} · {formatCurrency(effectivePrice(product))}
+                  {product.option_label || "Standard"}
                 </button>
                 {product.variants.map((variant) => (
                   <button
@@ -752,7 +752,7 @@ const ProductDetail = ({ identifier }) => {
                   >
                     {[variant.size]
                       .filter(Boolean)
-                      .join(" · ") || variant.sku} · {formatCurrency(variant.price)}
+                      .join(" · ") || variant.sku}
                   </button>
                 ))}
               </div>
