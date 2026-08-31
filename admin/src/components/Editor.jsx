@@ -120,7 +120,11 @@ export default function Editor({
           method: item ? "PUT" : "POST",
           body: productFormData,
         });
-        if (savedProduct?.option_label !== requestedOptionLabel) {
+        const savedProductId = item?.id || savedProduct?.id || savedProduct?.data?.id;
+        const persistedProduct = savedProductId
+          ? await api(`/products/${savedProductId}?verify=${Date.now()}`)
+          : null;
+        if (persistedProduct?.option_label !== requestedOptionLabel) {
           throw new Error(
             "Main product option was not persisted. Deploy the updated backend and run migration 019_product_main_option.sql.",
           );
