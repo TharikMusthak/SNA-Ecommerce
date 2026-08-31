@@ -115,7 +115,7 @@ searchRouter.get(
       limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
     if (!q) return fail(res, 422, "Search query is required");
     const [rows] = await pool.query(
-      "SELECT id,name,slug,price,sale_price,main_image,stock FROM products WHERE status='Active' AND deleted_at IS NULL AND (name LIKE ? OR description LIKE ?) ORDER BY CASE WHEN name LIKE ? THEN 0 ELSE 1 END,name LIMIT ?",
+      "SELECT id,name,option_label,slug,price,sale_price,main_image,stock FROM products WHERE status='Active' AND deleted_at IS NULL AND (name LIKE ? OR description LIKE ?) ORDER BY CASE WHEN name LIKE ? THEN 0 ELSE 1 END,name LIMIT ?",
       [`%${q}%`, `%${q}%`, `${q}%`, limit],
     );
     const sessionHash = createHash("sha256")
