@@ -53,6 +53,7 @@ const normalizeSizes = (product) => {
   }
 
   const fallbackLabel =
+    product?.option_label ||
     product?.pack_size ||
     product?.size ||
     product?.weight ||
