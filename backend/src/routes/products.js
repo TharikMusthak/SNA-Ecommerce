@@ -252,7 +252,10 @@ router.post("/", productUploadWithVideo, verifyProductMedia, async (req, res) =>
     }
 
     await connection.commit();
-    res.status(201).json({ id: result.insertId });
+    res.status(201).json({
+      id: result.insertId,
+      option_label: input.value.optionLabel,
+    });
   } catch (error) {
     if (connection) await connection.rollback();
     await deleteUploadedFiles(newFiles);
@@ -421,7 +424,10 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
       await safelyDeleteUpload(oldFutureImage, "products");
     }
 
-    res.json({ message: "Product updated" });
+    res.json({
+      message: "Product updated",
+      option_label: input.value.optionLabel,
+    });
   } catch (error) {
     if (connection) await connection.rollback();
     await deleteUploadedFiles(newFiles);
