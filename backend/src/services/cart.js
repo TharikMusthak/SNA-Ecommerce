@@ -7,7 +7,8 @@ export async function ensureCart(queryable, userId) {
 export async function getCart(queryable, userId, { lock = false } = {}) {
   const cart = await ensureCart(queryable, userId);
   const [items] = await queryable.query(
-    `SELECT ci.id,ci.product_id,ci.variant_id,ci.quantity,p.name,p.slug,p.main_image,
+    `SELECT ci.id,ci.product_id,ci.variant_id,ci.quantity,p.name,p.option_label,p.slug,p.main_image,
+            COALESCE(NULLIF(v.size,''),p.option_label) AS selected_option,
             COALESCE(v.price,p.sale_price,p.price) AS unit_price,
             COALESCE(v.stock,p.stock) AS available_stock,p.tax_rate,COALESCE(v.sku,p.sku) AS sku
      FROM cart_items ci JOIN products p ON p.id=ci.product_id
