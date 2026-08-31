@@ -23,7 +23,7 @@ async function listProducts(req, res, extra = []) {
   const where = conditions.join(" AND ");
   const [[count], [rows]] = await Promise.all([
     pool.query(`SELECT COUNT(*) AS total FROM products p LEFT JOIN categories c ON c.id=p.category_id LEFT JOIN brands b ON b.id=p.brand_id WHERE ${where}`, params),
-    pool.query(`SELECT p.id,p.name,p.slug,p.sku,p.short_description,p.price,p.sale_price,COALESCE(p.sale_price,p.price) AS effective_price,p.stock,p.main_image,p.future_image,p.video_url,p.is_featured,p.is_organic,p.is_homemade,p.is_vegan,c.name AS category_name,b.name AS brand_name FROM products p LEFT JOIN categories c ON c.id=p.category_id LEFT JOIN brands b ON b.id=p.brand_id WHERE ${where} ORDER BY ${SORTS[req.query.sort] || SORTS.newest} LIMIT ? OFFSET ?`, [...params, limit, (page - 1) * limit]),
+    pool.query(`SELECT p.id,p.name,p.option_label,p.slug,p.sku,p.short_description,p.price,p.sale_price,COALESCE(p.sale_price,p.price) AS effective_price,p.stock,p.main_image,p.future_image,p.video_url,p.is_featured,p.is_organic,p.is_homemade,p.is_vegan,c.name AS category_name,b.name AS brand_name FROM products p LEFT JOIN categories c ON c.id=p.category_id LEFT JOIN brands b ON b.id=p.brand_id WHERE ${where} ORDER BY ${SORTS[req.query.sort] || SORTS.newest} LIMIT ? OFFSET ?`, [...params, limit, (page - 1) * limit]),
   ]);
   return paginated(res, rows, { page, limit, total: Number(count[0].total) });
 }
@@ -33,7 +33,7 @@ router.get("/featured", asyncHandler((req, res) => listProducts(req, res, ["p.is
 router.get("/new-arrivals", asyncHandler((req, res) => listProducts(req, res, ["p.created_at >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL 90 DAY)"])));
 router.get("/bestsellers", asyncHandler(async (req, res) => {
   const {page,limit}=pageInfo(req.query);
-  const [[count],[rows]] = await Promise.all([pool.query(`SELECT COUNT(DISTINCT p.id) total FROM order_items oi JOIN orders o ON o.id=oi.order_id JOIN products p ON p.id=oi.product_id WHERE o.status='delivered' AND o.payment_status='paid' AND p.status='Active' AND p.deleted_at IS NULL`),pool.query(`SELECT p.id,p.name,p.slug,p.price,p.sale_price,p.main_image,p.stock,SUM(oi.quantity) AS units_sold
+  const [[count],[rows]] = await Promise.all([pool.query(`SELECT COUNT(DISTINCT p.id) total FROM order_items oi JOIN orders o ON o.id=oi.order_id JOIN products p ON p.id=oi.product_id WHERE o.status='delivered' AND o.payment_status='paid' AND p.status='Active' AND p.deleted_at IS NULL`),pool.query(`SELECT p.id,p.name,p.option_label,p.slug,p.price,p.sale_price,p.main_image,p.stock,SUM(oi.quantity) AS units_sold
     FROM order_items oi JOIN orders o ON o.id=oi.order_id JOIN products p ON p.id=oi.product_id
     LEFT JOIN categories c ON c.id=p.category_id LEFT JOIN brands b ON b.id=p.brand_id
     WHERE o.status='delivered' AND o.payment_status='paid' AND p.status='Active' AND p.deleted_at IS NULL
@@ -48,7 +48,7 @@ router.get("/slug/:slug", asyncHandler((req, res) => detail(req, res, "p.slug = 
 router.get("/:id/related", asyncHandler(async (req, res) => {
   const id = parsePositiveId(req.params.id); if (!id) return fail(res, 400, "Invalid product ID");
   const [[product]] = await pool.query("SELECT category_id FROM products WHERE id=? AND status='Active' AND deleted_at IS NULL", [id]); if (!product) return fail(res, 404, "Product not found");
-  const [rows] = await pool.query("SELECT id,name,slug,price,sale_price,main_image,stock FROM products WHERE category_id <=> ? AND id<>? AND status='Active' AND deleted_at IS NULL ORDER BY id DESC LIMIT 8", [product.category_id,id]); return ok(res, rows);
+  const [rows] = await pool.query("SELECT id,name,option_label,slug,price,sale_price,main_image,stock FROM products WHERE category_id <=> ? AND id<>? AND status='Active' AND deleted_at IS NULL ORDER BY id DESC LIMIT 8", [product.category_id,id]); return ok(res, rows);
 }));
 router.get("/:id", asyncHandler((req, res) => { const id = parsePositiveId(req.params.id); if (!id) return fail(res,400,"Invalid product ID"); return detail(req,res,"p.id = ?",id); }));
 router.get("/", asyncHandler((req, res) => listProducts(req, res)));
