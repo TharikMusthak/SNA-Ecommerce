@@ -9,11 +9,10 @@ import {
 import toast from "react-hot-toast";
 import Tinyleaf from "@assets/images/tinyleaf.svg";
 import ProductDescription from "@components/products/ProductDescription";
-import ProductImageGallery, { normalizeProductMedia } from "@components/products/ProductImageGallery";
+import ProductImageGallery from "@components/products/ProductImageGallery";
 import fallbackImage from "@assets/images/product1.png";
 import { apiErrorMessage } from "@api/axios";
 import ProductCard from "@components/products/ProductCard";
-import ProductSortDropdown from "@components/products/ProductSortDropdown";
 import Spinner from "@components/ui/Spinner/Spinner";
 import { useAuth } from "@context/AuthProvider";
 import { useCart } from "@hooks/useCart";
@@ -179,7 +178,16 @@ const ProductList = () => {
             {data?.pagination?.total ?? 0} products available
           </p>
         </div>
-        <ProductSortDropdown value={params.sort} onChange={setSort} />
+        <select
+          value={params.sort}
+          onChange={(event) => setSort(event.target.value)}
+          className="rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-[#079447]"
+        >
+          <option value="newest">Newest</option>
+          <option value="name">Name</option>
+          <option value="price_asc">Price: low to high</option>
+          <option value="price_desc">Price: high to low</option>
+        </select>
       </div>
       {isLoading && (
         <div className="flex justify-center py-24">
@@ -271,7 +279,7 @@ const ProductDetail = ({ identifier }) => {
   const { addItem } = useCart();
   const wishlist = useWishlist();
   const [quantity, setQuantity] = useState(1);
-  const [variantId, setVariantId] = useState(null);
+  const [variantId, setVariantId] = useState("base");
   const [rating, setRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
   const [reviewTitle, setReviewTitle] = useState("");
@@ -283,9 +291,6 @@ const ProductDetail = ({ identifier }) => {
   const [reviewTouched, setReviewTouched] = useState({});
   const [localHelpfulMap, setLocalHelpfulMap] = useState(() => getSavedHelpfulReviews(userId));
   const [lightboxMedia, setLightboxMedia] = useState(null);
-
-  const productMediaList = useMemo(() => normalizeProductMedia(product), [product]);
-  const productVideos = useMemo(() => productMediaList.filter((m) => m.type === "video"), [productMediaList]);
 
   useEffect(() => {
     setLocalHelpfulMap(getSavedHelpfulReviews(userId));
@@ -424,7 +429,11 @@ const ProductDetail = ({ identifier }) => {
   const add = async () => {
     if (!ensureLogin()) return;
     try {
-      await addItem.mutateAsync({ productId: product.id, quantity, variantId });
+      await addItem.mutateAsync({
+        productId: product.id,
+        quantity,
+        variantId: selectedVariant?.id ?? null,
+      });
       toast.success("Added to cart");
     } catch (error) {
       toast.error(apiErrorMessage(error, "Could not add product"));
@@ -727,15 +736,23 @@ const ProductDetail = ({ identifier }) => {
             <div className="mt-7">
               <p className="font-semibold text-gray-800">Choose an option</p>
               <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setVariantId("base")}
+                  className={`rounded-xl border px-4 py-2 text-sm ${variantId === "base" ? "border-[#079447] bg-[#079447] text-white" : "border-gray-300"}`}
+                >
+                  {product.option_label || "Standard"} · {formatCurrency(effectivePrice(product))}
+                </button>
                 {product.variants.map((variant) => (
                   <button
+                    type="button"
                     key={variant.id}
                     onClick={() => setVariantId(variant.id)}
                     className={`rounded-xl border px-4 py-2 text-sm ${Number(variantId) === Number(variant.id) ? "border-[#079447] bg-[#079447] text-white" : "border-gray-300"}`}
                   >
                     {[variant.size]
                       .filter(Boolean)
-                      .join(" · ") || variant.sku}
+                      .join(" · ") || variant.sku} · {formatCurrency(variant.price)}
                   </button>
                 ))}
               </div>
@@ -771,8 +788,7 @@ const ProductDetail = ({ identifier }) => {
             <button
               disabled={
                 Number(stock) < 1 ||
-                addItem.isPending ||
-                (product.variants?.length > 0 && !variantId)
+                addItem.isPending
               }
               onClick={add}
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#079447] px-7 py-3 font-semibold text-white hover:bg-[#057a3a] disabled:bg-gray-300"
@@ -796,51 +812,6 @@ const ProductDetail = ({ identifier }) => {
          
         </div>
       </div>
-
-      {/* Dedicated Product Video Showcase Section */}
-      {productVideos.length > 0 && (
-        <section className="mt-16 rounded-[2rem] border border-emerald-100 bg-[#f5f7f1] p-6 sm:p-8 lg:p-10" aria-label="Product video showcase">
-          <div className="mx-auto max-w-4xl text-center">
-            <div className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-[#079447] shadow-xs">
-              <Video size={15} />
-              <span>Product Showcase Video</span>
-            </div>
-            <h2 className="mt-3 text-2xl font-bold text-gray-900 sm:text-3xl">
-              Watch {product.name} in Action
-            </h2>
-            <p className="mt-2 text-sm text-gray-600">
-              See traditional preparation, organic ingredients, and authentic quality.
-            </p>
-          </div>
-          <div className="mt-8 mx-auto max-w-4xl overflow-hidden rounded-3xl bg-black shadow-2xl">
-            {productVideos[0].isEmbed ? (
-              <div className="aspect-video w-full">
-                <iframe
-                  src={productVideos[0].embedUrl}
-                  title={`${product.name} video`}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  className="h-full w-full border-0"
-                />
-              </div>
-            ) : (
-              <video
-                src={productVideos[0].url}
-                controls
-                controlsList="nodownload noplaybackrate"
-                disablePictureInPicture
-                disableRemotePlayback
-                playsInline
-                preload="metadata"
-                poster={productVideos[0].thumbnail}
-                onContextMenu={(e) => e.preventDefault()}
-                className="w-full max-h-[550px] object-contain"
-              />
-            )}
-          </div>
-        </section>
-      )}
-
       <section className="mt-20 rounded-[2rem] border border-emerald-100 bg-[#f5f7f1] p-5 sm:p-8 lg:p-10" aria-labelledby="reviews-heading">
         <div className="flex flex-col justify-between gap-4 border-b border-emerald-100 pb-6 sm:flex-row sm:items-end">
           <div>
@@ -1042,13 +1013,7 @@ const ProductDetail = ({ identifier }) => {
                                 <img src={media.previewUrl} alt={media.file.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
                               ) : (
                                 <div className="relative flex h-full w-full items-center justify-center bg-black">
-                                  <video
-                                    src={media.previewUrl}
-                                    className="h-full w-full object-cover opacity-80"
-                                    controlsList="nodownload noplaybackrate"
-                                    disablePictureInPicture
-                                    onContextMenu={(e) => e.preventDefault()}
-                                  />
+                                  <video src={media.previewUrl} className="h-full w-full object-cover opacity-80" />
                                   <div className="absolute flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-xs">
                                     <Play size={12} className="ml-0.5 fill-white" />
                                   </div>
@@ -1130,13 +1095,7 @@ const ProductDetail = ({ identifier }) => {
                         <img src={item.url} alt="Customer upload" className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
                       ) : (
                         <div className="relative flex h-full w-full items-center justify-center bg-black">
-                          <video
-                            src={item.url}
-                            className="h-full w-full object-cover opacity-80"
-                            controlsList="nodownload noplaybackrate"
-                            disablePictureInPicture
-                            onContextMenu={(e) => e.preventDefault()}
-                          />
+                          <video src={item.url} className="h-full w-full object-cover opacity-80" />
                           <div className="absolute flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-xs">
                             <Play size={12} className="ml-0.5 fill-white" />
                           </div>
@@ -1235,13 +1194,7 @@ const ProductDetail = ({ identifier }) => {
                               />
                             ) : (
                               <div className="relative flex h-full w-full items-center justify-center bg-black">
-                                <video
-                                  src={media.url}
-                                  className="h-full w-full object-cover opacity-80"
-                                  controlsList="nodownload noplaybackrate"
-                                  disablePictureInPicture
-                                  onContextMenu={(e) => e.preventDefault()}
-                                />
+                                <video src={media.url} className="h-full w-full object-cover opacity-80" />
                                 <div className="absolute flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-xs">
                                   <Play size={12} className="ml-0.5 fill-white" />
                                 </div>
@@ -1360,11 +1313,7 @@ const ProductDetail = ({ identifier }) => {
               <video
                 src={lightboxMedia.items[lightboxMedia.activeIndex].url}
                 controls
-                controlsList="nodownload noplaybackrate"
-                disablePictureInPicture
-                disableRemotePlayback
                 autoPlay
-                onContextMenu={(e) => e.preventDefault()}
                 className="max-h-full max-w-full rounded-lg bg-black shadow-2xl"
               />
             )}
@@ -1431,13 +1380,7 @@ const ProductDetail = ({ identifier }) => {
                     <img src={item.url} alt="" className="h-full w-full object-cover" />
                   ) : (
                     <div className="relative flex h-full w-full items-center justify-center bg-black">
-                      <video
-                        src={item.url}
-                        className="h-full w-full object-cover opacity-70"
-                        controlsList="nodownload noplaybackrate"
-                        disablePictureInPicture
-                        onContextMenu={(e) => e.preventDefault()}
-                      />
+                      <video src={item.url} className="h-full w-full object-cover opacity-70" />
                       <Play size={12} className="absolute text-white fill-white" />
                     </div>
                   )}
