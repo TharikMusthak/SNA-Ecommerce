@@ -66,6 +66,11 @@ export default function Editor({
     try {
       if (type === "product") {
         const productFormData = new FormData(formElement);
+        // Use the controlled React value explicitly during edits. This avoids
+        // an older/stale DOM value being submitted when the modal is reused.
+        if (item) {
+          productFormData.set("option_label", String(form.option_label || "").trim());
+        }
         const requestedName = normalizeProductName(
           productFormData.get("name"),
         );
