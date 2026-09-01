@@ -369,7 +369,7 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
       );
     }
 
-    await connection.query(
+    const [updateResult] = await connection.query(
       `UPDATE products
          SET name = ?, option_label = ?, category = ?, category_id = ?, price = ?, stock = ?,
              low_stock_threshold = ?, status = ?, short_description = ?,
@@ -404,6 +404,27 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
       ],
     );
 
+    if (!updateResult.affectedRows) {
+      await connection.rollback();
+      await deleteUploadedFiles(newFiles);
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    const [[updatedProduct]] = await connection.query(
+      `SELECT id, option_label
+         FROM products
+        WHERE id = ?
+        LIMIT 1`,
+      [id],
+    );
+
+    if (updatedProduct?.option_label !== input.value.optionLabel) {
+      throw Object.assign(
+        new Error("Main product option could not be updated"),
+        { status: 500 },
+      );
+    }
+
     for (const [index, file] of newGallery.entries()) {
       await connection.query(
         `INSERT INTO product_images(product_id, image, sort_order)
@@ -426,7 +447,7 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
 
     res.json({
       message: "Product updated",
-      option_label: input.value.optionLabel,
+      option_label: updatedProduct.option_label,
     });
   } catch (error) {
     if (connection) await connection.rollback();
