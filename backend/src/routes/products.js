@@ -478,6 +478,37 @@ router.put("/:id/status", async (req, res) => {
   res.json({ message: "Product status updated" });
 });
 
+router.put("/:id/option", async (req, res) => {
+  const id = parsePositiveId(req.params.id);
+  const optionLabel = cleanText(req.body?.option_label, 120);
+
+  if (!id) {
+    return res.status(400).json({ message: "Invalid product ID" });
+  }
+  if (!optionLabel) {
+    return res.status(400).json({
+      message: "Main product option / pack size is required",
+    });
+  }
+
+  const [result] = await pool.query(
+    "UPDATE products SET option_label = ? WHERE id = ?",
+    [optionLabel, id],
+  );
+  if (!result.affectedRows) {
+    return res.status(404).json({ message: "Product not found" });
+  }
+
+  const [[product]] = await pool.query(
+    "SELECT id, option_label FROM products WHERE id = ? LIMIT 1",
+    [id],
+  );
+  res.json({
+    message: "Main product option updated",
+    option_label: product.option_label,
+  });
+});
+
 router.put("/:id/featured", async (req, res) => {
   const id = parsePositiveId(req.params.id);
   const { is_featured: isFeatured } = req.body;
