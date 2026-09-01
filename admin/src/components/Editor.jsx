@@ -123,6 +123,15 @@ export default function Editor({
           body: productFormData,
         });
 
+        if (item) {
+          await api(`/products/${item.id}/option`, {
+            method: "PUT",
+            body: JSON.stringify({
+              option_label: String(form.option_label || "").trim(),
+            }),
+          });
+        }
+
         await onProductSaved();
         return;
       }
