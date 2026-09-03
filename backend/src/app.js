@@ -189,7 +189,7 @@ app.use((error, _req, res, _next) => {
   if (error?.message === "Only MP4, WebM and MOV videos are allowed") {
     return res.status(400).json({ message: error.message });
   }
-
+  
   if (isDuplicateProductNameError(error)) {
     return res.status(409).json({
       message: DUPLICATE_PRODUCT_MESSAGE,
