@@ -525,27 +525,31 @@ const ProductImageGallery = ({ product, selectedVariant = null }) => {
       {/* Lightbox Modal */}
       {isLightboxOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm animate-fade-in"
+          className="fixed inset-0 z-[150] flex items-center justify-center bg-black/95 p-3 sm:p-6 backdrop-blur-sm animate-fade-in"
           onClick={() => setIsLightboxOpen(false)}
         >
-          {/* Modal Header Controls */}
-          <div className="absolute top-4 right-4 z-50 flex items-center gap-3">
-            <span className="text-sm font-medium text-white/80">
+          {/* Top Left Count Indicator */}
+          <div className="absolute top-4 left-4 z-50 sm:top-6 sm:left-6 lg:top-[90px]">
+            <span className="rounded-full bg-black/70 px-3.5 py-1.5 text-xs font-semibold text-white/90 border border-white/20 backdrop-blur-md shadow-lg">
               {activeIndex + 1} / {mediaList.length}
             </span>
+          </div>
+
+          {/* Top Right Header Close Button */}
+          <div className="absolute top-4 right-4 z-50 sm:top-6 sm:right-6 lg:top-[90px]">
             <button
               type="button"
               onClick={() => setIsLightboxOpen(false)}
-              className="rounded-full bg-white/20 p-2 text-white transition hover:bg-white/40"
+              className="flex items-center gap-1.5 rounded-full bg-white px-1.5 py-1.5 text-xs font-bold text-gray-900 shadow-lg transition hover:bg-gray-100 hover:scale-105 focus:outline-none"
               aria-label="Close modal"
             >
-              <X size={24} />
+              <X size={16} className="text-white-900" />
             </button>
           </div>
 
           {/* Modal Active Media Content */}
           <div
-            className="relative flex h-full max-h-[85vh] w-full max-w-5xl items-center justify-center p-4"
+            className="relative flex h-full max-h-[80vh] sm:max-h-[85vh] w-full max-w-5xl items-center justify-center p-2 sm:p-4 my-auto lg:mt-[74px]"
             onClick={(e) => e.stopPropagation()}
           >
             {currentMedia.type === "video" ? (

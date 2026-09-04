@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertCircle, AlertTriangle, Camera, CheckCircle2, ChevronLeft, ChevronRight, Heart, Leaf, LogIn, Minus, Pencil, Play, Plus, ShieldCheck, ShoppingBag, Sparkles, Star, ThumbsUp, Trash2, Truck, UserPlus, Video, X } from "lucide-react";
+import { AlertCircle, AlertTriangle, Camera, CheckCircle2, ChevronLeft, ChevronRight, Heart, LogIn, Minus, Pencil, Play, Plus, ShoppingBag, Sparkles, Star, ThumbsUp, Trash2, UserPlus, X } from "lucide-react";
 import {
   useLocation,
   useNavigate,
@@ -264,12 +264,17 @@ const ProductDetail = ({ identifier }) => {
   const userId = user?.id || user?.email || "guest";
   const { data: product, isLoading, isError } = useProduct(identifier);
 
-  const reviewFormRef = useRef(null);
-  const [formHeight, setFormHeight] = useState(null);
-
-   const { data: related } = useRelatedProducts(product?.id);
+  const { data: related } = useRelatedProducts(product?.id);
   const { addItem } = useCart();
   const wishlist = useWishlist();
+  const { data: reviewsData, isLoading: reviewsLoading } = useProductReviews(product?.id);
+  const submitReview = useSubmitReview(product?.id);
+  const updateReview = useUpdateReview(product?.id);
+  const deleteReview = useDeleteReview(product?.id);
+  const markReviewHelpful = useMarkReviewHelpful(product?.id);
+
+  const reviewFormRef = useRef(null);
+  const [formHeight, setFormHeight] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [variantId, setVariantId] = useState("base");
   const [rating, setRating] = useState(0);
@@ -281,19 +286,22 @@ const ProductDetail = ({ identifier }) => {
   const [deletingReviewId, setDeletingReviewId] = useState(null);
   const [reviewErrors, setReviewErrors] = useState({});
   const [reviewTouched, setReviewTouched] = useState({});
+  const [prevUserId, setPrevUserId] = useState(userId);
   const [localHelpfulMap, setLocalHelpfulMap] = useState(() => getSavedHelpfulReviews(userId));
   const [lightboxMedia, setLightboxMedia] = useState(null);
+  if (prevUserId !== userId) {
+    setPrevUserId(userId);
+    setLocalHelpfulMap(getSavedHelpfulReviews(userId));
+  }
 
   useEffect(() => {
-    setLocalHelpfulMap(getSavedHelpfulReviews(userId));
-  }, [userId]);
-
-
-  const { data: reviewsData, isLoading: reviewsLoading } = useProductReviews(product?.id);
-  const submitReview = useSubmitReview(product?.id);
-  const updateReview = useUpdateReview(product?.id);
-  const deleteReview = useDeleteReview(product?.id);
-  const markReviewHelpful = useMarkReviewHelpful(product?.id);
+    if (!lightboxMedia) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") setLightboxMedia(null);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [lightboxMedia]);
 
   useEffect(
     () => () => {
@@ -323,16 +331,11 @@ const ProductDetail = ({ identifier }) => {
   }, [reviews]);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      setFormHeight(null);
-      return;
-    }
-
     const node = reviewFormRef.current;
     if (!node) return;
 
     const updateHeight = () => {
-      if (node && window.innerWidth >= 1024) {
+      if (node && isAuthenticated && window.innerWidth >= 1024) {
         setFormHeight(node.offsetHeight);
       } else {
         setFormHeight(null);
@@ -376,7 +379,7 @@ const ProductDetail = ({ identifier }) => {
         <h1 className="text-3xl font-semibold">Product not found</h1>
         <button
           onClick={() => navigate("/products")}
-          className="mt-6 text-[#079447]"
+          className="mt-6 text-[#079447] background-transparent "
         >
           Back to products
         </button>
@@ -693,9 +696,30 @@ const ProductDetail = ({ identifier }) => {
   };
 
   return (
-    <main className="mx-auto w-full max-w-[1380px] px-5 py-12 sm:px-8 lg:px-14">
+    <main className="mx-auto w-full max-w-[1380px] px-5 py-6 sm:px-8 sm:py-10 lg:px-14">
+      {/* Top Header Bar with Close / Back Button */}
+      <div className="mb-6 flex items-center justify-between border-b border-gray-100 pb-4">
+        <button
+          type="button"
+          onClick={() => {
+            if (window.history.length > 2) {
+              navigate(-1);
+            } else {
+              navigate("/products");
+            }
+          }}
+          className="group inline-flex items-center gap-2 rounded-full border border-transparent px-4 py-2 text-xs sm:text-sm font-medium text-gray-700 transition hover:border-transparent  hover:text-gray-900 focus:border-transparent focus-visible:border-transparent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
+          aria-label="Back to products"
+        >
+          <ChevronLeft size={18} className="transition-transform group-hover:-translate-x-0.5" />
+          <span>Back to products</span>
+        </button>
+
+       
+      </div>
+
       <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
-        <div className="space-y-6 lg:sticky lg:top-24 lg:self-start">
+        <div className="space-y-6 lg:sticky lg:top-[74px] lg:mt-[74px] lg:self-start">
           <ProductImageGallery
             product={product}
             selectedVariant={selectedVariant}
@@ -742,7 +766,7 @@ const ProductDetail = ({ identifier }) => {
                   onClick={() => setVariantId("base")}
                   className={`rounded-xl border px-4 py-2 text-sm ${variantId === "base" ? "border-[#079447] bg-[#079447] text-white" : "border-gray-300"}`}
                 >
-                  {product.option_label || "Standard"}
+                  {product.option_label || "Standard ggg"}
                 </button>
                 {product.variants.map((variant) => (
                   <button
@@ -1353,27 +1377,32 @@ const ProductDetail = ({ identifier }) => {
       {/* Review Media Lightbox Modal */}
       {lightboxMedia && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur-md animate-fade-in"
+          className="fixed inset-0 z-[150] flex items-center justify-center bg-black/95 p-3 sm:p-6 backdrop-blur-md animate-fade-in"
           onClick={() => setLightboxMedia(null)}
         >
-          {/* Header Controls */}
-          <div className="absolute top-4 right-4 z-50 flex items-center gap-3">
-            <span className="text-sm font-medium text-white/80">
+          {/* Top Left Count Indicator */}
+          <div className="absolute top-4 left-4 z-50 sm:top-6 sm:left-6 lg:top-[90px]">
+            <span className="rounded-full bg-black/70 px-3.5 py-1.5 text-xs font-semibold text-white/90 border border-white/20 backdrop-blur-md shadow-lg">
               {lightboxMedia.activeIndex + 1} / {lightboxMedia.items.length}
             </span>
+          </div>
+
+          {/* Top Right Header Close Button */}
+          <div className="absolute top-4 right-4 z-50 sm:top-6 sm:right-6 lg:top-[90px]">
             <button
               type="button"
               onClick={() => setLightboxMedia(null)}
-              className="rounded-full bg-white/20 p-2 text-white transition hover:bg-white/40"
+              className="flex items-center gap-1.5 rounded-full bg-white px-3.5 py-1.5 text-xs font-bold text-gray-900 shadow-lg transition hover:bg-gray-100 hover:scale-105 focus:outline-none"
               aria-label="Close preview"
             >
-              <X size={24} />
+              <span>Close</span>
+              <X size={16} className="text-gray-900" />
             </button>
           </div>
 
           {/* Active Media Display */}
           <div
-            className="relative flex h-full max-h-[85vh] w-full max-w-5xl items-center justify-center p-4"
+            className="relative flex h-full max-h-[80vh] sm:max-h-[85vh] w-full max-w-5xl items-center justify-center p-2 sm:p-4 my-auto lg:mt-[74px]"
             onClick={(e) => e.stopPropagation()}
           >
             {lightboxMedia.items[lightboxMedia.activeIndex]?.type === "image" ? (
