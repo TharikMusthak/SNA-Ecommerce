@@ -1126,7 +1126,7 @@ const ProductDetail = ({ identifier }) => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => navigate("/auth/register", { state: { from: location.pathname } })}
+                    onClick={() => navigate("/auth/login", { state: { from: location.pathname } })}
                     className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-xl border border-emerald-200/80 bg-white px-4 py-2.5 text-xs font-semibold text-[#079447] transition hover:bg-emerald-50/50"
                   >
                     <UserPlus size={14} />
