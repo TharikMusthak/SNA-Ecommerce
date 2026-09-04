@@ -26,10 +26,11 @@ export function isReviewBlobUrl(value) {
 }
 
 export async function uploadProductImage(file, blobPut = put) {
-  if (!file?.buffer || !file.filename || !file.mimetype) {
-    throw new Error("A validated memory-backed product image is required");
+  if ((!file?.buffer && !file?.path) || !file.filename || !file.mimetype) {
+    throw new Error("A validated product media file is required");
   }
-  const blob = await blobPut(`products/${file.filename}`, file.buffer, {
+  const body = file.buffer || await fs.readFile(file.path);
+  const blob = await blobPut(`products/${file.filename}`, body, {
     access: "public",
     contentType: file.mimetype,
   });
@@ -46,6 +47,12 @@ export async function uploadProductImages(files, blobPut = put, blobDelete = del
   } catch (error) {
     await cleanupProductImageUploads(files, blobDelete);
     throw error;
+  } finally {
+    if (process.env.VERCEL === "1") {
+      await Promise.allSettled(
+        files.map((file) => file?.path).filter(Boolean).map((filePath) => fs.unlink(filePath)),
+      );
+    }
   }
 }
 

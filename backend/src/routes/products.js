@@ -26,9 +26,11 @@ import {
   productNameExists,
 } from "../security/productValidation.js";
 import {
+  cleanupProductImageUploads,
   isProductBlobUrl,
   safelyDeleteUpload,
   safelyDeleteUploads,
+  uploadProductImages,
 } from "../services/uploadFiles.js";
 import { paginated } from "../utils/apiResponse.js";
 import { parsePagination } from "../utils/pagination.js";
@@ -199,6 +201,8 @@ router.post("/", productUploadWithVideo, verifyProductMedia, async (req, res) =>
       return res.status(400).json({ message: "Selected category not found" });
     }
 
+    await persistProductUploads(newFiles);
+
     const mainImage = req.files?.main_image?.[0]
       ? imageUrl(req.files.main_image[0])
       : null;
@@ -258,6 +262,7 @@ router.post("/", productUploadWithVideo, verifyProductMedia, async (req, res) =>
     });
   } catch (error) {
     if (connection) await connection.rollback();
+    await cleanupProductImageUploads(newFiles);
     await deleteUploadedFiles(newFiles);
     throw error;
   } finally {
@@ -362,6 +367,8 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
       });
     }
 
+    await persistProductUploads(newFiles);
+
     if (input.value.isFeatured) {
       await connection.query(
         "UPDATE products SET is_featured = 0 WHERE is_featured = 1 AND id <> ?",
@@ -451,6 +458,7 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
     });
   } catch (error) {
     if (connection) await connection.rollback();
+    await cleanupProductImageUploads(newFiles);
     await deleteUploadedFiles(newFiles);
     throw error;
   } finally {
@@ -609,6 +617,8 @@ router.post(
         });
       }
 
+      await persistProductUploads(files);
+
       const created = [];
       for (const [index, file] of files.entries()) {
         const image = imageUrl(file);
@@ -629,6 +639,7 @@ router.post(
       res.status(201).json(created);
     } catch (error) {
       await connection.rollback();
+      await cleanupProductImageUploads(files);
       await deleteUploadedFiles(files);
       throw error;
     } finally {
@@ -725,6 +736,7 @@ router.put(
         await deleteUploadedFiles(files);
         return res.status(404).json({ message: "Image not found" });
       }
+      await persistProductUploads(files);
       oldImage = image.image;
       const replacement = imageUrl(file);
       await connection.query(
@@ -736,6 +748,7 @@ router.put(
       res.json({ id: imageId, product_id: productId, image: replacement });
     } catch (error) {
       await connection.rollback();
+      await cleanupProductImageUploads(files);
       await deleteUploadedFiles(files);
       throw error;
     } finally {
@@ -826,7 +839,13 @@ router.delete("/:id", async (req, res) => {
 });
 
 function imageUrl(file) {
-  return `/uploads/products/${file.filename}`;
+  return file?.blobUrl || `/uploads/products/${file.filename}`;
+}
+
+async function persistProductUploads(files) {
+  if (process.env.VERCEL === "1") {
+    await uploadProductImages(files);
+  }
 }
 
 function parseProduct(body) {
