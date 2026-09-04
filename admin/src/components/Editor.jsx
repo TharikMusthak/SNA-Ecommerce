@@ -3,6 +3,7 @@ import { upload } from "@vercel/blob/client";
 import { api, apiEndpoint } from "../api";
 import BannerFields from "./BannerFields";
 import ProductFields from "./ProductFields";
+import CustomSelect from "./CustomSelect";
 import { compressFormDataImages } from "../utils/compressImage";
 
 export default function Editor({
@@ -206,7 +207,7 @@ export default function Editor({
             })}
             <label>
               Parent category
-              <select
+              <CustomSelect
                 value={form.parent_id || ""}
                 onChange={(event) =>
                   setForm({
@@ -228,7 +229,7 @@ export default function Editor({
                       {category.name}
                     </option>
                   ))}
-              </select>
+              </CustomSelect>
             </label>
             <label>
               Description
@@ -251,7 +252,7 @@ export default function Editor({
           <>
             <label>
               Product
-              <select
+              <CustomSelect
                 value={form.product_id || ""}
                 onChange={(event) =>
                   setForm({ ...form, product_id: Number(event.target.value) })
@@ -264,7 +265,7 @@ export default function Editor({
                     {product.name}
                   </option>
                 ))}
-              </select>
+              </CustomSelect>
             </label>
             <div className="row">
               {field("brand", "Brand")}
@@ -340,7 +341,7 @@ export default function Editor({
             {field("email", "Email", "email")}
             <label>
               Role
-              <select
+              <CustomSelect
                 value={form.role || "Product Manager"}
                 onChange={(event) =>
                   setForm({ ...form, role: event.target.value })
@@ -349,7 +350,7 @@ export default function Editor({
                 <option>Super Admin</option>
                 <option>Product Manager</option>
                 <option>Order Manager</option>
-              </select>
+              </CustomSelect>
             </label>
             <label>
               {item
@@ -376,7 +377,7 @@ export default function Editor({
 
         <label>
           Status
-          <select
+          <CustomSelect
             value={form.status || defaultStatus}
             onChange={(event) =>
               setForm({ ...form, status: event.target.value })
@@ -384,7 +385,7 @@ export default function Editor({
           >
             <option>{defaultStatus}</option>
             <option>{secondStatus}</option>
-          </select>
+          </CustomSelect>
         </label>
         <footer>
           <button type="button" onClick={onClose} disabled={saving}>

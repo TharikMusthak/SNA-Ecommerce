@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, CheckCircle2, RefreshCw } from "lucide-react";
 import { api } from "../api";
+import CustomSelect from "../components/CustomSelect";
 
 export default function ShippingSettings({ onNotice }) {
   const [settings, setSettings] = useState(null);
@@ -81,7 +82,7 @@ export default function ShippingSettings({ onNotice }) {
           <legend><span>1</span><b>Provider</b><small>Runtime status and pickup identity</small></legend>
           <div className={`configuration-status ${settings.shiprocketConfigured ? "configured" : "missing"}`}>{settings.shiprocketConfigured ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}<span><b>Shiprocket credentials</b><small>{settings.shiprocketConfigured ? "Configured securely in the environment" : "Not configured in the environment"}</small></span></div>
           <label className="toggle-row"><input name="provider_enabled" type="checkbox" defaultChecked={Boolean(settings.provider_enabled)} disabled={!settings.shiprocketConfigured} /><span><b>Enable Shiprocket</b><small>Use live provider rates and fulfilment actions.</small></span></label>
-          <div className="row"><label>Pickup location<select name="pickup_location" value={pickupLocation} onChange={(event) => { const value = event.target.value; const selected = pickupLocations.find((location) => location.pickup_location === value); setPickupLocation(value); if (selected) setPickupPincode(selected.pin_code); }} required><option value="">Select Shiprocket pickup location</option>{pickupLocations.map((location) => <option key={location.id || location.pickup_location} value={location.pickup_location}>{location.pickup_location} — {location.city}, {location.state} ({location.pin_code})</option>)}</select>{pickupError && <small className="field-error">{pickupError}</small>}</label><label>Pickup pincode<input name="pickup_pincode" inputMode="numeric" pattern="[0-9]{6}" maxLength="6" value={pickupPincode} readOnly required /></label></div>
+          <div className="row"><label>Pickup location<CustomSelect name="pickup_location" value={pickupLocation} onChange={(event) => { const value = event.target.value; const selected = pickupLocations.find((location) => location.pickup_location === value); setPickupLocation(value); if (selected) setPickupPincode(selected.pin_code); }} required><option value="">Select Shiprocket pickup location</option>{pickupLocations.map((location) => <option key={location.id || location.pickup_location} value={location.pickup_location}>{location.pickup_location} — {location.city}, {location.state} ({location.pin_code})</option>)}</CustomSelect>{pickupError && <small className="field-error">{pickupError}</small>}</label><label>Pickup pincode<input name="pickup_pincode" inputMode="numeric" pattern="[0-9]{6}" maxLength="6" value={pickupPincode} readOnly required /></label></div>
         </fieldset>
 
         <fieldset className="form-section settings-section">
@@ -93,7 +94,7 @@ export default function ShippingSettings({ onNotice }) {
         <fieldset className="form-section settings-section">
           <legend><span>3</span><b>Checkout rules</b><small>Rates, caching and serviceability enforcement</small></legend>
           <div className="row"><label>Free shipping threshold<input name="free_shipping_threshold" type="number" min="0" step="0.01" defaultValue={settings.free_shipping_threshold ?? 0} /></label><label>Pincode cache (minutes)<input name="pincode_cache_minutes" type="number" min="5" max="10080" defaultValue={settings.pincode_cache_minutes ?? 1440} /></label></div>
-          <label>Courier strategy<select name="default_courier_strategy" defaultValue={settings.default_courier_strategy || "cheapest"}><option value="cheapest">Lowest shipping cost</option><option value="fastest">Fastest estimated delivery</option></select></label>
+          <label>Courier strategy<CustomSelect name="default_courier_strategy" defaultValue={settings.default_courier_strategy || "cheapest"}><option value="cheapest">Lowest shipping cost</option><option value="fastest">Fastest estimated delivery</option></CustomSelect></label>
           <label className="toggle-row"><input name="allow_cod" type="checkbox" defaultChecked={Boolean(settings.allow_cod)} /><span><b>Allow cash on delivery</b><small>Shown only when the destination and courier support COD.</small></span></label>
           <label className="toggle-row"><input name="require_serviceable_address" type="checkbox" defaultChecked={Boolean(settings.require_serviceable_address)} /><span><b>Require a serviceable address</b><small>Block checkout when delivery cannot be confirmed.</small></span></label>
         </fieldset>

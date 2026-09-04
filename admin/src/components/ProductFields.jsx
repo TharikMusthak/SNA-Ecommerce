@@ -1,6 +1,7 @@
 import ImagePreviewField from "./ImagePreviewField";
 import ProductGalleryManager from "./ProductGalleryManager";
 import VideoUploadField from "./VideoUploadField";
+import CustomSelect from "./CustomSelect";
 
 export default function ProductFields({ form, setForm, item, field, onNotice, categories = [] }) {
   const isFeatured =
@@ -29,7 +30,7 @@ export default function ProductFields({ form, setForm, item, field, onNotice, ca
         </label>
         {field("sku", "SKU (leave empty to generate automatically)", "text", { required: false, maxLength: "120", placeholder: "Example: SNA-ULUNTHU-LADDU" })}
         {categories.length > 0 ? (
-          <label>Category<select value={form.category_id || ""} onChange={(event) => { const categoryId = event.target.value ? Number(event.target.value) : ""; const category = categories.find((categoryItem) => categoryItem.id === categoryId); setForm({ ...form, category_id: categoryId, category: category?.name || "" }); }} required><option value="">Select category</option>{categories.filter((category) => category.status === "Active").map((category) => <option key={category.id} value={category.id}>{category.parent_name ? `${category.parent_name} → ${category.name}` : category.name}</option>)}</select></label>
+          <label>Category<CustomSelect value={form.category_id || ""} onChange={(event) => { const categoryId = event.target.value ? Number(event.target.value) : ""; const category = categories.find((categoryItem) => categoryItem.id === categoryId); setForm({ ...form, category_id: categoryId, category: category?.name || "" }); }} required><option value="">Select category</option>{categories.filter((category) => category.status === "Active").map((category) => <option key={category.id} value={category.id}>{category.parent_name ? `${category.parent_name} → ${category.name}` : category.name}</option>)}</CustomSelect></label>
         ) : field("category", "Category")}
         <label>Short description<textarea name="short_description" value={form.short_description || ""} onChange={(event) => setForm({ ...form, short_description: event.target.value })} maxLength="500" placeholder="A brief product summary for API listings." /></label>
         <label>Description<textarea name="description" value={form.description || ""} onChange={(event) => setForm({ ...form, description: event.target.value })} maxLength="5000" placeholder="Explain the product, benefits and key details." /></label>

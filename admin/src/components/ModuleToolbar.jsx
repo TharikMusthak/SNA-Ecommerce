@@ -1,4 +1,5 @@
 import { RotateCcw, Search } from "lucide-react";
+import CustomSelect from "./CustomSelect";
 
 export default function ModuleToolbar({
   search,
@@ -19,10 +20,10 @@ export default function ModuleToolbar({
         <input type="search" value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder={searchLabel} />
       </label>
       {onStatusChange && (
-        <select aria-label="Status filter" value={status} onChange={(event) => onStatusChange(event.target.value)}>
+        <CustomSelect aria-label="Status filter" value={status} onChange={(event) => onStatusChange(event.target.value)}>
           <option value="">All statuses</option>
           {statuses.map((item) => <option key={item} value={item}>{item}</option>)}
-        </select>
+        </CustomSelect>
       )}
       {children}
       <button className="secondary-button" type="button" disabled={!hasFilters && !children} onClick={onReset}>
