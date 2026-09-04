@@ -22,9 +22,9 @@ const contactDetails = [
   {
     icon: Mail,
     label: "Email us",
-    value: "hello@sna-sundaram.com",
+    value: "snasundaram@gmail.com",
     description: "We usually respond within 24 hours",
-    href: "mailto:hello@sna-sundaram.com",
+    href: "mailto:snasundaram@gmail.com",
   },
   {
     icon: MessageCircle,

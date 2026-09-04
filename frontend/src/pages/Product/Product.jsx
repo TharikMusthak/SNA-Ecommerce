@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertCircle, AlertTriangle, Camera, CheckCircle2, ChevronLeft, ChevronRight, Heart, Minus, Pencil, Play, Plus, ShoppingBag, Star, ThumbsUp, Trash2, Video, X } from "lucide-react";
+import { AlertCircle, AlertTriangle, Camera, CheckCircle2, ChevronLeft, ChevronRight, Heart, Leaf, LogIn, Minus, Pencil, Play, Plus, ShieldCheck, ShoppingBag, Sparkles, Star, ThumbsUp, Trash2, Truck, UserPlus, Video, X } from "lucide-react";
 import {
   useLocation,
   useNavigate,
   useParams,
   useSearchParams,
 } from "react-router-dom";
+import ProductSortDropdown from "@components/products/ProductSortDropdown";
 import toast from "react-hot-toast";
 import Tinyleaf from "@assets/images/tinyleaf.svg";
 import ProductDescription from "@components/products/ProductDescription";
@@ -178,16 +179,7 @@ const ProductList = () => {
             {data?.pagination?.total ?? 0} products available
           </p>
         </div>
-        <select
-          value={params.sort}
-          onChange={(event) => setSort(event.target.value)}
-          className="rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-[#079447]"
-        >
-          <option value="newest">Newest</option>
-          <option value="name">Name</option>
-          <option value="price_asc">Price: low to high</option>
-          <option value="price_desc">Price: high to low</option>
-        </select>
+               <ProductSortDropdown value={params.sort} onChange={setSort} />
       </div>
       {isLoading && (
         <div className="flex justify-center py-24">
@@ -331,12 +323,19 @@ const ProductDetail = ({ identifier }) => {
   }, [reviews]);
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      setFormHeight(null);
+      return;
+    }
+
     const node = reviewFormRef.current;
     if (!node) return;
 
     const updateHeight = () => {
-      if (node) {
+      if (node && window.innerWidth >= 1024) {
         setFormHeight(node.offsetHeight);
+      } else {
+        setFormHeight(null);
       }
     };
 
@@ -696,11 +695,13 @@ const ProductDetail = ({ identifier }) => {
   return (
     <main className="mx-auto w-full max-w-[1380px] px-5 py-12 sm:px-8 lg:px-14">
       <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
-        <div>
+        <div className="space-y-6 lg:sticky lg:top-24 lg:self-start">
           <ProductImageGallery
             product={product}
             selectedVariant={selectedVariant}
           />
+
+         
         </div>
         <div className="py-4">
           <p className="font-semibold uppercase tracking-[0.18em] text-[#079447]">
@@ -848,9 +849,14 @@ const ProductDetail = ({ identifier }) => {
           </div>
         </div>
 
-        {/* 2-Column Grid: Review Form (Left) & Customer Reviews (Right) - Heights Match Exactly */}
-        <div className="mt-6 grid gap-6 lg:grid-cols-2 lg:items-start">
-          <div ref={reviewFormRef} className="flex flex-col rounded-2xl border border-emerald-100 bg-white/90 p-5 sm:p-6 shadow-sm">
+        {/* 2-Column Grid: Review Form (Left) & Customer Reviews (Right) */}
+        <div className="mt-6 grid gap-6 lg:grid-cols-2 lg:items-stretch">
+          <div
+            ref={reviewFormRef}
+            className={`flex flex-col justify-between rounded-2xl border border-emerald-100 bg-white/90 p-5 sm:p-7 shadow-sm ${
+              !isAuthenticated ? "bg-gradient-to-b from-white via-white to-emerald-50/30" : ""
+            }`}
+          >
             <h3 className="font-semibold text-gray-900">{editingReviewId != null ? "Edit your review" : "Share your experience"}</h3>
             <p className="mt-1 text-sm leading-6 text-gray-600">{editingReviewId != null ? "Update your rating or feedback, then save your changes." : "Your review helps others shop with confidence."}</p>
             {isAuthenticated ? (
@@ -1063,11 +1069,78 @@ const ProductDetail = ({ identifier }) => {
                   )}
                 </div>
               </form>
-            ) : <button onClick={ensureLogin} className="mt-5 rounded-xl border border-[#079447] px-4 py-2.5 text-sm font-semibold text-[#079447] transition hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447]">Log in to write a review</button>}
+            ) : (
+              <div className="mt-5 flex flex-1 flex-col justify-between space-y-6">
+                <div className="space-y-3.5">
+                  <div className="rounded-xl border border-emerald-100/80 bg-white/80 p-3.5 shadow-2xs transition hover:border-[#079447]/30">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100/80 text-[#079447]">
+                        <Sparkles size={18} />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-semibold text-gray-900 sm:text-sm">Rate & Review Products</h4>
+                        <p className="mt-0.5 text-[11px] text-gray-500 leading-relaxed sm:text-xs">
+                          Help fellow shoppers make informed choices by sharing your honest feedback.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-emerald-100/80 bg-white/80 p-3.5 shadow-2xs transition hover:border-[#079447]/30">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100/80 text-[#079447]">
+                        <Camera size={18} />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-semibold text-gray-900 sm:text-sm">Upload Photos & Videos</h4>
+                        <p className="mt-0.5 text-[11px] text-gray-500 leading-relaxed sm:text-xs">
+                          Show real product packaging, texture, and results to inspire the community.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-emerald-100/80 bg-white/80 p-3.5 shadow-2xs transition hover:border-[#079447]/30">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100/80 text-[#079447]">
+                        <CheckCircle2 size={18} />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-semibold text-gray-900 sm:text-sm">Verified Shopper Badge</h4>
+                        <p className="mt-0.5 text-[11px] text-gray-500 leading-relaxed sm:text-xs">
+                          Your reviews gain trusted verified status so shoppers know your experience is authentic.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={ensureLogin}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#079447] px-5 py-3 text-sm font-semibold text-white transition duration-200 hover:bg-[#057a3a] hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447]"
+                  >
+                    <LogIn size={18} />
+                    Log in to write a review
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/auth/register", { state: { from: location.pathname } })}
+                    className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-xl border border-emerald-200/80 bg-white px-4 py-2.5 text-xs font-semibold text-[#079447] transition hover:bg-emerald-50/50"
+                  >
+                    <UserPlus size={14} />
+                    New to SNA? Create an account
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
           <div
-            style={formHeight ? { height: `${formHeight}px` } : {}}
-            className="flex flex-col rounded-2xl bg-white p-5 shadow-sm sm:p-6 transition-[height] duration-200"
+            style={isAuthenticated && formHeight ? { height: `${formHeight}px` } : {}}
+            className={`flex flex-col rounded-2xl bg-white p-5 shadow-sm sm:p-6 transition-[height] duration-200 ${
+              !isAuthenticated ? "min-h-[380px] lg:min-h-[460px] max-h-[650px]" : ""
+            }`}
           >
             <div className="flex shrink-0 items-end justify-between gap-4">
               <div>
@@ -1088,7 +1161,7 @@ const ProductDetail = ({ identifier }) => {
                       key={`all-media-${item.url}-${idx}`}
                       type="button"
                       onClick={() => setLightboxMedia({ items: allCustomerReviewMedia, activeIndex: idx })}
-                      className="group relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 transition hover:border-[#079447] hover:shadow-md focus:outline-none"
+                      className="group relative h-16 w-16 sm:h-20 sm:w-20 shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 transition hover:border-[#079447] hover:shadow-md focus:outline-none"
                       aria-label="View customer photo/video"
                     >
                       {item.type === "image" ? (
@@ -1183,7 +1256,7 @@ const ProductDetail = ({ identifier }) => {
                             key={`rev-media-${media.url}-${mIdx}`}
                             type="button"
                             onClick={() => setLightboxMedia({ items: reviewMediaList, activeIndex: mIdx })}
-                            className="group relative h-20 w-20 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 transition hover:border-[#079447] hover:shadow-md focus:outline-none"
+                            className="group relative h-16 w-16 sm:h-20 sm:w-20 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 transition hover:border-[#079447] hover:shadow-md focus:outline-none"
                             aria-label={`View review ${media.type}`}
                           >
                             {media.type === "image" ? (

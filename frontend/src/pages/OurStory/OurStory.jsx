@@ -219,10 +219,7 @@ const OurStory = () => {
 
           <div>
             <div className="flex items-center gap-2">
-              <Sparkles
-                size={17}
-                className="text-[#079447]"
-              />
+              
 
                 <span
                            className="
@@ -323,10 +320,7 @@ const OurStory = () => {
           {/* Section heading */}
 <div>
             <div className="flex items-center gap-2">
-              <Sparkles
-                size={17}
-                className="text-[#079447]"
-              />
+              
 
                 <span
                            className="
@@ -581,10 +575,7 @@ const OurStory = () => {
           <div>
            <div>
             <div className="flex items-center gap-2">
-              <Sparkles
-                size={17}
-                className="text-[#079447]"
-              />
+              
 
                 <span
                            className="
