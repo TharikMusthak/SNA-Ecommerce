@@ -88,14 +88,18 @@ const ContactUs = () => {
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type } = e.target;
+    let val = value;
+    if ((name === "email" || type === "email") && typeof val === "string") {
+      val = val.toLowerCase();
+    }
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: val,
     }));
 
     if (touched[name]) {
-      const err = validateField(name, value);
+      const err = validateField(name, val);
       setErrors((prev) => ({ ...prev, [name]: err }));
     }
   };

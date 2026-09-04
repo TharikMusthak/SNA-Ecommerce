@@ -25,7 +25,10 @@ const ForgotPassword = () => {
   };
 
   const handleChange = (e) => {
-    const val = e.target.value;
+    let val = e.target.value;
+    if (typeof val === "string") {
+      val = val.toLowerCase();
+    }
     setEmail(val);
     if (message) setMessage("");
     if (touched) {

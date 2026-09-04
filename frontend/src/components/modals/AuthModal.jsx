@@ -111,7 +111,10 @@ const AuthModal = ({ onClose }) => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    const val = type === "checkbox" ? checked : value;
+    let val = type === "checkbox" ? checked : value;
+    if ((name === "email" || type === "email") && typeof val === "string") {
+      val = val.toLowerCase();
+    }
     const nextFormData = {
       ...formData,
       [name]: val,

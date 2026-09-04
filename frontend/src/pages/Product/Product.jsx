@@ -263,7 +263,7 @@ const ProductDetail = ({ identifier }) => {
   const { isAuthenticated, user } = useAuth();
   const userId = user?.id || user?.email || "guest";
   const { data: product, isLoading, isError } = useProduct(identifier);
-
+console.log("product", product);
   const { data: related } = useRelatedProducts(product?.id);
   const { addItem } = useCart();
   const wishlist = useWishlist();
@@ -766,7 +766,7 @@ const ProductDetail = ({ identifier }) => {
                   onClick={() => setVariantId("base")}
                   className={`rounded-xl border px-4 py-2 text-sm ${variantId === "base" ? "border-[#079447] bg-[#079447] text-white" : "border-gray-300"}`}
                 >
-                  {product.option_label || "Standard ggg"}
+                  {product.option_label || "Standard"}
                 </button>
                 {product.variants.map((variant) => (
                   <button

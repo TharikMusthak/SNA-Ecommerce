@@ -126,7 +126,7 @@ const VerifyEmail = () => {
                   autoComplete="email"
                   placeholder="you@example.com"
                   value={email}
-                  onChange={(event) => setEmail(event.target.value)}
+                  onChange={(event) => setEmail(event.target.value.toLowerCase())}
                   className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3.5 text-base text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#079447] focus:ring-2 focus:ring-[#079447]/10 sm:py-3"
                 />
               </label>

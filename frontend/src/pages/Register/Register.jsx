@@ -64,8 +64,12 @@ const Register = () => {
   };
 
   const handleChange = (event) => {
-    const { name, value } = event.target;
-    const nextForm = { ...form, [name]: value };
+    const { name, value, type } = event.target;
+    let val = value;
+    if ((name === "email" || type === "email") && typeof val === "string") {
+      val = val.toLowerCase();
+    }
+    const nextForm = { ...form, [name]: val };
     setForm(nextForm);
 
     if (errors.form) {
@@ -73,7 +77,7 @@ const Register = () => {
     }
 
     if (touched[name]) {
-      const err = validateField(name, value);
+      const err = validateField(name, val);
       setErrors((prev) => ({ ...prev, [name]: err }));
     }
   };
