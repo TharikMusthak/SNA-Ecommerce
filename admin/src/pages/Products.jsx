@@ -4,6 +4,7 @@ import { assetUrl } from "../api";
 import Badge from "../components/Badge";
 import DataTable, { TableImage } from "../components/DataTable";
 import ModuleToolbar from "../components/ModuleToolbar";
+import CustomSelect from "../components/CustomSelect";
 
 export default function Products({ rows = [], onEdit, onDelete, onToggleFeatured }) {
   const [search, setSearch] = useState("");
@@ -23,7 +24,7 @@ export default function Products({ rows = [], onEdit, onDelete, onToggleFeatured
     <section>
       <div className="section-heading"><div><h2>Product catalogue</h2><p>{filteredRows.length} of {rows.length} products</p></div></div>
       <ModuleToolbar search={search} onSearchChange={setSearch} searchLabel="Search products" status={status} statuses={["Active", "Draft"]} onStatusChange={setStatus} onReset={() => { setSearch(""); setStatus(""); setCategory(""); }}>
-        <select aria-label="Category filter" value={category} onChange={(event) => setCategory(event.target.value)}><option value="">All categories</option>{categories.map((item) => <option key={item}>{item}</option>)}</select>
+        <CustomSelect aria-label="Category filter" value={category} onChange={(event) => setCategory(event.target.value)}><option value="">All categories</option>{categories.map((item) => <option key={item}>{item}</option>)}</CustomSelect>
       </ModuleToolbar>
       <DataTable label="Products" headers={["Image", "Product", "SKU", "Category", "Price", "Stock", "Rating", "Featured", "Status", "Updated", "Actions"]} emptyMessage={rows.length ? "No products match these filters." : "No products found."} minWidth={1260}>
         {filteredRows.map((product) => (

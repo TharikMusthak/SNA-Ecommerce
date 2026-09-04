@@ -12,6 +12,7 @@ import {
   Truck,
   UserPlus,
 } from "lucide-react";
+import CustomSelect from "../components/CustomSelect";
 import Badge from "../components/Badge";
 
 export default function Dashboard({
@@ -101,11 +102,11 @@ export default function Dashboard({
               <div><span className="eyebrow">Sales performance</span><h3>Revenue trend</h3></div>
               <label className="compact-select">
                 <span className="sr-only">Revenue date range</span>
-                <select value={days} onChange={changeRange} disabled={loading}>
+                <CustomSelect value={days} onChange={changeRange} disabled={loading}>
                   <option value="7">Last 7 days</option>
                   <option value="30">Last 30 days</option>
                   <option value="90">Last 90 days</option>
-                </select>
+                </CustomSelect>
               </label>
             </header>
             <RevenueChart rows={insights.revenue_trend || []} />

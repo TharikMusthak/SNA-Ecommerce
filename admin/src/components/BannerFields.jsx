@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import ImagePreviewField from "./ImagePreviewField";
+import CustomSelect from "./CustomSelect";
 
 export default function BannerFields({
   form,
@@ -102,7 +103,7 @@ export default function BannerFields({
         </label>
         <label>
           Redirect type
-          <select
+          <CustomSelect
             value={redirectType}
             onChange={(event) => setRedirectType(event.target.value)}
           >
@@ -110,7 +111,7 @@ export default function BannerFields({
             <option value="product">Product</option>
             <option value="category">Category</option>
             <option value="custom_url">Custom URL</option>
-          </select>
+          </CustomSelect>
         </label>
       </div>
 
@@ -127,7 +128,7 @@ export default function BannerFields({
           </label>
           <label>
             Selected product
-            <select
+            <CustomSelect
               value={form.product_id || ""}
               onChange={(event) =>
                 setForm({ ...form, product_id: Number(event.target.value) })
@@ -140,7 +141,7 @@ export default function BannerFields({
                   {product.name}
                 </option>
               ))}
-            </select>
+            </CustomSelect>
           </label>
         </>
       )}
@@ -148,7 +149,7 @@ export default function BannerFields({
       {redirectType === "category" && (
         <label>
           Selected category
-          <select
+          <CustomSelect
             value={form.category_id || ""}
             onChange={(event) =>
               setForm({ ...form, category_id: Number(event.target.value) })
@@ -161,7 +162,7 @@ export default function BannerFields({
                 {category.name}
               </option>
             ))}
-          </select>
+          </CustomSelect>
         </label>
       )}
 
@@ -185,7 +186,7 @@ export default function BannerFields({
       <div className="row">
         <label>
           Display position
-          <select
+          <CustomSelect
             value={form.display_position || "home_hero"}
             onChange={(event) =>
               setForm({ ...form, display_position: event.target.value })
@@ -195,7 +196,7 @@ export default function BannerFields({
             <option value="home_middle">Home middle</option>
             <option value="category_top">Category top</option>
             <option value="product_top">Product top</option>
-          </select>
+          </CustomSelect>
         </label>
         <label>
           Display order

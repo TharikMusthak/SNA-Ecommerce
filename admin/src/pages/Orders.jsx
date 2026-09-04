@@ -8,6 +8,7 @@ import { api, assetUrl } from "../api";
 import Badge from "../components/Badge";
 import { TableImage } from "../components/DataTable";
 import { Dialog } from "../components/Dialog";
+import CustomSelect from "../components/CustomSelect";
 
 const statuses = [
   "pending",
@@ -213,7 +214,7 @@ export default function Orders({ onStageChange }) {
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
-        <select
+        <CustomSelect
           aria-label="Order status"
           value={query.status}
           onChange={(event) =>
@@ -226,8 +227,8 @@ export default function Orders({ onStageChange }) {
               {label(status)}
             </option>
           ))}
-        </select>
-        <select
+        </CustomSelect>
+        <CustomSelect
           aria-label="Payment status"
           value={query.payment_status}
           onChange={(event) =>
@@ -244,7 +245,7 @@ export default function Orders({ onStageChange }) {
               <option key={status}>{status}</option>
             ),
           )}
-        </select>
+        </CustomSelect>
         <input
           aria-label="From date"
           type="date"
@@ -372,7 +373,7 @@ function OrderCard({ order, saving, onStatusChange, onView }) {
       <div className="order-card__meta">
         <div>
           <span>Status</span>
-          <select
+          <CustomSelect
             aria-label={`Status for ${order.order_code}`}
             value={order.status || "pending"}
             disabled={
@@ -385,7 +386,7 @@ function OrderCard({ order, saving, onStatusChange, onView }) {
                 {label(status)}
               </option>
             ))}
-          </select>
+          </CustomSelect>
         </div>
         <div>
           <span>Date of delivery</span>

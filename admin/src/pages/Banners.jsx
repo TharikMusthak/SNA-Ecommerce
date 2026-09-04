@@ -4,6 +4,7 @@ import { assetUrl } from "../api";
 import Badge from "../components/Badge";
 import DataTable, { TableImage } from "../components/DataTable";
 import ModuleToolbar from "../components/ModuleToolbar";
+import CustomSelect from "../components/CustomSelect";
 
 export default function Banners({ rows = [], onEdit, onDelete }) {
   const [search, setSearch] = useState("");
@@ -18,7 +19,7 @@ export default function Banners({ rows = [], onEdit, onDelete }) {
     <section>
       <div className="section-heading"><div><h2>Store banners</h2><p>{filteredRows.length} promotional placements</p></div></div>
       <ModuleToolbar search={search} onSearchChange={setSearch} searchLabel="Search banners" status={status} statuses={["Active", "Draft"]} onStatusChange={setStatus} onReset={() => { setSearch(""); setStatus(""); setPosition(""); }}>
-        <select aria-label="Banner position" value={position} onChange={(event) => setPosition(event.target.value)}><option value="">All positions</option>{positions.map((item) => <option key={item} value={item}>{label(item)}</option>)}</select>
+        <CustomSelect aria-label="Banner position" value={position} onChange={(event) => setPosition(event.target.value)}><option value="">All positions</option>{positions.map((item) => <option key={item} value={item}>{label(item)}</option>)}</CustomSelect>
       </ModuleToolbar>
       <DataTable label="Banners" headers={["Preview", "Banner", "Position", "Redirect", "Target", "Start", "End", "Status", "Actions"]} emptyMessage={rows.length ? "No banners match these filters." : "No banners found."} minWidth={1180}>
         {filteredRows.map((banner) => (

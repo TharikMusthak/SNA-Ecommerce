@@ -6,6 +6,7 @@ import DataTable from "../components/DataTable";
 import { Dialog } from "../components/Dialog";
 import ImagePreviewField from "../components/ImagePreviewField";
 import VideoUploadField from "../components/VideoUploadField";
+import CustomSelect from "../components/CustomSelect";
 
 const configs = {
   Customers: {
@@ -503,7 +504,7 @@ export default function CommerceList({ type, onNotice }) {
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
         />
-        <select
+        <CustomSelect
           aria-label="Status filter"
           value={query.status}
           onChange={(e) =>
@@ -514,8 +515,8 @@ export default function CommerceList({ type, onNotice }) {
           {config.statuses.map((status) => (
             <option key={status}>{status}</option>
           ))}
-        </select>
-        <select
+        </CustomSelect>
+        <CustomSelect
           aria-label="Page size"
           value={query.limit}
           onChange={(e) =>
@@ -525,21 +526,21 @@ export default function CommerceList({ type, onNotice }) {
           {[10, 20, 50, 100].map((value) => (
             <option key={value}>{value}</option>
           ))}
-        </select>
+        </CustomSelect>
         {type === "Customers" && (
-          <select aria-label="Verification filter" value={query.verified || ""} onChange={(e)=>setQuery({...query,verified:e.target.value,page:1})}>
+          <CustomSelect aria-label="Verification filter" value={query.verified || ""} onChange={(e)=>setQuery({...query,verified:e.target.value,page:1})}>
             <option value="">All verification</option><option value="true">Verified</option><option value="false">Unverified</option>
-          </select>
+          </CustomSelect>
         )}
         {type === "Reviews" && (
-          <select aria-label="Rating filter" value={query.rating || ""} onChange={(e)=>setQuery({...query,rating:e.target.value,page:1})}>
+          <CustomSelect aria-label="Rating filter" value={query.rating || ""} onChange={(e)=>setQuery({...query,rating:e.target.value,page:1})}>
             <option value="">All ratings</option>{[1,2,3,4,5].map(value=><option key={value} value={value}>{value} stars</option>)}
-          </select>
+          </CustomSelect>
         )}
         {type === "Support Tickets" && (
-          <select aria-label="Priority filter" value={query.priority || ""} onChange={(e)=>setQuery({...query,priority:e.target.value,page:1})}>
+          <CustomSelect aria-label="Priority filter" value={query.priority || ""} onChange={(e)=>setQuery({...query,priority:e.target.value,page:1})}>
             <option value="">All priorities</option>{["low","normal","high","urgent"].map(value=><option key={value}>{value}</option>)}
-          </select>
+          </CustomSelect>
         )}
         {["Customers", "Reviews"].includes(type) && <><input aria-label="From date" type="date" value={query.from || ""} onChange={(e)=>setQuery({...query,from:e.target.value,page:1})}/><input aria-label="To date" type="date" value={query.to || ""} onChange={(e)=>setQuery({...query,to:e.target.value,page:1})}/></>}
         <button onClick={load} disabled={loading}>
@@ -754,8 +755,8 @@ function ActionForm({ modal, saving, onSubmit, onCancel }) {
             <label>Product ID<input name="product_id" type="number" min="1" defaultValue={modal.data?.product_id || ""} required /></label>
           </div>
           <div className="row">
-            <label>Rating<select name="rating" defaultValue={modal.data?.rating || 5}>{[1,2,3,4,5].map(value => <option key={value} value={value}>{value} stars</option>)}</select></label>
-            <label>Status<select name="status" defaultValue={modal.data?.status || "approved"}>{["pending","approved","rejected","hidden"].map(value => <option key={value}>{value}</option>)}</select></label>
+            <label>Rating<CustomSelect name="rating" defaultValue={modal.data?.rating || 5}>{[1,2,3,4,5].map(value => <option key={value} value={value}>{value} stars</option>)}</CustomSelect></label>
+            <label>Status<CustomSelect name="status" defaultValue={modal.data?.status || "approved"}>{["pending","approved","rejected","hidden"].map(value => <option key={value}>{value}</option>)}</CustomSelect></label>
           </div>
           <label>Title<input name="title" maxLength="190" defaultValue={modal.data?.title || ""} /></label>
           <label>Review<textarea name="review_text" maxLength="5000" defaultValue={modal.data?.review_text || ""} required /></label>
@@ -772,11 +773,11 @@ function ActionForm({ modal, saving, onSubmit, onCancel }) {
           </label>
           <label>
             Discount type
-            <select name="discount_type" defaultValue={modal.data?.discount_type || "percentage"}>
+            <CustomSelect name="discount_type" defaultValue={modal.data?.discount_type || "percentage"}>
               <option value="percentage">Percentage</option>
               <option value="fixed">Fixed</option>
               <option value="free_shipping">Free shipping</option>
-            </select>
+            </CustomSelect>
           </label>
           <label>
             Discount value
@@ -813,19 +814,19 @@ function ActionForm({ modal, saving, onSubmit, onCancel }) {
       )}
       {modal.formType === "ticket" && (
         <>
-          <label>Status<select name="status" defaultValue={modal.data?.status || "open"}>{["open","in_progress","waiting_for_customer","resolved","closed"].map(value=><option key={value}>{value}</option>)}</select></label>
-          <label>Priority<select name="priority" defaultValue={modal.data?.priority || "normal"}>{["low","normal","high","urgent"].map(value=><option key={value}>{value}</option>)}</select></label>
+          <label>Status<CustomSelect name="status" defaultValue={modal.data?.status || "open"}>{["open","in_progress","waiting_for_customer","resolved","closed"].map(value=><option key={value}>{value}</option>)}</CustomSelect></label>
+          <label>Priority<CustomSelect name="priority" defaultValue={modal.data?.priority || "normal"}>{["low","normal","high","urgent"].map(value=><option key={value}>{value}</option>)}</CustomSelect></label>
         </>
       )}
       {modal.formType === "inspection" && (
         <>
           <label>
             Result
-            <select name="result">
+            <CustomSelect name="result">
               <option value="passed">Passed</option>
               <option value="partial">Partial</option>
               <option value="failed">Failed</option>
-            </select>
+            </CustomSelect>
           </label>
           <label>
             Notes
@@ -836,20 +837,20 @@ function ActionForm({ modal, saving, onSubmit, onCancel }) {
       {modal.formType === "restock" && (
         <label>
           Disposition
-          <select name="disposition">
+          <CustomSelect name="disposition">
             <option value="restocked">Restock all accepted items</option>
             <option value="no_restock">Do not restock</option>
             <option value="damaged">Damaged</option>
             <option value="expired">Expired</option>
             <option value="quality_rejected">Quality rejected</option>
-          </select>
+          </CustomSelect>
         </label>
       )}
       {modal.formType === "refund" && (
         <>
           <label>
             Refund method
-            <select name="refund_method">
+            <CustomSelect name="refund_method">
               <option value="cod_manual">COD manual</option>
               <option value="bank_transfer">Bank transfer</option>
               <option value="upi_manual">UPI manual</option>
@@ -857,7 +858,7 @@ function ActionForm({ modal, saving, onSubmit, onCancel }) {
               <option value="external_pending">
                 External provider pending
               </option>
-            </select>
+            </CustomSelect>
           </label>
           <label>
             Amount
@@ -872,12 +873,12 @@ function ActionForm({ modal, saving, onSubmit, onCancel }) {
           </label>
           <label>
             Status
-            <select name="status">
+            <CustomSelect name="status">
               <option value="pending">Pending</option>
               <option value="approved">Approved</option>
               <option value="processing">Processing</option>
               <option value="completed">Completed</option>
-            </select>
+            </CustomSelect>
           </label>
           <label>
             Reference

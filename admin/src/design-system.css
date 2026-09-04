@@ -1482,6 +1482,213 @@ label.has-validation-error::after {
   font-weight: 750;
 }
 
+/* Compact dropdown system shared by every CRM module. */
+.custom-select {
+  position: relative;
+  min-width: 150px;
+  color: var(--color-text-primary);
+  font-size: 12px;
+}
+
+.custom-select .custom-select__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 11px 8px 12px;
+  color: inherit;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 10px;
+  box-shadow: var(--shadow-sm);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.25;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.custom-select__trigger span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.custom-select__trigger svg {
+  flex: 0 0 auto;
+  color: var(--color-text-secondary);
+  transition: transform 160ms ease;
+}
+
+.custom-select__trigger:hover:not(:disabled),
+.custom-select--open .custom-select__trigger {
+  background: var(--color-primary-50);
+  border-color: var(--color-primary-500);
+}
+
+.custom-select__trigger:focus-visible {
+  border-color: var(--color-primary-500);
+  box-shadow: 0 0 0 3px rgb(21 148 71 / 14%);
+  outline: none;
+}
+
+.custom-select--open .custom-select__trigger svg {
+  transform: rotate(180deg);
+}
+
+.custom-select__trigger:disabled {
+  color: var(--color-text-muted);
+  background: var(--color-surface-subtle);
+  cursor: not-allowed;
+  opacity: 0.75;
+}
+
+.custom-select__menu {
+  position: absolute;
+  z-index: 120;
+  top: calc(100% + 7px);
+  left: 0;
+  width: max(100%, 190px);
+  max-width: min(320px, calc(100vw - 32px));
+  max-height: 260px;
+  padding: 6px;
+  overflow-y: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 18px 45px rgb(11 46 27 / 16%);
+}
+
+.custom-select .custom-select__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 10px;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+}
+
+.custom-select__option:hover,
+.custom-select__option.is-active {
+  color: var(--color-primary-700);
+  background: var(--color-primary-50);
+}
+
+.custom-select__option[aria-selected="true"] {
+  color: var(--color-primary-700);
+  background: var(--color-primary-100);
+  font-weight: 750;
+}
+
+.custom-select__option svg {
+  flex: 0 0 auto;
+  color: var(--color-primary-600);
+}
+
+.modal .custom-select,
+.settings-form .custom-select,
+.form-section .custom-select {
+  width: 100%;
+}
+
+.compact-select .custom-select,
+.order-card__meta .custom-select {
+  min-width: 118px;
+}
+
+.compact-select .custom-select__trigger,
+.order-card__meta .custom-select__trigger {
+  min-height: 34px;
+  padding-block: 6px;
+  font-size: 11px;
+}
+
+body select:not([multiple]) {
+  min-height: 38px;
+  padding: 8px 38px 8px 12px;
+  color: var(--color-text-primary);
+  background-color: var(--color-surface);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23607067' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 10 5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+  background-size: 16px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 10px;
+  box-shadow: var(--shadow-sm);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.25;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+body select:not([multiple]):hover:not(:disabled) {
+  background-color: var(--color-primary-50);
+  border-color: var(--color-primary-500);
+}
+
+body select:not([multiple]):focus,
+body select:not([multiple]):focus-visible {
+  background-color: var(--color-surface);
+  border-color: var(--color-primary-500);
+  box-shadow: 0 0 0 3px rgb(21 148 71 / 14%);
+  outline: none;
+}
+
+body select:not([multiple]):disabled {
+  color: var(--color-text-muted);
+  background-color: var(--color-surface-subtle);
+  border-color: var(--color-border);
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 0.75;
+}
+
+body select:not([multiple]) option {
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+  font-weight: 550;
+}
+
+/* Filters stay short; form dropdowns fill their available column. */
+.module-toolbar select:not([multiple]),
+.commerce-toolbar select:not([multiple]) {
+  width: auto;
+  min-width: 150px;
+  max-width: 220px;
+}
+
+.modal select:not([multiple]),
+.settings-form select:not([multiple]),
+.form-section select:not([multiple]) {
+  width: 100%;
+}
+
+.data-table select:not([multiple]),
+.order-card__meta select:not([multiple]),
+.compact-select select:not([multiple]) {
+  min-width: 118px;
+  min-height: 34px;
+  padding-block: 6px;
+  font-size: 11px;
+}
+
 @media (max-width: 1200px) {
   .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dashboard-grid--charts { grid-template-columns: 1fr; }
@@ -1552,6 +1759,7 @@ label.has-validation-error::after {
   .commerce-toolbar { align-items: stretch; flex-direction: column; }
   .commerce-toolbar input,
   .commerce-toolbar select,
+  .commerce-toolbar .custom-select,
   .commerce-toolbar button { width: 100%; min-width: 0; }
   .commerce-pagination { justify-content: space-between; }
   .modal { max-height: calc(100dvh - 20px); border-radius: var(--radius-lg); }

@@ -3,6 +3,7 @@ import { api } from "../api";
 import Badge from "../components/Badge";
 import DataTable from "../components/DataTable";
 import { ConfirmDialog, Dialog } from "../components/Dialog";
+import CustomSelect from "../components/CustomSelect";
 
 const statuses = ["pending", "confirmed", "processing", "packed", "ready_to_dispatch", "shipment_created", "awb_assigned", "pickup_scheduled", "picked_up", "in_transit", "out_for_delivery", "delivered", "delivery_failed", "rto_initiated", "rto_delivered", "cancelled"];
 
@@ -64,15 +65,15 @@ export default function Dispatch({ onNotice }) {
       <div className="section-heading"><div><h2>Dispatch</h2><p>{pagination.total} orders in the dispatch queue</p></div></div>
       <div className="commerce-toolbar">
         <input aria-label="Search dispatch orders" placeholder="Order, customer, AWB, courier or pincode" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} />
-        <select aria-label="Shipment status" value={query.status} onChange={(event) => setQuery({ ...query, status: event.target.value, page: 1 })}>
+        <CustomSelect aria-label="Shipment status" value={query.status} onChange={(event) => setQuery({ ...query, status: event.target.value, page: 1 })}>
           <option value="">All shipment statuses</option>
           {statuses.map((status) => <option key={status} value={status}>{label(status)}</option>)}
-        </select>
+        </CustomSelect>
         <input aria-label="From date" type="date" value={query.from} onChange={(event) => setQuery({ ...query, from: event.target.value, page: 1 })} />
         <input aria-label="To date" type="date" value={query.to} onChange={(event) => setQuery({ ...query, to: event.target.value, page: 1 })} />
-        <select aria-label="Sort dispatch orders" value={`${query.sort}:${query.order}`} onChange={(event) => { const [sort, order] = event.target.value.split(":"); setQuery({ ...query, sort, order, page: 1 }); }}>
+        <CustomSelect aria-label="Sort dispatch orders" value={`${query.sort}:${query.order}`} onChange={(event) => { const [sort, order] = event.target.value.split(":"); setQuery({ ...query, sort, order, page: 1 }); }}>
           <option value="created_at:desc">Newest</option><option value="created_at:asc">Oldest</option><option value="amount:desc">Highest amount</option><option value="status:asc">Shipment status</option>
-        </select>
+        </CustomSelect>
         <button disabled={loading} onClick={load}>Refresh</button>
         <button className="secondary-button" disabled={!searchInput && !query.status && !query.from && !query.to} onClick={() => { setSearchInput(""); setQuery({ search: "", status: "", from: "", to: "", sort: "created_at", order: "desc", page: 1, limit: 10 }); }}>Reset</button>
       </div>
