@@ -17,7 +17,6 @@ async function listProducts(req, res, extra = []) {
   const category = parsePositiveId(req.query.category_id); if (category) { conditions.push("p.category_id = ?"); params.push(category); }
   const brand = parsePositiveId(req.query.brand_id); if (brand) { conditions.push("p.brand_id = ?"); params.push(brand); }
   for (const [queryKey, column] of [["organic","is_organic"],["homemade","is_homemade"],["vegan","is_vegan"]]) if (req.query[queryKey] === "true") conditions.push(`p.${column} = TRUE`);
-  if (req.query.available === "true") conditions.push("p.stock > 0");
   const min = Number(req.query.min_price); if (Number.isFinite(min) && min >= 0) { conditions.push("COALESCE(p.sale_price,p.price) >= ?"); params.push(min); }
   const max = Number(req.query.max_price); if (Number.isFinite(max) && max >= 0) { conditions.push("COALESCE(p.sale_price,p.price) <= ?"); params.push(max); }
   const where = conditions.join(" AND ");
