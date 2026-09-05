@@ -37,6 +37,7 @@ import notificationRoutes from "./routes/v1/notifications.js";
 import returnRoutes from "./routes/v1/returns.js";
 import ticketRoutes from "./routes/v1/tickets.js";
 import { publicRouter, searchRouter, analyticsRouter } from "./routes/v1/public.js";
+import { publicAssetUrls } from "./utils/publicAssets.js";
 import adminCommerceRoutes from "./routes/v1/adminCommerce.js";
 import adminReturnRoutes from "./routes/v1/adminReturns.js";
 import adminDispatchRoutes from "./routes/v1/adminDispatch.js";
@@ -89,6 +90,11 @@ app.use(express.json({
   },
 }));
 app.use(cookieParser());
+app.use((_req, res, next) => {
+  const sendJson = res.json.bind(res);
+  res.json = (body) => sendJson(publicAssetUrls(body));
+  next();
+});
 app.use("/docs", express.static(docsRoot, { dotfiles: "deny", index: false }));
 if (env.apiDocsEnabled) {
   const openapiPath = path.join(docsRoot, "openapi.yaml");

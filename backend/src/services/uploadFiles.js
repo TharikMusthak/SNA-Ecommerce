@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { del, put } from "@vercel/blob";
 import { uploadsRoot } from "../config/paths.js";
+import { env } from "../config/env.js";
 
 const BLOB_HOST_SUFFIX = ".public.blob.vercel-storage.com";
 
@@ -119,8 +120,9 @@ export function resolveUploadPath(uploadUrl, expectedFolder) {
 }
 
 export async function deleteUploadByUrl(uploadUrl, expectedFolder, blobDelete = del) {
-  if (isBlobUrl(uploadUrl, expectedFolder)) {
-    await blobDelete(uploadUrl);
+  const persistedBlobUrl = resolveBlobUrl(uploadUrl, expectedFolder);
+  if (persistedBlobUrl) {
+    await blobDelete(persistedBlobUrl);
     return true;
   }
   const filePath = resolveUploadPath(uploadUrl, expectedFolder);
@@ -133,6 +135,19 @@ export async function deleteUploadByUrl(uploadUrl, expectedFolder, blobDelete = 
     if (error?.code === "ENOENT") return false;
     throw error;
   }
+}
+
+function resolveBlobUrl(uploadUrl, expectedFolder) {
+  if (isBlobUrl(uploadUrl, expectedFolder)) return uploadUrl;
+  const prefix = `/uploads/${expectedFolder}/`;
+  if (
+    typeof uploadUrl === "string" &&
+    uploadUrl.startsWith(prefix) &&
+    env.publicMediaUrl
+  ) {
+    return `${env.publicMediaUrl}/${expectedFolder}/${uploadUrl.slice(prefix.length)}`;
+  }
+  return null;
 }
 
 export async function safelyDeleteUpload(uploadUrl, expectedFolder) {

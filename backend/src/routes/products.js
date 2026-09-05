@@ -233,7 +233,9 @@ router.post("/", productUploadWithVideo, verifyProductMedia, async (req, res) =>
         input.value.shortDescription,
         input.value.description,
         input.value.salePrice,
-        req.files?.video?.[0] ? imageUrl(req.files.video[0]) : blobVideo || null,
+        req.files?.video?.[0]
+          ? imageUrl(req.files.video[0])
+          : storedProductPath(blobVideo),
         input.value.isFeatured,
         input.value.publishedAt,
         mainImage,
@@ -335,7 +337,7 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
     const video = newVideoFile
       ? imageUrl(newVideoFile)
       : blobVideo
-        ? blobVideo
+        ? storedProductPath(blobVideo)
       : removeVideo
         ? null
         : existingProduct.video_url;
@@ -839,11 +841,17 @@ router.delete("/:id", async (req, res) => {
 });
 
 function imageUrl(file) {
-  if (file?.blobUrl) return file.blobUrl;
-  if (usesProductBlobStorage()) {
+  if (usesProductBlobStorage() && !file?.blobUrl) {
     throw new Error("Product media was uploaded but no Vercel Blob URL was returned");
   }
   return `/uploads/products/${file.filename}`;
+}
+
+function storedProductPath(blobUrl) {
+  if (!blobUrl) return null;
+  if (blobUrl.startsWith("/uploads/products/")) return blobUrl;
+  const url = new URL(blobUrl);
+  return `/uploads${url.pathname}`;
 }
 
 async function persistProductUploads(files) {

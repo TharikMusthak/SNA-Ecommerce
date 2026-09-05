@@ -1,13 +1,15 @@
 import { env } from "../config/env.js";
 
 export function publicAssetUrl(value) {
-  if (
-    typeof value !== "string" ||
-    !value.startsWith("/uploads/") ||
-    !env.publicApiUrl
-  ) {
+  if (typeof value !== "string" || !value.startsWith("/uploads/")) {
     return value;
   }
+
+  if (env.publicMediaUrl) {
+    return `${env.publicMediaUrl}${value.slice("/uploads".length)}`;
+  }
+
+  if (!env.publicApiUrl) return value;
 
   return `${env.publicApiUrl}${value}`;
 }

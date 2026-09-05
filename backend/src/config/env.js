@@ -40,7 +40,7 @@ function normalizeBasePath(value) {
   return normalized;
 }
 
-function normalizePublicUrl(value) {
+function normalizePublicUrl(value, variableName = "PUBLIC_API_URL") {
   const candidate = String(value || "")
     .trim()
     .replace(/\/+$/, "");
@@ -50,12 +50,12 @@ function normalizePublicUrl(value) {
   try {
     url = new URL(candidate);
   } catch {
-    throw new Error("PUBLIC_API_URL must be a valid absolute URL");
+    throw new Error(`${variableName} must be a valid absolute URL`);
   }
 
   if (!["http:", "https:"].includes(url.protocol) || url.search || url.hash) {
     throw new Error(
-      "PUBLIC_API_URL must be an HTTP(S) URL without a query or fragment",
+      `${variableName} must be an HTTP(S) URL without a query or fragment`,
     );
   }
 
@@ -125,6 +125,10 @@ export const env = Object.freeze({
     process.env.APP_BASE_PATH || process.env.PASSENGER_BASE_URI,
   ),
   publicApiUrl: normalizePublicUrl(process.env.PUBLIC_API_URL),
+  publicMediaUrl: normalizePublicUrl(
+    process.env.PUBLIC_MEDIA_URL,
+    "PUBLIC_MEDIA_URL",
+  ),
   adminResetUrl:
     process.env.ADMIN_RESET_URL ||
     `${frontendOrigins[0]}/sna/admin/reset-password`,
