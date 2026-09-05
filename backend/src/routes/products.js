@@ -327,27 +327,10 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
     oldFutureImage = existingProduct.future_image;
     const newMainFile = req.files?.main_image?.[0];
     const removeMainImage = req.body.remove_main_image === "1" && !newMainFile;
-    const mainImage = newMainFile
-      ? imageUrl(newMainFile)
-      : removeMainImage
-        ? null
-        : existingProduct.main_image;
     const newVideoFile = req.files?.video?.[0];
     const removeVideo = req.body.remove_video === "1" && !newVideoFile && !blobVideo;
-    const video = newVideoFile
-      ? imageUrl(newVideoFile)
-      : blobVideo
-        ? storedProductPath(blobVideo)
-      : removeVideo
-        ? null
-        : existingProduct.video_url;
     const newFutureImageFile = req.files?.future_image?.[0];
     const removeFutureImage = req.body.remove_future_image === "1" && !newFutureImageFile;
-    const futureImage = newFutureImageFile
-      ? imageUrl(newFutureImageFile)
-      : removeFutureImage
-        ? null
-        : existingProduct.future_image;
     const slug = req.body.slug
       ? await resolveProductSlug(connection, req.body.slug, id)
       : existingProduct.slug ||
@@ -370,6 +353,24 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
     }
 
     await persistProductUploads(newFiles);
+
+    const mainImage = newMainFile
+      ? imageUrl(newMainFile)
+      : removeMainImage
+        ? null
+        : existingProduct.main_image;
+    const video = newVideoFile
+      ? imageUrl(newVideoFile)
+      : blobVideo
+        ? storedProductPath(blobVideo)
+        : removeVideo
+          ? null
+          : existingProduct.video_url;
+    const futureImage = newFutureImageFile
+      ? imageUrl(newFutureImageFile)
+      : removeFutureImage
+        ? null
+        : existingProduct.future_image;
 
     if (input.value.isFeatured) {
       await connection.query(
