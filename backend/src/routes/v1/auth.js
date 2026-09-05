@@ -308,10 +308,11 @@ router.post(
          FROM user_email_verifications AS verification
          JOIN users AS user ON user.id = verification.user_id
          WHERE verification.token_hash = ?
+           AND verification.expires_at > UTC_TIMESTAMP()
          FOR UPDATE`,
         [hashToken(req.body.token)],
       );
-      if (!record || new Date(record.expires_at) <= new Date()) {
+      if (!record) {
         await connection.rollback();
         return fail(res, 400, "Verification token is invalid or expired");
       }
