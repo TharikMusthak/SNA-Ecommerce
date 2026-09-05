@@ -48,7 +48,7 @@ export async function uploadProductImages(files, blobPut = put, blobDelete = del
     await cleanupProductImageUploads(files, blobDelete);
     throw error;
   } finally {
-    if (process.env.VERCEL === "1") {
+    if (files.some((file) => file?.blobUrl)) {
       await Promise.allSettled(
         files.map((file) => file?.path).filter(Boolean).map((filePath) => fs.unlink(filePath)),
       );

@@ -839,13 +839,21 @@ router.delete("/:id", async (req, res) => {
 });
 
 function imageUrl(file) {
-  return file?.blobUrl || `/uploads/products/${file.filename}`;
+  if (file?.blobUrl) return file.blobUrl;
+  if (usesProductBlobStorage()) {
+    throw new Error("Product media was uploaded but no Vercel Blob URL was returned");
+  }
+  return `/uploads/products/${file.filename}`;
 }
 
 async function persistProductUploads(files) {
-  if (process.env.VERCEL === "1") {
+  if (usesProductBlobStorage()) {
     await uploadProductImages(files);
   }
+}
+
+function usesProductBlobStorage() {
+  return process.env.VERCEL === "1" || Boolean(process.env.BLOB_READ_WRITE_TOKEN);
 }
 
 function parseProduct(body) {
