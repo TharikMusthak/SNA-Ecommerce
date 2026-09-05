@@ -122,25 +122,26 @@ const OurStory = () => {
 
           {/* Heading */}
 
-          <h1
+          <h2
             className="
-              max-w-[950px]
-              text-[42px]
-              font-normal
-              leading-[1.05]
-              tracking-[-0.04em]
-              text-[#252a27]
+             
+                mt-5
+                max-w-[430px]
+                text-[34px]
+                font-normal
+                leading-[1.12]
+                tracking-[-0.03em]
+                text-[#282d29]
 
-              sm:text-[54px]
+                sm:text-[42px]
 
-              md:text-[64px]
-
-              lg:text-[78px]
+                lg:text-[48px]
+              
             "
           >
             Good food begins with
             <span className="text-[#079447]"> good intentions.</span>
-          </h1>
+          </h2>
 
           {/* Description */}
 

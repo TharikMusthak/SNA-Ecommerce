@@ -350,6 +350,7 @@ const ResetPassword = () => {
                     value={confirmPassword}
                     onChange={handleChange}
                     onBlur={handleBlur}
+                    onPaste={(e) => e.preventDefault()}
                     placeholder="Confirm new password"
                     className={`w-full rounded-xl border ${
                       fieldErrors.confirmPassword

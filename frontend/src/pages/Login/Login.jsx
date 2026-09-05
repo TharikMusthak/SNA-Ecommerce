@@ -62,7 +62,6 @@ const AuthModal = ({ onClose }) => {
         return "";
       case "last_name":
         if (!value || !value.trim()) return "Please enter your last name.";
-        if (value.trim().length < 2) return "Last name must be at least 2 characters.";
         return "";
       case "email":
         if (!value || !value.trim()) return "Please enter your email.";
@@ -913,6 +912,7 @@ const AuthModal = ({ onClose }) => {
                         value={formData.password_confirmation}
                         onChange={handleChange}
                         onBlur={handleBlur}
+                        onPaste={(e) => e.preventDefault()}
                         placeholder="Confirm your password"
                         maxLength={128}
                         autoComplete="new-password"

@@ -658,6 +658,7 @@ const PasswordInput = ({ label, name, value, setValue, error }) => {
           autoComplete={name === "current_password" ? "current-password" : "new-password"}
           value={value[name]}
           onChange={(event) => setValue({ ...value, [name]: event.target.value })}
+          onPaste={name.includes("confirm") ? (e) => e.preventDefault() : undefined}
           placeholder={label}
           maxLength={128}
           aria-invalid={Boolean(error)}
