@@ -1,6 +1,9 @@
 const DEFAULT_API_URL = import.meta.env.DEV
   ? "http://localhost:5000"
   : "https://sna-ecommerce-api.vercel.app";
+const DEFAULT_MEDIA_URL = import.meta.env.DEV
+  ? ""
+  : "https://p0xgamfc5xxx22ep.public.blob.vercel-storage.com";
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 function resolveApiBase(configuredUrl) {
@@ -18,12 +21,21 @@ function resolveApiBase(configuredUrl) {
 }
 
 const BASE = resolveApiBase(import.meta.env.VITE_API_URL || DEFAULT_API_URL);
+const MEDIA_BASE = String(
+  import.meta.env.VITE_MEDIA_URL || DEFAULT_MEDIA_URL,
+).replace(/\/+$/, "");
 
 export const apiEndpoint = (path) =>
   `${BASE}${path.startsWith("/") ? path : `/${path}`}`;
 
-export const assetUrl = (path) =>
-  /^https?:\/\//i.test(path || "") ? path : `${BASE}${path || ""}`;
+export const assetUrl = (path) => {
+  const value = String(path || "");
+  if (/^https?:\/\//i.test(value)) return value;
+  if (value.startsWith("/uploads/") && MEDIA_BASE) {
+    return `${MEDIA_BASE}${value.slice("/uploads".length)}`;
+  }
+  return `${BASE}${value}`;
+};
 
 let refreshPromise = null;
 
