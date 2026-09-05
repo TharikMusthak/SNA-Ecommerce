@@ -90,7 +90,6 @@ async function request(path, options, canRefresh) {
   if (res.status === 401 && path !== "/auth/login") {
     window.dispatchEvent(new Event("sna:unauthorized"));
   }
-
   if (!res.ok) {
     if (res.status === 413) {
       throw new Error(
