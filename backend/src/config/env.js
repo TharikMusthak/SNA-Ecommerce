@@ -14,6 +14,8 @@ const frontendOrigins = String(
   .filter(Boolean);
 
 const loopbackHosts = new Set(["localhost", "127.0.0.1", "[::1]"]);
+const defaultPublicMediaUrl =
+  "https://p0xgamfc5xxx22ep.public.blob.vercel-storage.com";
 
 function normalizeOrigin(value) {
   const candidate = String(value || "").trim();
@@ -126,7 +128,8 @@ export const env = Object.freeze({
   ),
   publicApiUrl: normalizePublicUrl(process.env.PUBLIC_API_URL),
   publicMediaUrl: normalizePublicUrl(
-    process.env.PUBLIC_MEDIA_URL,
+    process.env.PUBLIC_MEDIA_URL ||
+      (process.env.VERCEL === "1" ? defaultPublicMediaUrl : ""),
     "PUBLIC_MEDIA_URL",
   ),
   adminResetUrl:
