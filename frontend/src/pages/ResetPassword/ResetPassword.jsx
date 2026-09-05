@@ -174,15 +174,12 @@ const ResetPassword = () => {
           {/* Top Header */}
           <div className="flex items-start justify-between gap-4">
             <div>
-              <div className="flex items-center gap-1.5">
-                <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#079447]">
-                  Account security
-                </p>
-                <img src={TinyLeaf} alt="" aria-hidden="true" className="w-4" />
+              <div className="flex items-center gap-1">
+                <h1 className="text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">
+                  {isSuccess ? "Password Reset" : "Reset Your Password"}
+                </h1>
+                <img src={TinyLeaf} alt="" aria-hidden="true" className="w-5" />
               </div>
-              <h1 className="mt-2 text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">
-                {isSuccess ? "Password Reset" : "Reset Your Password"}
-              </h1>
               <p className="mt-2 max-w-[420px] text-sm leading-6 text-gray-500">
                 {isSuccess
                   ? "Your password has been successfully updated. You can now log in with your new credentials."
@@ -248,9 +245,6 @@ const ResetPassword = () => {
               {/* Email (If not provided in URL) */}
               {!emailFromUrl && (
                 <div>
-                  <label htmlFor="email" className="block text-xs font-semibold text-gray-700">
-                    Account Email
-                  </label>
                   <input
                     id="email"
                     name="email"
@@ -259,7 +253,7 @@ const ResetPassword = () => {
                     onChange={handleChange}
                     onBlur={handleBlur}
                     placeholder="Enter your email address"
-                    className={`mt-1.5 w-full rounded-xl border ${
+                    className={`w-full rounded-xl border ${
                       fieldErrors.email
                         ? "border-red-400 bg-red-50/20 focus:border-red-500 focus:ring-red-500/10"
                         : "border-gray-200 bg-gray-50 focus:border-[#079447] focus:ring-[#079447]/10"
@@ -276,10 +270,7 @@ const ResetPassword = () => {
 
               {/* New Password */}
               <div>
-                <label htmlFor="password" className="block text-xs font-semibold text-gray-700">
-                  New Password
-                </label>
-                <div className="relative mt-1.5">
+                <div className="relative">
                   <input
                     id="password"
                     name="password"
@@ -351,13 +342,7 @@ const ResetPassword = () => {
 
               {/* Confirm Password */}
               <div>
-                <label
-                  htmlFor="confirmPassword"
-                  className="block text-xs font-semibold text-gray-700"
-                >
-                  Confirm New Password
-                </label>
-                <div className="relative mt-1.5">
+                <div className="relative">
                   <input
                     id="confirmPassword"
                     name="confirmPassword"

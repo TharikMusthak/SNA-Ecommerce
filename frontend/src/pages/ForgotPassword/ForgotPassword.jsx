@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { forgotPasswordRequest } from "@api/auth.api";
 import { ArrowLeft, X, ShieldCheck, Sparkles, AlertCircle } from "lucide-react";
+import TinyLeaf from "@assets/images/tinyleaf.svg";
 
 const emailRegex = /^\S+@\S+\.\S+$/;
 
@@ -73,12 +74,12 @@ const ForgotPassword = () => {
         <div className="relative flex flex-col gap-6 p-6 sm:p-8">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#079447]">
-                Account help
-              </p>
-              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-gray-900">
-                Forgot password
-              </h1>
+              <div className="flex items-center gap-1">
+                <h1 className="text-3xl font-semibold tracking-tight text-gray-900">
+                  Forgot password
+                </h1>
+                <img src={TinyLeaf} alt="" aria-hidden="true" className="w-5" />
+              </div>
               <p className="mt-2 max-w-[420px] text-sm leading-6 text-gray-500">
                 Enter the email address linked to your account and we&apos;ll send
                 password reset instructions.
