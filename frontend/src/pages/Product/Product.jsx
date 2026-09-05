@@ -104,6 +104,48 @@ export function extractReviewMedia(review) {
   return list;
 }
 
+export function getProductWeightString(item) {
+  if (!item) return "";
+  const weight =
+    item.weight ??
+    item.net_weight ??
+    item.size ??
+    item.package_weight ??
+    item.quantity ??
+    item.unit_quantity ??
+    item.volume;
+
+  const unit =
+    item.unit ??
+    item.weight_unit ??
+    item.unit_type ??
+    item.unit_name ??
+    "";
+
+  if (weight != null && String(weight).trim() !== "") {
+    const strWeight = String(weight).trim();
+    if (/[a-zA-Z]/.test(strWeight)) {
+      return strWeight;
+    }
+    if (unit) {
+      return `${strWeight} ${String(unit).trim()}`;
+    }
+    return strWeight;
+  }
+
+  if (item.option_label && item.option_label !== "Standard") {
+    return item.option_label;
+  }
+
+  const desc = item.short_description || item.description || "";
+  const weightMatch = desc.match(/\b(\d+(?:\.\d+)?\s*(?:kg|g|gm|gms|grams|ml|l|ltr|litre|litres))\b/i);
+  if (weightMatch) {
+    return weightMatch[1];
+  }
+
+  return "";
+}
+
 const Product = () => {
   const { identifier } = useParams();
   return identifier ? (
@@ -366,6 +408,17 @@ console.log("product", product);
     isAuthenticated,
   ]);
 
+  const selectedVariant = product?.variants?.find(
+    (variant) => Number(variant.id) === Number(variantId),
+  );
+  const standardWeight = useMemo(() => getProductWeightString(product), [product]);
+  const activeWeight = useMemo(() => {
+    if (selectedVariant) {
+      return getProductWeightString(selectedVariant) || standardWeight;
+    }
+    return standardWeight;
+  }, [selectedVariant, standardWeight]);
+
   if (isLoading)
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
@@ -386,9 +439,6 @@ console.log("product", product);
       </div>
     );
 
-  const selectedVariant = product.variants?.find(
-    (variant) => Number(variant.id) === Number(variantId),
-  );
   const price = selectedVariant?.price ?? effectivePrice(product);
   const stock = selectedVariant?.stock ?? product.stock;
   const favorite = wishlist.items.some(
@@ -756,7 +806,22 @@ console.log("product", product);
               </span>
             )}
           </div>
-   
+
+          {/* Standard Weight / Size Display */}
+          {(activeWeight || standardWeight) && (
+            <div className="mt-4 flex items-center gap-2 text-sm text-gray-600">
+              <span className="font-semibold text-gray-700">Net Weight / Size:</span>
+              <span className="inline-flex items-center rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-[#079447] ring-1 ring-[#079447]/15">
+                {activeWeight || standardWeight}
+              </span>
+              {selectedVariant && standardWeight && activeWeight !== standardWeight && (
+                <span className="text-xs text-gray-400">
+                  (Standard: {standardWeight})
+                </span>
+              )}
+            </div>
+          )}
+
           {product.variants?.length > 0 && (
             <div className="mt-7">
               <p className="font-semibold text-gray-800">Choose an option</p>
@@ -764,22 +829,31 @@ console.log("product", product);
                 <button
                   type="button"
                   onClick={() => setVariantId("base")}
-                  className={`rounded-xl border px-4 py-2 text-sm ${variantId === "base" ? "border-[#079447] bg-[#079447] text-white" : "border-gray-300"}`}
+                  className={`rounded-xl border px-4 py-2 text-sm ${
+                    variantId === "base"
+                      ? "border-[#079447] bg-[#079447] text-white"
+                      : "border-gray-300"
+                  }`}
                 >
-                  {product.option_label || "Standard"}
+                  {product.option_label || (standardWeight ? `Standard (${standardWeight})` : "Standard")}
                 </button>
-                {product.variants.map((variant) => (
-                  <button
-                    type="button"
-                    key={variant.id}
-                    onClick={() => setVariantId(variant.id)}
-                    className={`rounded-xl border px-4 py-2 text-sm ${Number(variantId) === Number(variant.id) ? "border-[#079447] bg-[#079447] text-white" : "border-gray-300"}`}
-                  >
-                    {[variant.size]
-                      .filter(Boolean)
-                      .join(" · ") || variant.sku}
-                  </button>
-                ))}
+                {product.variants.map((variant) => {
+                  const vWeight = getProductWeightString(variant);
+                  return (
+                    <button
+                      type="button"
+                      key={variant.id}
+                      onClick={() => setVariantId(variant.id)}
+                      className={`rounded-xl border px-4 py-2 text-sm ${
+                        Number(variantId) === Number(variant.id)
+                          ? "border-[#079447] bg-[#079447] text-white"
+                          : "border-gray-300"
+                      }`}
+                    >
+                      {[variant.size, vWeight].filter(Boolean)[0] || variant.sku}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}

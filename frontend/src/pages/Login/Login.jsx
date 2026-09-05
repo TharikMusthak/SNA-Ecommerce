@@ -776,7 +776,7 @@ const AuthModal = ({ onClose }) => {
                       onChange={handleChange}
                       onBlur={handleBlur}
                       placeholder="Enter your phone number"
-                      maxLength={15}
+                      maxLength={10}
                       autoComplete="tel"
                       inputMode="tel"
                       aria-invalid={Boolean(fieldErrors.phone)}

@@ -99,9 +99,9 @@ const ProductCard = ({ product }) => {
             <Heart size={19} fill={isFavorite ? "currentColor" : "none"} />
           </button>
         </div>
-        <p className="mt-3 line-clamp-2 text-sm leading-6 text-gray-500">
+        {/* <p className="mt-3 line-clamp-2 text-sm leading-6 text-gray-500">
           {product.short_description || product.description || "Made with carefully selected ingredients."}
-        </p>
+        </p> */}
         <div className="mt-3 flex items-center gap-1.5 text-sm">
           <Star size={16} className="fill-amber-400 text-amber-400" />
           <span className="font-semibold text-gray-800">{rating ? rating.toFixed(1) : "New"}</span>
