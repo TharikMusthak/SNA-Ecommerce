@@ -15,6 +15,7 @@ import PrivacyPolicy from "@pages/PrivacyPolicy/PrivacyPolicy";
 import Login from "@pages/Login/Login";
 import Register from "@pages/Register/Register";
 import ForgotPassword from "@pages/ForgotPassword/ForgotPassword";
+import ResetPassword from "@pages/ResetPassword/ResetPassword";
 
 import Profile from "@pages/Profile/Profile";
 import Wishlist from "@pages/Wishlist/Wishlist";
@@ -74,6 +75,11 @@ export const router = createBrowserRouter([
         element: <VerifyEmail />,
         handle: { title: "Verify Email" },
       },
+      {
+        path: "reset-password",
+        element: <ResetPassword />,
+        handle: { title: "Reset Password" },
+      },
 
       // Protected Routes
       {
@@ -129,6 +135,11 @@ export const router = createBrowserRouter([
             path: "forgot-password",
             element: <ForgotPassword />,
             handle: { title: "Forgot Password" },
+          },
+          {
+            path: "reset-password",
+            element: <ResetPassword />,
+            handle: { title: "Reset Password" },
           },
         ],
       },

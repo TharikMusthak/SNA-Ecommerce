@@ -155,7 +155,7 @@ const OurStory = () => {
               sm:text-[16px]
             "
           >
-            SNA Sundaram began at home with a simple thought — everyday food
+            SNA Sundaram began at home with a simple thought everyday food
             should be wholesome, familiar, and made with care. What started
             as a choice for our children and family slowly became a purpose we wanted
             to share with others.
@@ -378,7 +378,7 @@ const OurStory = () => {
             >
               We started by making healthier snacks for our own family and
               keeping better options available at home. There was no grand
-              plan at the beginning — just a genuine need for food we could
+              plan at the beginning just a genuine need for food we could
               feel good about serving.
             </p>
           </div>
@@ -438,7 +438,7 @@ const OurStory = () => {
                   text-[#626862]
                 "
               >
-                We wanted something better than routine junk food — something
+                We wanted something better than routine junk food something
                 simple, honest, and nourishing enough to become part of our
                 everyday life.
               </p>
