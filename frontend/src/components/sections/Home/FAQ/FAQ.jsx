@@ -85,7 +85,7 @@ const FAQ = () => {
           pointer-events-none
           absolute
           bottom-0
-          right-0
+          right-[-12px]
           z-0
 
           hidden

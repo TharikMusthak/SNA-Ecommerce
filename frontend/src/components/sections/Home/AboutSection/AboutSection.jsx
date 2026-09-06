@@ -252,7 +252,7 @@ sm:block
     lg:w-[235px]
 
     /* Large desktop */
-    xl:right-[0px]
+    xl:right-[-2px]
     xl:bottom-[-20px]
     xl:w-[281px]
 

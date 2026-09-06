@@ -377,7 +377,7 @@ console.log("product", product);
     if (!node) return;
 
     const updateHeight = () => {
-      if (node && isAuthenticated && window.innerWidth >= 1024) {
+      if (node && window.innerWidth >= 1024) {
         setFormHeight(node.offsetHeight);
       } else {
         setFormHeight(null);
@@ -746,7 +746,7 @@ console.log("product", product);
   };
 
   return (
-    <main className="mx-auto w-full max-w-[1380px] px-5 py-6 sm:px-8 sm:py-10 lg:px-14">
+    <main className="mx-auto w-full max-w-[1380px] px-4 py-6 sm:px-6 sm:py-10">
       {/* Top Header Bar with Close / Back Button */}
       <div className="mb-6 flex items-center justify-between border-b border-gray-100 pb-4">
         <button
@@ -911,29 +911,29 @@ console.log("product", product);
          
         </div>
       </div>
-      <section className="mt-20 rounded-[2rem] border border-emerald-100 bg-[#f5f7f1] p-5 sm:p-8 lg:p-10" aria-labelledby="reviews-heading">
-        <div className="flex flex-col justify-between gap-4 border-b border-emerald-100 pb-6 sm:flex-row sm:items-end">
+      <section className="mt-8 sm:mt-10 rounded-[2rem] border border-emerald-100 bg-[#f5f7f1] p-4 sm:p-6 lg:p-7" aria-labelledby="reviews-heading">
+        <div className="flex flex-col justify-between gap-3 border-b border-emerald-100 pb-4 sm:flex-row sm:items-end">
           <div>
             <div className="flex items-center gap-1"><span className="text-[clamp(22px,1.8vw,27px)] font-bold leading-none text-[#3d3d3d]">Customer feedback</span><img className="h-auto w-[17px]" alt="" aria-hidden="true" src={Tinyleaf} /></div>
-            <h2 id="reviews-heading" className="mt-3 text-3xl font-semibold text-gray-900">Loved by our customers</h2>
-            <p className="mt-2 text-sm text-gray-600">Honest feedback from people who have tried this product.</p>
+            <h2 id="reviews-heading" className="mt-2 text-2xl sm:text-3xl font-semibold text-gray-900">Loved by our customers</h2>
+            <p className="mt-1 text-sm text-gray-600">Honest feedback from people who have tried this product.</p>
           </div>
           <span className="w-fit rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-[#079447] shadow-sm">{reviewCount} {reviewCount === 1 ? "review" : "reviews"}</span>
         </div>
 
         {/* Rating Breakdown Banner */}
-        <div className="mt-7 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/[0.03]">
-          <div className="grid gap-6 md:grid-cols-[240px_minmax(0,1fr)] md:items-center md:divide-x md:divide-gray-100">
-            <div className="flex items-center gap-5 md:pr-6">
-              <span className="text-5xl font-bold tracking-tight text-gray-900">{productRating ? productRating.toFixed(1) : "—"}</span>
+        <div className="mt-4 rounded-2xl bg-white p-4 sm:p-5 shadow-sm ring-1 ring-black/[0.03]">
+          <div className="grid gap-4 md:grid-cols-[220px_minmax(0,1fr)] md:items-center md:divide-x md:divide-gray-100">
+            <div className="flex items-center gap-4 md:pr-5">
+              <span className="text-4xl sm:text-5xl font-bold tracking-tight text-gray-900">{productRating ? productRating.toFixed(1) : "—"}</span>
               <div>
                 <div className="flex gap-0.5" aria-label={`${productRating || 0} out of 5 stars`}>
                   {[1, 2, 3, 4, 5].map((star) => <Star key={star} size={18} className={star <= Math.round(productRating) ? "fill-amber-400 text-amber-400" : "text-gray-200"} />)}
                 </div>
-                <p className="mt-2 text-sm text-gray-500">Based on {reviewCount || "no"} customer {reviewCount === 1 ? "review" : "reviews"}</p>
+                <p className="mt-1 text-xs text-gray-500">Based on {reviewCount || "no"} customer {reviewCount === 1 ? "review" : "reviews"}</p>
               </div>
             </div>
-            <div className="space-y-2.5 md:pl-6">
+            <div className="space-y-2 md:pl-5">
               {ratingBreakdown.map(({ score, count }) => (
                 <div key={score} className="grid grid-cols-[1.5rem_1fr_1.75rem] items-center gap-2 text-xs text-gray-500">
                   <span>{score} star</span>
@@ -948,17 +948,19 @@ console.log("product", product);
         </div>
 
         {/* 2-Column Grid: Review Form (Left) & Customer Reviews (Right) */}
-        <div className="mt-6 grid gap-6 lg:grid-cols-2 lg:items-stretch">
+        <div className="mt-4 grid gap-4 sm:gap-5 lg:grid-cols-2 lg:items-start">
           <div
             ref={reviewFormRef}
-            className={`flex flex-col justify-between rounded-2xl border border-emerald-100 bg-white/90 p-5 sm:p-7 shadow-sm ${
+            className={`flex flex-col rounded-2xl border border-emerald-100 bg-white/90 p-4 sm:p-5 shadow-sm ${
               !isAuthenticated ? "bg-gradient-to-b from-white via-white to-emerald-50/30" : ""
             }`}
           >
-            <h3 className="font-semibold text-gray-900">{editingReviewId != null ? "Edit your review" : "Share your experience"}</h3>
-            <p className="mt-1 text-sm leading-6 text-gray-600">{editingReviewId != null ? "Update your rating or feedback, then save your changes." : "Your review helps others shop with confidence."}</p>
+            <div>
+              <h3 className="font-semibold text-gray-900">{editingReviewId != null ? "Edit your review" : "Share your experience"}</h3>
+              <p className="mt-0.5 text-xs leading-relaxed text-gray-500">{editingReviewId != null ? "Update your rating or feedback, then save your changes." : "Your review helps others shop with confidence."}</p>
+            </div>
             {isAuthenticated ? (
-              <form onSubmit={submitRating} className="mt-5" noValidate>
+              <form onSubmit={submitRating} className="mt-2.5" noValidate>
                 {/* Star Rating Section */}
                 <div>
                   <div className="flex gap-1" onMouseLeave={() => setHoveredRating(0)}>
@@ -1011,11 +1013,11 @@ console.log("product", product);
                   onChange={(event) => setReviewTitle(event.target.value)}
                   maxLength={150}
                   placeholder="Give your review a title (optional)"
-                  className="mt-4 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-[#079447] focus:ring-2 focus:ring-emerald-100 placeholder:text-gray-400"
+                  className="mt-2.5 w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-800 outline-none transition focus:border-[#079447] focus:ring-2 focus:ring-emerald-100 placeholder:text-gray-400"
                 />
 
                 {/* Review Text Textarea */}
-                <div className="mt-3">
+                <div className="mt-2.5">
                   <textarea
                     value={reviewText}
                     onChange={(event) => {
@@ -1036,14 +1038,14 @@ console.log("product", product);
                       }));
                     }}
                     maxLength={500}
-                    rows={3}
+                    rows={2}
                     placeholder="What did you like about it?"
                     aria-invalid={Boolean(reviewErrors.reviewText)}
                     className={`w-full resize-none rounded-xl border ${
                       reviewErrors.reviewText
                         ? "border-red-400 bg-red-50/20 text-[#333] focus:border-red-500 focus:bg-white focus:ring-4 focus:ring-red-500/10"
                         : "border-gray-200 bg-white text-gray-800 focus:border-[#079447] focus:ring-2 focus:ring-emerald-100"
-                    } px-4 py-3 text-sm outline-none transition placeholder:text-gray-400`}
+                    } px-4 py-2.5 text-sm outline-none transition placeholder:text-gray-400`}
                   />
                   <p className="mt-0.5 flex min-h-[14px] items-center gap-1 text-[11px] font-medium leading-4 text-red-600">
                     {reviewErrors.reviewText && (
@@ -1235,10 +1237,8 @@ console.log("product", product);
             )}
           </div>
           <div
-            style={isAuthenticated && formHeight ? { height: `${formHeight}px` } : {}}
-            className={`flex flex-col rounded-2xl bg-white p-5 shadow-sm sm:p-6 transition-[height] duration-200 ${
-              !isAuthenticated ? "min-h-[380px] lg:min-h-[460px] max-h-[650px]" : ""
-            }`}
+            style={formHeight ? { height: `${formHeight}px` } : {}}
+            className="flex flex-col rounded-2xl bg-white p-4 sm:p-5 shadow-sm overflow-hidden"
           >
             <div className="flex shrink-0 items-end justify-between gap-4">
               <div>
@@ -1278,7 +1278,7 @@ console.log("product", product);
               </div>
             )}
 
-            <div className="mt-5 flex-1 min-h-0 overflow-y-auto pr-2 space-y-0">
+            <div className="mt-5 flex-1 min-h-0 overflow-y-auto pr-2 space-y-0 review-scrollbar">
               {reviewsLoading && <p className="py-8 text-sm text-gray-500">Loading customer reviews...</p>}
               {!reviewsLoading && !reviews.length && (
                 <p className="py-8 text-sm leading-6 text-gray-500">

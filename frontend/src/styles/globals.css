@@ -69,37 +69,35 @@ div {
 }
 
 /* ==========================================================
-   PLATFORM-WIDE SLIM & SLEEK SCROLLBAR STYLING
+   PLATFORM-WIDE 1PX TRANSPARENT SCROLLBAR STYLING
 ========================================================== */
 
 /* Firefox Standard */
 * {
-  scrollbar-width: thin;
-  scrollbar-color: rgb(208, 250, 229) transparent;
+  scrollbar-width: none;
+  scrollbar-color: transparent transparent;
 }
 
 /* WebKit (Chrome, Edge, Safari) */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 1px;
 }
 
+/* Track */
 ::-webkit-scrollbar-track {
-  background: transparent;
-  border-radius: 9999px;
+  box-shadow: inset 0 0 1px transparent; 
+  border-radius: 10px;
 }
-
+ 
+/* Handle */
 ::-webkit-scrollbar-thumb {
-  background: rgba(7, 148, 71, 0.35);
+  background: transparent; 
   border-radius: 9999px;
 }
 
+/* Handle on hover */
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(7, 148, 71, 0.75);
-}
-
-::-webkit-scrollbar-thumb:active {
-  background: #079447;
+  background: transparent; 
 }
 
 /* Utility for hiding scrollbars when explicitly requested */
@@ -112,6 +110,29 @@ div {
 .no-scrollbar {
   -ms-overflow-style: none !important;
   scrollbar-width: none !important;
+}
+
+/* Custom Ultra-Thin Desaturated Scrollbar specifically for Reviews List */
+.review-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(150, 165, 155, 0.35) transparent;
+}
+
+.review-scrollbar::-webkit-scrollbar {
+  width: 2.5px !important;
+}
+
+.review-scrollbar::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+.review-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(150, 165, 155, 0.35) !important;
+  border-radius: 9999px !important;
+}
+
+.review-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(120, 140, 128, 0.65) !important;
 }
 /* ==========================================================
    ABOUT SECTION - ENTRANCE ANIMATIONS
