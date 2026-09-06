@@ -268,15 +268,15 @@ const ProductImageGallery = ({ product, selectedVariant = null }) => {
   }, [isLightboxOpen, mediaList.length]);
 
   return (
-    <div className="flex flex-col-reverse gap-4 lg:flex-row lg:items-start">
+    <div className="flex flex-col-reverse gap-4 w-full max-w-full overflow-hidden lg:flex-row lg:items-start">
       {/* Thumbnails Sidebar / Bar */}
       {mediaList.length > 1 && (
-        <div className="relative flex w-full shrink-0 items-center justify-center lg:w-20 lg:flex-col lg:justify-start">
+        <div className="relative flex w-full max-w-full shrink-0 items-center justify-center overflow-hidden lg:w-20 lg:flex-col lg:justify-start">
           {/* Scroll Prev Button for Mobile/Tablet */}
           <button
             type="button"
             onClick={() => scrollThumbnails("left")}
-            className="absolute -left-2 z-10 rounded-full bg-white/90 p-1 shadow-md hover:bg-white lg:hidden"
+            className="absolute left-0 z-10 rounded-full bg-white/90 p-1 shadow-md hover:bg-white lg:hidden"
             aria-label="Previous thumbnails"
           >
             <ChevronLeft size={16} />
@@ -351,7 +351,7 @@ const ProductImageGallery = ({ product, selectedVariant = null }) => {
           <button
             type="button"
             onClick={() => scrollThumbnails("right")}
-            className="absolute -right-2 z-10 rounded-full bg-white/90 p-1 shadow-md hover:bg-white lg:hidden"
+            className="absolute right-0 z-10 rounded-full bg-white/90 p-1 shadow-md hover:bg-white lg:hidden"
             aria-label="Next thumbnails"
           >
             <ChevronRight size={16} />
@@ -360,7 +360,7 @@ const ProductImageGallery = ({ product, selectedVariant = null }) => {
       )}
 
       {/* Main Media Display Stage */}
-      <div className="relative w-full flex-1">
+      <div className="relative w-full max-w-full flex-1 overflow-hidden">
         {currentMedia.type === "video" ? (
           <div className="relative aspect-square w-full overflow-hidden rounded-[2rem] bg-black p-0 shadow-inner flex items-center justify-center">
             {currentMedia.isEmbed ? (

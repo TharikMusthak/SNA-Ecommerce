@@ -746,7 +746,7 @@ console.log("product", product);
   };
 
   return (
-    <main className="mx-auto w-full max-w-[1380px] px-4 py-6 sm:px-6 sm:py-10">
+    <main className="mx-auto w-full max-w-[1380px] px-4 py-6 sm:px-6 sm:py-10 overflow-x-hidden">
       {/* Top Header Bar with Close / Back Button */}
       <div className="mb-6 flex items-center justify-between border-b border-gray-100 pb-4">
         <button
@@ -768,8 +768,8 @@ console.log("product", product);
        
       </div>
 
-      <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
-        <div className="space-y-6 lg:sticky lg:top-[74px] lg:mt-[74px] lg:self-start">
+      <div className="grid gap-10 lg:grid-cols-2 lg:gap-16 w-full max-w-full overflow-hidden">
+        <div className="space-y-6 w-full max-w-full overflow-hidden lg:sticky lg:top-[74px] lg:mt-[74px] lg:self-start">
           <ProductImageGallery
             product={product}
             selectedVariant={selectedVariant}
