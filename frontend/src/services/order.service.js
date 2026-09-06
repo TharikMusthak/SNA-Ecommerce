@@ -9,5 +9,11 @@ export const listOrders = async (params) => {
 };
 export const fetchOrder = async (orderId) =>
   (await getOrder(orderId)).data.data;
-export const fetchOrderTracking = async (orderId) =>
-  (await getOrderTracking(orderId)).data.data;
+export const fetchOrderTracking = async (orderId) => {
+  const response = await getOrderTracking(orderId);
+  const tracking = response.data?.data ?? response.data;
+  if (!tracking || typeof tracking !== "object" || !tracking.order_number) {
+    throw new Error("The tracking API returned an empty response");
+  }
+  return tracking;
+};

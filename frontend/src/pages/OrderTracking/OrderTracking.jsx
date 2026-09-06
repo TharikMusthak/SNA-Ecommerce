@@ -37,7 +37,7 @@ export default function OrderTracking() {
     return <div className="flex min-h-[55vh] items-center justify-center"><Spinner /></div>;
   }
 
-  if (isError) {
+  if (isError || !data) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6">
         <PackageCheck className="mx-auto text-red-500" size={42} />
@@ -130,14 +130,15 @@ export default function OrderTracking() {
 }
 
 function trackingEvents(data) {
-  const orderEvents = (data.history || []).map((event, index) => ({
+  if (!data || typeof data !== "object") return [];
+  const orderEvents = (Array.isArray(data.history) ? data.history : []).map((event, index) => ({
     key: `order-${index}-${event.created_at}`,
     status: event.status,
     note: event.note,
     date: event.created_at,
     source: "order",
   }));
-  const shipmentEvents = (data.shipment?.timeline || []).map((event, index) => ({
+  const shipmentEvents = (Array.isArray(data.shipment?.timeline) ? data.shipment.timeline : []).map((event, index) => ({
     key: `shipment-${event.id || index}-${event.timestamp}`,
     status: event.status,
     note: event.description,
