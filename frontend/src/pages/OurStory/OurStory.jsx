@@ -71,27 +71,14 @@ const OurStory = () => {
           "
         >
           {/* Small label */}
-
-          <div className="mb-7 flex items-center gap-2">
-            <span className="h-px w-8 bg-[#079447]" />
-
-            <p
-              className="
-                text-[11px]
-                font-semibold
-                uppercase
-                tracking-[0.28em]
-                text-[#079447]
-              "
-            >
+          <div className="mb-2 flex items-center justify-center gap-1">
+            <span className="pointer-events-none text-[clamp(22px,1.8vw,27px)] font-bold leading-none text-[#3d3d3d]">
               The SNA Sundaram Story
-            </p>
-
-            <span className="h-px w-8 bg-[#079447]" />
+            </span>
+            <img className="h-auto w-[17px]" alt="Tiny leaf" aria-hidden="true" src={Tinyleaf} />
           </div>
 
           {/* Logo */}
-
           <div
             className="
               mb-8
@@ -114,29 +101,21 @@ const OurStory = () => {
                 h-auto
                 w-[145px]
                 object-contain
-
                 sm:w-[170px]
               "
             />
           </div>
 
           {/* Heading */}
-
           <h2
             className="
-             
-                mt-5
-                max-w-[430px]
-                text-[34px]
-                font-normal
-                leading-[1.12]
-                tracking-[-0.03em]
-                text-[#282d29]
-
-                sm:text-[42px]
-
-                lg:text-[48px]
-              
+              mt-5
+              max-w-[720px]
+              text-[clamp(43px,3.3vw,56px)]
+              font-normal
+              leading-[1.12]
+              tracking-[-0.025em]
+              text-[#3f3f3f]
             "
           >
             Good food begins with
@@ -144,19 +123,16 @@ const OurStory = () => {
           </h2>
 
           {/* Description */}
-
           <p
             className="
               mt-7
-              max-w-[720px]
-              text-[15px]
-              leading-[1.85]
-              text-[#626862]
-
-              sm:text-[16px]
+              max-w-[1050px]
+              text-[clamp(15px,1.35vw,22px)]
+              leading-[1.45]
+              text-[#414141]
             "
           >
-            SNA Sundaram began at home with a simple thought everyday food
+            SNA Sundaram began at home with a simple thought: everyday food
             should be wholesome, familiar, and made with care. What started
             as a choice for our children and family slowly became a purpose we wanted
             to share with others.
@@ -246,16 +222,12 @@ const OurStory = () => {
             <h2
               className="
                 mt-5
-                max-w-[430px]
-                text-[34px]
+                max-w-[520px]
+                text-[clamp(43px,3.3vw,56px)]
                 font-normal
                 leading-[1.12]
-                tracking-[-0.03em]
-                text-[#282d29]
-
-                sm:text-[42px]
-
-                lg:text-[48px]
+                tracking-[-0.025em]
+                text-[#3f3f3f]
               "
             >
               From our children to your home
@@ -267,11 +239,9 @@ const OurStory = () => {
           <div>
             <p
               className="
-                text-[16px]
-                leading-[1.9]
-                text-[#555c56]
-
-                sm:text-[17px]
+                text-[clamp(15px,1.35vw,22px)]
+                leading-[1.45]
+                text-[#414141]
               "
             >
               SNA Sundaram is a family-led brand built around a simple belief:
@@ -283,11 +253,9 @@ const OurStory = () => {
             <p
               className="
                 mt-5
-                text-[16px]
-                leading-[1.9]
-                text-[#555c56]
-
-                sm:text-[17px]
+                text-[clamp(15px,1.35vw,22px)]
+                leading-[1.45]
+                text-[#414141]
               "
             >
               Over time, the preparations we made snacks for our children and family became part
@@ -344,21 +312,15 @@ const OurStory = () => {
                          />
             </div>
             </div>
-          <div className="max-w-[700px]">
-              
-
+          <div className="max-w-[850px]">
             <h2
               className="
                 mt-4
-                text-[34px]
+                text-[clamp(43px,3.3vw,56px)]
                 font-normal
-                leading-[1.1]
-                tracking-[-0.03em]
-                text-[#292e2b]
-
-                sm:text-[44px]
-
-                lg:text-[52px]
+                leading-[1.12]
+                tracking-[-0.025em]
+                text-[#3f3f3f]
               "
             >
               A simple idea,
@@ -369,12 +331,10 @@ const OurStory = () => {
             <p
               className="
                 mt-5
-                max-w-[680px]
-                text-[15px]
-                leading-[1.85]
-                text-[#626962]
-
-                sm:text-[16px]
+                max-w-[1050px]
+                text-[clamp(15px,1.35vw,22px)]
+                leading-[1.45]
+                text-[#414141]
               "
             >
               We started by making healthier snacks for our own family and
@@ -423,7 +383,7 @@ const OurStory = () => {
               <h3
                 className="
                   mt-5
-                  text-[22px]
+                  text-[clamp(20px,1.5vw,24px)]
                   font-semibold
                   text-[#292e2b]
                 "
@@ -434,9 +394,9 @@ const OurStory = () => {
               <p
                 className="
                   mt-4
-                  text-[15px]
-                  leading-[1.8]
-                  text-[#626862]
+                  text-[clamp(14px,1.15vw,17px)]
+                  leading-[1.65]
+                  text-[#414141]
                 "
               >
                 We wanted something better than routine junk food something
@@ -473,7 +433,7 @@ const OurStory = () => {
               <h3
                 className="
                   mt-5
-                  text-[22px]
+                  text-[clamp(20px,1.5vw,24px)]
                   font-semibold
                   text-[#292e2b]
                 "
@@ -484,9 +444,9 @@ const OurStory = () => {
               <p
                 className="
                   mt-4
-                  text-[15px]
-                  leading-[1.8]
-                  text-[#626862]
+                  text-[clamp(14px,1.15vw,17px)]
+                  leading-[1.65]
+                  text-[#414141]
                 "
               >
                 As our family continued using these preparations, they became
@@ -523,7 +483,7 @@ const OurStory = () => {
               <h3
                 className="
                   mt-5
-                  text-[22px]
+                  text-[clamp(20px,1.5vw,24px)]
                   font-semibold
                   text-[#292e2b]
                 "
@@ -534,9 +494,9 @@ const OurStory = () => {
               <p
                 className="
                   mt-4
-                  text-[15px]
-                  leading-[1.8]
-                  text-[#626862]
+                  text-[clamp(14px,1.15vw,17px)]
+                  leading-[1.65]
+                  text-[#414141]
                 "
               >
                 Traditional ingredients such as garlic, honey, cold-pressed gingelly oils, and ellu-based
@@ -603,16 +563,12 @@ const OurStory = () => {
             <h2
               className="
                 mt-5
-                max-w-[560px]
-                text-[35px]
+                max-w-[700px]
+                text-[clamp(43px,3.3vw,56px)]
                 font-normal
                 leading-[1.12]
-                tracking-[-0.03em]
-                text-[#292e2b]
-
-                sm:text-[44px]
-
-                lg:text-[52px]
+                tracking-[-0.025em]
+                text-[#3f3f3f]
               "
             >
               Better choices can begin with everyday habits.
@@ -621,12 +577,10 @@ const OurStory = () => {
             <p
               className="
                 mt-5
-                max-w-[580px]
-                text-[15px]
-                leading-[1.9]
-                text-[#626862]
-
-                sm:text-[16px]
+                max-w-[1050px]
+                text-[clamp(15px,1.35vw,22px)]
+                leading-[1.45]
+                text-[#414141]
               "
             >
               We believe food does not have to be complicated to be good.
@@ -819,14 +773,12 @@ const OurStory = () => {
               className="
                 mx-auto
                 mt-4
-                max-w-[650px]
-                text-[34px]
+                max-w-[850px]
+                text-[clamp(43px,3.3vw,56px)]
                 font-normal
-                leading-[1.1]
-                tracking-[-0.03em]
-                text-[#292e2b]
-
-                sm:text-[44px]
+                leading-[1.12]
+                tracking-[-0.025em]
+                text-[#3f3f3f]
               "
             >
               The principles behind everything we make.
@@ -881,7 +833,7 @@ const OurStory = () => {
                   <h3
                     className="
                       mt-6
-                      text-[20px]
+                      text-[clamp(20px,1.5vw,24px)]
                       font-semibold
                       text-[#292e2b]
                     "
@@ -892,9 +844,9 @@ const OurStory = () => {
                   <p
                     className="
                       mt-3
-                      text-[14px]
-                      leading-[1.8]
-                      text-[#626862]
+                      text-[clamp(14px,1.15vw,17px)]
+                      leading-[1.65]
+                      text-[#414141]
                     "
                   >
                     {item.text}
@@ -925,36 +877,21 @@ const OurStory = () => {
             lg:py-28
           "
         >
-          <div className="flex items-center justify-center gap-2">
-            <span className="h-px w-8 bg-[#079447]" />
-
-            <p
-              className="
-                text-[11px]
-                font-semibold
-                uppercase
-                tracking-[0.24em]
-                text-[#079447]
-              "
-            >
+          <div className="flex items-center justify-center gap-1">
+            <span className="pointer-events-none text-[clamp(22px,1.8vw,27px)] font-bold leading-none text-[#3d3d3d]">
               Our Promise
-            </p>
-
-            <span className="h-px w-8 bg-[#079447]" />
+            </span>
+            <img className="h-auto w-[17px]" alt="Tiny leaf" aria-hidden="true" src={Tinyleaf} />
           </div>
 
           <h2
             className="
               mt-6
-              text-[36px]
+              text-[clamp(43px,3.3vw,56px)]
               font-normal
               leading-[1.12]
-              tracking-[-0.035em]
-              text-[#292e2b]
-
-              sm:text-[48px]
-
-              lg:text-[58px]
+              tracking-[-0.025em]
+              text-[#3f3f3f]
             "
           >
             Simple food.
@@ -968,12 +905,10 @@ const OurStory = () => {
             className="
               mx-auto
               mt-6
-              max-w-[650px]
-              text-[15px]
-              leading-[1.9]
-              text-[#626862]
-
-              sm:text-[16px]
+              max-w-[1050px]
+              text-[clamp(15px,1.35vw,22px)]
+              leading-[1.45]
+              text-[#414141]
             "
           >
             Our promise is to keep every product rooted in fresh, care, tradition,

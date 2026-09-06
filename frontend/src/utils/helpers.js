@@ -1,4 +1,4 @@
-import { API_BASE_URL, MEDIA_BASE_URL } from "@config/env";
+import { API_BASE_URL } from "@config/env";
 import { getPricingDisplay } from "@utils/pricing";
 
 export { getPricingDisplay, getVariantPricingDisplay } from "@utils/pricing";
@@ -9,9 +9,6 @@ export function assetUrl(value, fallback = "") {
   if (!value) return fallback;
   if (/^(?:https?:)?\/\//i.test(value) || value.startsWith("data:"))
     return value;
-  if (value.startsWith("/uploads/") && MEDIA_BASE_URL) {
-    return `${MEDIA_BASE_URL}${value.slice("/uploads".length)}`;
-  }
   if (value.startsWith("/uploads/")) return `${publicApiBase}${value}`;
   return value;
 }

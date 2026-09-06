@@ -219,9 +219,9 @@ const handleBuyNow = async () => {
                 leading-tight
                 text-[#3f3f3f]
 
-                sm:text-4xl
+                sm:text-3xl
 
-                lg:text-5xl
+                lg:text-4xl
               "
             >
               {product.name}
@@ -235,7 +235,7 @@ const handleBuyNow = async () => {
 
                 sm:text-xl
 
-                lg:text-2xl
+                lg:text-xl
               "
             >
               {product.short_description || product.subtitle || "Nature's Perfect Wellness Blend"}
