@@ -68,7 +68,7 @@ export default function OrderTracking() {
                 <p className="mt-2 text-sm text-emerald-100">Placed {formatDate(data.created_at)}</p>
               </div>
               <span className="w-fit rounded-full bg-white/15 px-4 py-2 text-sm font-bold backdrop-blur">
-                {statusLabel(data.current_status)}
+                {statusLabel(data.current_status, data.status_labels)}
               </span>
             </div>
           </header>
@@ -87,7 +87,7 @@ export default function OrderTracking() {
                         {event.source === "shipment" ? <Truck size={17} /> : latest ? <Clock3 size={17} /> : <Check size={17} />}
                       </span>
                       <div className="min-w-0 pt-0.5">
-                        <p className="font-semibold text-gray-900">{statusLabel(event.status)}</p>
+                        <p className="font-semibold text-gray-900">{statusLabel(event.status, data.status_labels)}</p>
                         {event.note && <p className="mt-1 text-sm leading-6 text-gray-600">{event.note}</p>}
                         <p className="mt-1 text-xs text-gray-400">{formatDate(event.date)}{event.location ? ` · ${event.location}` : ""}</p>
                       </div>
@@ -154,7 +154,8 @@ function trackingEvents(data) {
   return events;
 }
 
-function statusLabel(value) {
+function statusLabel(value, labels = {}) {
+  if (labels[value]) return labels[value];
   return String(value || "Pending").replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 

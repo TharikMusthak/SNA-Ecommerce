@@ -47,6 +47,7 @@ const icons = {
   Coupons: TicketPercent,
   Orders: ShoppingBag,
   Dispatch: Truck,
+  "Order Status Labels": MessageSquareText,
   Returns: RotateCcw,
   "Refund Records": ReceiptIndianRupee,
   Customers: Users,

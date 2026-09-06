@@ -11,6 +11,7 @@ import { env } from "../../config/env.js";
 import { queueUserEvent } from "../../integrations/notifications/notification.service.js";
 import { fail, ok, paginated } from "../../utils/apiResponse.js";
 import { findOrderDetails } from "../../services/orderDetails.js";
+import { getOrderStatusLabels } from "../../services/orderStatusLabels.js";
 
 const router = Router();
 router.use(requireCustomer);
@@ -294,10 +295,10 @@ router.get(
   asyncHandler(async (req, res) => {
     const id = parsePositiveId(req.params.id);
     if (!id) return fail(res, 400, "Invalid order ID");
-    const order = await findOrderDetails({
-      orderId: id,
-      userId: req.user.id,
-    });
+    const [order, statusLabels] = await Promise.all([
+      findOrderDetails({ orderId: id, userId: req.user.id }),
+      getOrderStatusLabels(),
+    ]);
     if (!order) return fail(res, 404, "Order not found");
     return ok(res, {
       order_number: order.order_code,
@@ -310,6 +311,7 @@ router.get(
       summary: order.summary,
       history: order.status_history,
       shipment: order.shipment,
+      status_labels: statusLabels,
     });
   }),
 );
