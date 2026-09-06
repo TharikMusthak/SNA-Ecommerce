@@ -100,7 +100,7 @@ const sections = [
   {
     title: "11. Contact us",
     body: [
-      "For privacy questions or requests, please contact support@snasundaram.com or call +91 84386 60669.",
+      "For privacy questions or requests, please contact snasundaram@gmail.com or call +91 84386 60669.",
     ],
   },
 ];
@@ -215,7 +215,7 @@ const PrivacyPolicy = () => {
               <div className="rounded-[22px] bg-white/8 p-4 backdrop-blur">
                 <p className="text-sm font-semibold">Support</p>
                 <p className="mt-1 text-sm leading-[1.7] text-white/72">
-                  Reach us at support@snasundaram.com for privacy requests.
+                  Reach us at snasundaram@gmail.com for privacy requests.
                 </p>
               </div>
             </div>

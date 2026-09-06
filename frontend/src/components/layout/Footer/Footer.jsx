@@ -204,7 +204,7 @@ const Footer = () => {
 
               {/* Email */}
               <Link
-                to="mailto:support@snasundaram.com"
+                to="mailto:snasundaram@gmail.com"
                 className="group flex items-start gap-2.5"
               >
                 <Mail
@@ -214,7 +214,7 @@ const Footer = () => {
                 />
 
                 <span className="break-all text-[16px] leading-6 text-[#444444] transition-colors group-hover:text-[#079447]">
-                  support@snasundaram.com
+                  snasundaram@gmail.com
                 </span>
               </Link>
 

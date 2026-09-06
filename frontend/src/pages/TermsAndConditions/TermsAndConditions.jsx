@@ -96,7 +96,7 @@ const sections = [
   {
     title: "10. Contact us",
     body: [
-      "For questions about orders, payments, cancellations, or these terms, please contact us at support@snasundaram.com or call +91 84386 60669.",
+      "For questions about orders, payments, cancellations, or these terms, please contact us at snasundaram@gmail.com or call +91 84386 60669.",
     ],
   },
 ];
@@ -227,7 +227,7 @@ const TermsAndConditions = () => {
               <div className="rounded-[22px] bg-white/8 p-4 backdrop-blur">
                 <p className="text-sm font-semibold">Support</p>
                 <p className="mt-1 text-sm leading-[1.7] text-white/72">
-                  Contact support@snasundaram.com for order or payment questions.
+                  Contact snasundaram@gmail.com for order or payment questions.
                 </p>
               </div>
             </div>

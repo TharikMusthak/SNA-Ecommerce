@@ -201,7 +201,8 @@ const handleBuyNow = async () => {
                           text-[#3d3d3d]
                         "
                       >
-                       {product.category_name || "Featured Product"}
+                      Featured Product
+                       
                       </span>
             
               
