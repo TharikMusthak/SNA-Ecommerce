@@ -1327,7 +1327,8 @@ label.has-validation-error::after {
 .orders-state { min-height: 140px; display: grid; place-items: center; margin: 0; padding: 24px; color: var(--color-text-muted); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); }
 .orders-state--error { color: var(--color-danger); }
 .order-card-list { display: grid; gap: 14px; }
-.order-card { overflow: hidden; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: 0 5px 20px rgb(24 49 32 / 6%); }
+.order-card { position: relative; overflow: visible; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: 0 5px 20px rgb(24 49 32 / 6%); }
+.order-card:has(.custom-select--open) { z-index: 10; }
 .order-card__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 18px 20px 14px; border-bottom: 1px solid var(--color-border); }
 .order-card__header h3 { margin: 0; color: var(--color-text-primary); font-size: 14px; }
 .order-card__header p { margin: 5px 0 0; color: var(--color-text-muted); font-size: 11px; }
