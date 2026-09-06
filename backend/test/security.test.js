@@ -41,6 +41,9 @@ const {
 const { splitMigration } = await import(
   "../src/utils/sqlMigrationParser.js"
 );
+const { getOrderStatusLabels, ORDER_STATUS_DEFAULT_LABELS } = await import(
+  "../src/services/orderStatusLabels.js"
+);
 const { createHmac } = await import("node:crypto");
 const { verifyCheckoutSignature, verifyWebhookSignature } = await import(
   "../src/integrations/payments/razorpay.js"
@@ -520,4 +523,19 @@ test("invalid login input returns a generic response", async () => {
     .expect(401);
 
   assert.equal(response.body.message, "Invalid email or password");
+});
+
+test("tracking labels fall back safely before the status-label migration", async () => {
+  const database = {
+    query: async () => {
+      throw Object.assign(new Error("Table does not exist"), {
+        code: "ER_NO_SUCH_TABLE",
+      });
+    },
+  };
+
+  assert.deepEqual(
+    await getOrderStatusLabels(database),
+    ORDER_STATUS_DEFAULT_LABELS,
+  );
 });

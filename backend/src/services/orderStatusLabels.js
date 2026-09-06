@@ -17,13 +17,19 @@ export const ORDER_STATUS_KEYS = Object.freeze(
 );
 
 export async function getOrderStatusLabels(database = pool) {
-  const [rows] = await database.query(
-    `SELECT status_key, display_label
-       FROM frontend_order_status_labels
-      WHERE status_key IN (${ORDER_STATUS_KEYS.map(() => "?").join(",")})`,
-    ORDER_STATUS_KEYS,
-  );
   const labels = { ...ORDER_STATUS_DEFAULT_LABELS };
+  let rows;
+  try {
+    [rows] = await database.query(
+      `SELECT status_key, display_label
+         FROM frontend_order_status_labels
+        WHERE status_key IN (${ORDER_STATUS_KEYS.map(() => "?").join(",")})`,
+      ORDER_STATUS_KEYS,
+    );
+  } catch (error) {
+    if (error?.code === "ER_NO_SUCH_TABLE") return labels;
+    throw error;
+  }
   for (const row of rows) labels[row.status_key] = row.display_label;
   return labels;
 }
