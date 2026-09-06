@@ -191,17 +191,20 @@ const handleBuyNow = async () => {
       >
         <div className="contents lg:block">
           <div className="order-1 lg:order-none">
-            <div className="mb-2 flex items-center gap-1">
-              <span
-                className="
-                  text-[clamp(20px,1.8vw,27px)]
-                  font-bold
-                  leading-none
-                  text-[#3d3d3d]
-                "
-              >
-                {product.category_name || "Featured Product"}
-              </span>
+            <div className="mb-2 flex items-center gap-1"><span
+                        className="
+                            pointer-events-none
+          
+                          text-[clamp(17px,1.35vw,21px)]
+                          font-bold
+                          leading-none
+                          text-[#3d3d3d]
+                        "
+                      >
+                       {product.category_name || "Featured Product"}
+                      </span>
+            
+              
 
               <img
                 src={Tinyleaf}
@@ -210,6 +213,10 @@ const handleBuyNow = async () => {
                 className="h-auto w-[17px]"
               />
             </div>
+
+   
+
+
 
             <h2
               className="

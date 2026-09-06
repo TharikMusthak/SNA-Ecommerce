@@ -248,16 +248,19 @@ const Testimonials = () => {
             {/* Small heading */}
 
             <div className="flex items-center gap-1">
-              <span
-                className="
-                      text-[clamp(20px,1.8vw,27px)]
-                  font-bold
-                  leading-none
-                  text-[#3d3d3d]
-                "
-              >
-                Loved by Families
-              </span>
+            <span
+                        className="
+                            pointer-events-none
+          
+                          text-[clamp(17px,1.35vw,21px)]
+                          font-bold
+                          leading-none
+                          text-[#3d3d3d]
+                        "
+                      >
+                      Loved by Families
+                      </span>
+              
 
               <img
                 src={cardleaf}
@@ -273,25 +276,18 @@ const Testimonials = () => {
             </div>
 
             {/* Main heading */}
-
-            <h2
-              className="
-                mt-3
-                text-[32px]
-                font-normal
-                leading-tight
-                tracking-[-0.02em]
-                text-[#3d3d3d]
-
-                sm:text-[38px]
-
-                md:text-[42px]
-
-                lg:text-[46px]
-              "
-            >
-              Real Stories, Real Satisfaction
-            </h2>
+  <h3
+            className="
+             text-[clamp(32px,3vw,46px)]
+              font-normal
+              leading-[1.12]
+              tracking-[-0.025em]
+              text-[#3f3f3f]
+            "
+          >
+           Real Stories, Real Satisfaction
+          </h3>
+            
           </div>
 
           {/* ==================================================

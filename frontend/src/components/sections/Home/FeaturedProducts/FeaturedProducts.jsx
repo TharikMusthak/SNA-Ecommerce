@@ -390,7 +390,7 @@ bg-[linear-gradient(180deg,#F6F6F6_0%,#FAFAFA_100%)]
                  
             "
               >
-                Featured Products
+                Our Products
 
               </h2><img
                 className="h-auto w-[24px] "
