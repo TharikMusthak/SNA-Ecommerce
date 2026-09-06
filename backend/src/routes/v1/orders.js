@@ -10,6 +10,7 @@ import { reservationExpiryDate } from "../../services/orderExpiry.js";
 import { env } from "../../config/env.js";
 import { queueUserEvent } from "../../integrations/notifications/notification.service.js";
 import { fail, ok, paginated } from "../../utils/apiResponse.js";
+import { getOrderStatusLabels } from "../../services/orderStatusLabels.js";
 
 const router = Router();
 router.use(requireCustomer);
@@ -294,18 +295,47 @@ router.get(
     const id = parsePositiveId(req.params.id);
     if (!id) return fail(res, 400, "Invalid order ID");
     const [[order]] = await pool.query(
-      "SELECT id,order_code,status,updated_at FROM orders WHERE id=? AND user_id=?",
+      `SELECT id,order_code,status,payment_status,amount,currency,
+              shipping_address_json,created_at,updated_at
+         FROM orders
+        WHERE id=? AND user_id=?
+        LIMIT 1`,
       [id, req.user.id],
     );
     if (!order) return fail(res, 404, "Order not found");
-    const [history] = await pool.query(
-      "SELECT status,note,created_at FROM order_status_history WHERE order_id=? ORDER BY id",
-      [id],
-    );
+    const [[history], [items], statusLabels, shipment] = await Promise.all([
+      pool.query(
+        `SELECT status,note,created_at
+           FROM order_status_history
+          WHERE order_id=?
+          ORDER BY id`,
+        [id],
+      ),
+      pool.query(
+        `SELECT id,product_name,sku,unit_price,quantity,total_amount
+           FROM order_items
+          WHERE order_id=?
+          ORDER BY id`,
+        [id],
+      ),
+      getOrderStatusLabels(),
+      getTrackingShipment(id),
+    ]);
     return ok(res, {
       order_number: order.order_code,
       current_status: order.status,
+      payment_status: order.payment_status,
+      created_at: order.created_at,
+      updated_at: order.updated_at,
+      items,
+      shipping_address: parseStoredAddress(order.shipping_address_json),
+      summary: {
+        total: Number(order.amount || 0),
+        currency: order.currency || "INR",
+      },
       history,
+      shipment,
+      status_labels: statusLabels,
     });
   }),
 );
@@ -445,5 +475,42 @@ async function getOrder(req, res, invoice) {
     payments,
     document_type: invoice ? "invoice" : undefined,
   });
+}
+
+async function getTrackingShipment(orderId) {
+  try {
+    const [[shipment]] = await pool.query(
+      `SELECT id,status,courier_name,awb_code,tracking_url,
+              estimated_delivery_at,created_at,updated_at
+         FROM shipments
+        WHERE order_id=?
+        LIMIT 1`,
+      [orderId],
+    );
+    if (!shipment) return null;
+    const [timeline] = await pool.query(
+      `SELECT id,status,description,location,event_time AS timestamp
+         FROM shipment_events
+        WHERE shipment_id=?
+        ORDER BY event_time,id`,
+      [shipment.id],
+    );
+    return { ...shipment, timeline };
+  } catch (error) {
+    if (["ER_NO_SUCH_TABLE", "ER_BAD_FIELD_ERROR"].includes(error?.code)) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+function parseStoredAddress(value) {
+  if (!value) return {};
+  if (typeof value === "object") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return {};
+  }
 }
 export default router;

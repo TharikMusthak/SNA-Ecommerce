@@ -16,11 +16,66 @@ import { reviewFileUrl, reviewUpload } from "../../middleware/reviewUpload.js";
 import { deleteUploadedFiles, uploadedFiles } from "../../middleware/uploadSecurity.js";
 import { safelyDeleteUpload, safelyDeleteUploads } from "../../services/uploadFiles.js";
 import { shiprocketRequest } from "../../integrations/shipping/shiprocket.js";
+import {
+  getOrderStatusLabels,
+  ORDER_STATUS_DEFAULT_LABELS,
+  ORDER_STATUS_KEYS,
+} from "../../services/orderStatusLabels.js";
 
 const router = Router();
 const productRoles = allowRoles("Super Admin", "Product Manager");
 const orderRoles = allowRoles("Super Admin", "Order Manager");
 router.use(requireAdmin);
+
+router.get(
+  "/order-status-labels",
+  orderRoles,
+  asyncHandler(async (_req, res) => {
+    return ok(res, {
+      labels: await getOrderStatusLabels(),
+      defaults: ORDER_STATUS_DEFAULT_LABELS,
+      statuses: ORDER_STATUS_KEYS,
+    });
+  }),
+);
+
+router.put(
+  "/order-status-labels",
+  orderRoles,
+  asyncHandler(async (req, res) => {
+    const submitted = req.body?.labels;
+    if (!submitted || typeof submitted !== "object" || Array.isArray(submitted)) {
+      return fail(res, 422, "Status labels are required");
+    }
+    const labels = {};
+    for (const status of ORDER_STATUS_KEYS) {
+      const label = String(submitted[status] || "").trim();
+      if (!label || label.length > 120) {
+        return fail(res, 422, `${ORDER_STATUS_DEFAULT_LABELS[status]} label must contain 1-120 characters`);
+      }
+      labels[status] = label;
+    }
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      for (const status of ORDER_STATUS_KEYS) {
+        await connection.query(
+          `INSERT INTO frontend_order_status_labels(status_key,display_label,updated_by)
+           VALUES (?,?,?)
+           ON DUPLICATE KEY UPDATE display_label=VALUES(display_label),updated_by=VALUES(updated_by)`,
+          [status, labels[status], req.admin.id],
+        );
+      }
+      await connection.commit();
+      return ok(res, { labels }, "Frontend order status labels updated");
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }),
+);
 
 router.post(
   "/uploads/product-video-token",

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, CheckCircle2, Eye, EyeOff, MapPin, Plus, ShieldCheck, ShoppingBag, Sparkles, UserRound, X } from "lucide-react";
 import toast from "react-hot-toast";
+import { Link } from "react-router-dom";
 
 import {
   getAddresses,
@@ -581,6 +582,14 @@ function CustomerOrderCard({ order }) {
       <div className="grid gap-3 p-5 sm:grid-cols-2">
         {(order.items || []).map((item) => <div key={item.id} className="flex items-center gap-3 rounded-xl border border-gray-100 p-3"><img src={assetUrl(item.product_image, fallbackImage)} alt={item.product_name} className="h-14 w-14 rounded-lg bg-gray-50 object-contain p-1" /><div className="min-w-0 flex-1"><b className="block truncate text-sm text-gray-900">{item.product_name}</b><small className="block text-gray-500">Quantity: {item.quantity} · {formatCurrency(item.unit_price)}</small><small className="block text-gray-400">{item.sku || "Standard product"}</small></div><strong className="text-sm text-gray-900">{formatCurrency(item.total_amount)}</strong></div>)}
       </div>
+      <footer className="flex justify-end border-t border-gray-100 px-5 py-4">
+        <Link
+          to={`/orders/${order.id}/tracking`}
+          className="inline-flex items-center justify-center rounded-xl bg-[#079447] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#057a3a]"
+        >
+          Track order
+        </Link>
+      </footer>
     </article>
   );
 }

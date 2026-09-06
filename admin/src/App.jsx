@@ -18,6 +18,7 @@ import Users from "./pages/Users";
 import CommerceList from "./pages/CommerceList";
 import Dispatch from "./pages/Dispatch";
 import ShippingSettings from "./pages/ShippingSettings";
+import OrderStatusLabels from "./pages/OrderStatusLabels";
 import {
   getMenusForRole,
   viewFromHash,
@@ -483,6 +484,9 @@ function Cms({ admin, onLogout }) {
       {view === "Dispatch" && <Dispatch onNotice={showNotice} />}
       {view === "Shipping Settings" && (
         <ShippingSettings onNotice={showNotice} />
+      )}
+      {view === "Order Status Labels" && (
+        <OrderStatusLabels onNotice={showNotice} />
       )}
       {view === "FAQ" && (
         <Faq

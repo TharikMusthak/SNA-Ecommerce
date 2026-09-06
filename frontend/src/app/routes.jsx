@@ -20,6 +20,7 @@ import ResetPassword from "@pages/ResetPassword/ResetPassword";
 import Profile from "@pages/Profile/Profile";
 import Wishlist from "@pages/Wishlist/Wishlist";
 import VerifyEmail from "@pages/VerifyEmail/VerifyEmail";
+import OrderTracking from "@pages/OrderTracking/OrderTracking";
 // import Dashboard from "@pages/Admin/Dashboard";
 
 import ProtectedRoute from "@app/ProtectedRoute";
@@ -99,6 +100,11 @@ export const router = createBrowserRouter([
             path: "wishlist",
             element: <Wishlist />,
             handle: { title: "Wishlist" },
+          },
+          {
+            path: "orders/:orderId/tracking",
+            element: <OrderTracking />,
+            handle: { title: "Track Order" },
           },
           // {
           //   path: "orders",

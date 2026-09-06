@@ -10,6 +10,7 @@ const roleMenus = {
     "Coupons",
     "Orders",
     "Dispatch",
+    "Order Status Labels",
     "Returns",
     "Refund Records",
     "Customers",
@@ -36,6 +37,7 @@ const roleMenus = {
     "Dashboard",
     "Orders",
     "Dispatch",
+    "Order Status Labels",
     "Returns",
     "Refund Records",
     "Customers",
@@ -60,7 +62,7 @@ export const menuGroups = [
   },
   {
     label: "Orders",
-    items: ["Orders", "Dispatch", "Returns", "Refund Records"],
+    items: ["Orders", "Dispatch", "Order Status Labels", "Returns", "Refund Records"],
   },
   {
     label: "Customers",
