@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   Check,
-  Clock3,
   ExternalLink,
   MapPin,
   PackageCheck,
@@ -22,6 +21,15 @@ const terminalStatuses = new Set([
   "refunded",
   "rto_delivered",
 ]);
+const deliveryMilestones = [
+  "pending",
+  "confirmed",
+  "processing",
+  "packed",
+  "shipped",
+  "out_for_delivery",
+  "delivered",
+];
 
 export default function OrderTracking() {
   const { orderId } = useParams();
@@ -48,7 +56,7 @@ export default function OrderTracking() {
     );
   }
 
-  const events = trackingEvents(data);
+  const milestones = trackingMilestones(data);
   const address = data.shipping_address || {};
   const shipment = data.shipment;
 
@@ -77,19 +85,38 @@ export default function OrderTracking() {
             <section>
               <h2 className="text-lg font-semibold text-gray-900">Tracking timeline</h2>
               <p className="mt-1 text-sm text-gray-500">Updates made in CRM and courier events appear here.</p>
-              <ol className="mt-6">
-                {events.map((event, index) => {
-                  const latest = index === events.length - 1;
+              <ol className="mt-7">
+                {milestones.map((milestone, index) => {
+                  const isLast = index === milestones.length - 1;
                   return (
-                    <li key={event.key} className="relative flex gap-4 pb-7 last:pb-0">
-                      {index < events.length - 1 && <span className="absolute left-[17px] top-9 h-[calc(100%-1rem)] w-px bg-emerald-200" />}
-                      <span className={`relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${latest ? "bg-[#079447] text-white" : "bg-emerald-50 text-[#079447]"}`}>
-                        {event.source === "shipment" ? <Truck size={17} /> : latest ? <Clock3 size={17} /> : <Check size={17} />}
+                    <li key={milestone.status} className="relative flex gap-4 pb-8 last:pb-0">
+                      {!isLast && (
+                        <span className={`absolute left-[9px] top-5 h-[calc(100%-0.15rem)] w-0.5 ${milestone.lineComplete ? "bg-[#16a34a]" : "bg-gray-200"}`} />
+                      )}
+                      <span className={`relative z-10 mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${milestone.current ? "border-[#079447] bg-[#079447] text-white ring-4 ring-emerald-100" : milestone.complete ? "border-[#16a34a] bg-[#16a34a] text-white" : "border-gray-300 bg-white text-transparent"}`}>
+                        {milestone.complete && <Check size={12} strokeWidth={3} />}
                       </span>
-                      <div className="min-w-0 pt-0.5">
-                        <p className="font-semibold text-gray-900">{statusLabel(event.status, data.status_labels)}</p>
-                        {event.note && <p className="mt-1 text-sm leading-6 text-gray-600">{event.note}</p>}
-                        <p className="mt-1 text-xs text-gray-400">{formatDate(event.date)}{event.location ? ` · ${event.location}` : ""}</p>
+                      <div className={`min-w-0 flex-1 ${milestone.complete || milestone.current ? "" : "opacity-45"}`}>
+                        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                          <p className="font-semibold text-gray-900">{statusLabel(milestone.status, data.status_labels)}</p>
+                          {milestone.date && <p className="text-sm text-gray-400">{formatDate(milestone.date)}</p>}
+                        </div>
+                        {milestone.events.length ? (
+                          <div className="mt-2 space-y-2">
+                            {milestone.events.map((event) => (
+                              <div key={event.key}>
+                                {event.note && <p className="text-sm leading-6 text-gray-700">{event.note}</p>}
+                                {(event.location || (event.date && event.date !== milestone.date)) && (
+                                  <p className="text-xs text-gray-400">{event.date ? formatDate(event.date) : ""}{event.location ? ` · ${event.location}` : ""}</p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : milestone.current ? (
+                          <p className="mt-2 text-sm text-gray-600">Your order is currently at this stage.</p>
+                        ) : (
+                          <p className="mt-2 text-sm text-gray-400">Waiting for update</p>
+                        )}
                       </div>
                     </li>
                   );
@@ -129,7 +156,7 @@ export default function OrderTracking() {
   );
 }
 
-function trackingEvents(data) {
+function trackingMilestones(data) {
   if (!data || typeof data !== "object") return [];
   const orderEvents = (Array.isArray(data.history) ? data.history : []).map((event, index) => ({
     key: `order-${index}-${event.created_at}`,
@@ -149,10 +176,45 @@ function trackingEvents(data) {
   const events = [...orderEvents, ...shipmentEvents].sort(
     (left, right) => new Date(left.date).getTime() - new Date(right.date).getTime(),
   );
-  if (!events.length) {
-    events.push({ key: "current", status: data.current_status, note: "Current order status", date: data.updated_at || data.created_at, source: "order" });
-  }
-  return events;
+  const currentStatus = milestoneStatus(data.current_status);
+  const exceptionStatus = ["cancelled", "returned", "refunded", "rto_delivered"].includes(currentStatus)
+    ? currentStatus
+    : null;
+  const eventProgress = events.reduce((furthest, event) => {
+    const index = deliveryMilestones.indexOf(milestoneStatus(event.status));
+    return Math.max(furthest, index);
+  }, 0);
+  const currentIndex = Math.max(
+    deliveryMilestones.indexOf(currentStatus),
+    eventProgress,
+    0,
+  );
+  const statuses = exceptionStatus
+    ? [...deliveryMilestones.slice(0, currentIndex + 1), exceptionStatus]
+    : deliveryMilestones;
+
+  return statuses.map((status, index) => {
+    const matching = events.filter((event) => milestoneStatus(event.status) === status);
+    const current = exceptionStatus ? status === exceptionStatus : index === currentIndex;
+    const complete = exceptionStatus
+      ? status === exceptionStatus || index <= currentIndex
+      : index <= currentIndex;
+    return {
+      status,
+      current,
+      complete,
+      lineComplete: exceptionStatus ? complete : index < currentIndex,
+      events: matching,
+      date: matching.at(-1)?.date || (index === 0 ? data.created_at : null),
+    };
+  });
+}
+
+function milestoneStatus(value) {
+  const status = String(value || "pending").toLowerCase();
+  if (["shipment_created", "awb_assigned", "pickup_scheduled", "picked_up", "in_transit"].includes(status)) return "shipped";
+  if (status === "delivery_failed") return "out_for_delivery";
+  return status;
 }
 
 function statusLabel(value, labels = {}) {
