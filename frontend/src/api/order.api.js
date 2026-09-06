@@ -3,6 +3,8 @@ import { ENDPOINTS } from "./endpoints";
 
 export const getOrders = (params = {}) => api.get(ENDPOINTS.orders, { params });
 export const getOrder = (orderId) => api.get(`${ENDPOINTS.orders}/${orderId}`);
+export const getOrderTracking = (orderId) =>
+  api.get(`${ENDPOINTS.orders}/${orderId}/tracking`);
 export const createOrder = (payload, idempotencyKey) =>
   api.post(`${ENDPOINTS.orders}/create`, payload, {
     headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,

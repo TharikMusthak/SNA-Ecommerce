@@ -10,6 +10,7 @@ import { reservationExpiryDate } from "../../services/orderExpiry.js";
 import { env } from "../../config/env.js";
 import { queueUserEvent } from "../../integrations/notifications/notification.service.js";
 import { fail, ok, paginated } from "../../utils/apiResponse.js";
+import { findOrderDetails } from "../../services/orderDetails.js";
 
 const router = Router();
 router.use(requireCustomer);
@@ -293,19 +294,22 @@ router.get(
   asyncHandler(async (req, res) => {
     const id = parsePositiveId(req.params.id);
     if (!id) return fail(res, 400, "Invalid order ID");
-    const [[order]] = await pool.query(
-      "SELECT id,order_code,status,updated_at FROM orders WHERE id=? AND user_id=?",
-      [id, req.user.id],
-    );
+    const order = await findOrderDetails({
+      orderId: id,
+      userId: req.user.id,
+    });
     if (!order) return fail(res, 404, "Order not found");
-    const [history] = await pool.query(
-      "SELECT status,note,created_at FROM order_status_history WHERE order_id=? ORDER BY id",
-      [id],
-    );
     return ok(res, {
       order_number: order.order_code,
       current_status: order.status,
-      history,
+      payment_status: order.payment_status,
+      created_at: order.created_at,
+      updated_at: order.updated_at,
+      items: order.items,
+      shipping_address: order.shipping_address,
+      summary: order.summary,
+      history: order.status_history,
+      shipment: order.shipment,
     });
   }),
 );

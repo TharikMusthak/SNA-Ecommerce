@@ -1,4 +1,4 @@
-import { getOrder, getOrders } from "@api/order.api";
+import { getOrder, getOrders, getOrderTracking } from "@api/order.api";
 
 export const listOrders = async (params) => {
   const response = await getOrders(params);
@@ -9,3 +9,5 @@ export const listOrders = async (params) => {
 };
 export const fetchOrder = async (orderId) =>
   (await getOrder(orderId)).data.data;
+export const fetchOrderTracking = async (orderId) =>
+  (await getOrderTracking(orderId)).data.data;
