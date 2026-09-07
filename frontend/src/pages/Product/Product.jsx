@@ -305,7 +305,8 @@ const ProductDetail = ({ identifier }) => {
   const { isAuthenticated, user } = useAuth();
   const userId = user?.id || user?.email || "guest";
   const { data: product, isLoading, isError } = useProduct(identifier);
-   const { data: related } = useRelatedProducts(product?.id);
+console.log("product", product);
+  const { data: related } = useRelatedProducts(product?.id);
   const { addItem } = useCart();
   const wishlist = useWishlist();
   const { data: reviewsData, isLoading: reviewsLoading } = useProductReviews(product?.id);

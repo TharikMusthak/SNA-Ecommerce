@@ -134,10 +134,16 @@ const OurStory = () => {
           >
             SNA Sundaram began at home with a simple thought: everyday food
             should be wholesome, familiar, and made with care. What started
-            as a choice for our children and family slowly became a purpose we wanted
-            to share with others.
+            as a choice for our children and family slowly became a purpose
           </p>
-
+          <p className="
+              
+              max-w-[1050px]
+              text-[clamp(15px,1.35vw,22px)]
+              leading-[1.45]
+              text-[#414141]
+            "> we wanted
+            to share with others.</p>
           {/* Tagline */}
 
           <div

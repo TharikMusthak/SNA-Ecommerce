@@ -12,16 +12,6 @@ import {
   setCartCoupon,
 } from "@services/cart.service";
 
-const USER_COUPON_STORAGE_KEY = "sna_user_applied_coupon";
-
-const clearUserCouponState = () => {
-  try {
-    localStorage.removeItem(USER_COUPON_STORAGE_KEY);
-  } catch {
-    // ignore
-  }
-};
-
 export function useCart() {
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
@@ -76,16 +66,11 @@ export function useCart() {
   return {
     ...query,
     cart: isAuthenticated ? (query.data || EMPTY_CART) : EMPTY_CART,
+
     addItem: useMutation({
-      mutationFn: async ({ productId, quantity, variantId }) => {
-        clearUserCouponState();
-        try {
-          await clearCartCoupon();
-        } catch {
-          // ignore
-        }
-        return addToCart(productId, quantity, variantId);
-      },
+      // Pure: just adds the item — coupon clearing is the Cart page's responsibility
+      mutationFn: ({ productId, quantity, variantId }) =>
+        addToCart(productId, quantity, variantId),
       onMutate: async ({ productId, quantity, variantId }) => {
         await queryClient.cancelQueries({ queryKey: QUERY_KEYS.cart });
         const previousCart = getCartData();
@@ -116,6 +101,7 @@ export function useCart() {
       },
       onSettled: refresh,
     }),
+
     updateItem: useMutation({
       mutationFn: ({ itemId, quantity }) =>
         changeCartQuantity(itemId, quantity),
@@ -143,16 +129,10 @@ export function useCart() {
       },
       onSettled: refresh,
     }),
+
+    // Pure: just removes the item — coupon clearing is the Cart page's responsibility
     removeItem: useMutation({
-      mutationFn: async (itemId) => {
-        clearUserCouponState();
-        try {
-          await clearCartCoupon();
-        } catch {
-          // ignore
-        }
-        return deleteCartItem(itemId);
-      },
+      mutationFn: (itemId) => deleteCartItem(itemId),
       onMutate: async (itemId) => {
         await queryClient.cancelQueries({ queryKey: QUERY_KEYS.cart });
         const previousCart = getCartData();
@@ -175,16 +155,10 @@ export function useCart() {
       },
       onSettled: refresh,
     }),
+
+    // Pure: just empties the cart — coupon clearing is the Cart page's responsibility
     clear: useMutation({
-      mutationFn: async () => {
-        clearUserCouponState();
-        try {
-          await clearCartCoupon();
-        } catch {
-          // ignore
-        }
-        return emptyCart();
-      },
+      mutationFn: () => emptyCart(),
       onMutate: async () => {
         await queryClient.cancelQueries({ queryKey: QUERY_KEYS.cart });
         const previousCart = getCartData();
@@ -198,10 +172,12 @@ export function useCart() {
       },
       onSettled: refresh,
     }),
+
     applyCoupon: useMutation({
       mutationFn: setCartCoupon,
       onSuccess: refresh,
     }),
+
     removeCoupon: useMutation({
       mutationFn: clearCartCoupon,
       onMutate: async () => {

@@ -93,14 +93,14 @@ const Footer = () => {
               <div className="flex items-center gap-2">
 
                 <Link
-                  to="#"
+                  to="https://www.instagram.com/snasundaram/"
                   aria-label="Instagram"
                   className="flex h-8 w-8 items-center justify-center rounded-md bg-[#0B9B47] text-white transition duration-200 hover:-translate-y-1 hover:bg-[#087d3a]"
                 >
                   <FaInstagram size={19} strokeWidth={2.2} />
                 </Link>
 
-                <Link
+                {/* <Link
                   to="#"
                   aria-label="Facebook"
                   className="flex h-8 w-8 items-center justify-center rounded-md bg-[#0B9B47] text-white transition duration-200 hover:-translate-y-1 hover:bg-[#087d3a]"
@@ -110,7 +110,7 @@ const Footer = () => {
                     strokeWidth={2.2}
                     fill="currentColor"
                   />
-                </Link>
+                </Link> */}
 
               </div>
             </div>
@@ -240,7 +240,7 @@ const Footer = () => {
             <p>
               Designed & Developed by{" "}
               <Link
-                to="#"
+                to="https://www.hinttechnologies.com/"
                 className="font-medium hover:text-[#079447]"
               >
                 <span className="text-[#19b253]">H</span>int Technologies

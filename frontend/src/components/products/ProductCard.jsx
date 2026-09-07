@@ -1,5 +1,6 @@
-import { Heart, Star } from "lucide-react";
+import { Heart, Loader2, Star } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useState } from "react";
 import toast from "react-hot-toast";
 
 import fallbackImage from "@assets/images/product1.png";
@@ -16,6 +17,7 @@ const ProductCard = ({ product }) => {
   const location = useLocation();
   const { isAuthenticated } = useAuth();
   const { addItem } = useCart();
+  const [isAdding, setIsAdding] = useState(false);
   const {
     items,
     addItem: addFavorite,
@@ -49,10 +51,13 @@ const ProductCard = ({ product }) => {
   const addToCart = async () => {
     if (!requireLogin()) return;
     try {
+      setIsAdding(true);
       await addItem.mutateAsync({ productId: product.id, quantity: 1 });
       toast.success(`${product.name} added to cart`);
     } catch (error) {
       toast.error(apiErrorMessage(error, "Could not add this product"));
+    } finally {
+      setIsAdding(false);
     }
   };
 
@@ -118,12 +123,19 @@ const ProductCard = ({ product }) => {
             />
           </div>
           <button
-            disabled={addItem.isPending || Number(product.stock) < 1}
+            disabled={isAdding || addItem.isPending || Number(product.stock) < 1}
             onClick={addToCart}
-            className="p-2 px-3  flex items-center justify-center rounded-[50px] bg-[#079447] text-white transition hover:bg-[#057a3a] disabled:bg-gray-300"
+            className="flex items-center justify-center gap-1.5 rounded-[50px] bg-[#079447] p-2 px-3 text-white transition hover:bg-[#057a3a] disabled:cursor-not-allowed disabled:bg-gray-300"
             aria-label="Add to cart"
           >
-            Add to cart
+            {isAdding ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Adding...</span>
+              </>
+            ) : (
+              "Add to cart"
+            )}
           </button>
         </div>
         <p

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { Loader2 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 
 import HomeMadeBadge from "@assets/images/home-made-badge.png";
 import Tinyleaf from "@assets/images/tinyleaf.svg";
@@ -79,7 +79,6 @@ const TopFeaturedProduct = () => {
   const product = data?.items?.[0] || null;
  
   const [selectedSize, setSelectedSize] = useState(null);
-  const [buyNowLoading, setBuyNowLoading] = useState(false);
 
   const sizes = useMemo(() => normalizeSizes(product), [product]);
 
@@ -110,6 +109,9 @@ const TopFeaturedProduct = () => {
     setSelectedSize(size);
   };
 
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [isBuyingNow, setIsBuyingNow] = useState(false);
+
   const requireLogin = () => {
     if (isAuthenticated) return true;
     navigate("/auth/login", {
@@ -118,34 +120,35 @@ const TopFeaturedProduct = () => {
     return false;
   };
 
-const addToCart = async () => {
+  const handleAddToCart = async () => {
     if (!requireLogin()) return;
+    if (!product?.id) return;
+
     try {
+      setIsAddingToCart(true);
       await addItem.mutateAsync({ productId: product.id, quantity: 1 });
       toast.success(`${product.name} added to cart`);
     } catch (error) {
       toast.error(apiErrorMessage(error, "Could not add this product"));
+    } finally {
+      setIsAddingToCart(false);
     }
   };
 
-const handleAddToCart = async () => {
-  const added = await addToCart();
+  const handleBuyNow = async () => {
+    if (!requireLogin()) return;
+    if (!product?.id) return;
 
-  if (added && product) {
-    toast.success(`${product.name} added to cart`);
-  }
-};
-
-const handleBuyNow = async () => {
-  if (buyNowLoading || addItem.isPending) return;
-  setBuyNowLoading(true);
-  try {
-    await addToCart();
-    navigate("/cart");
-  } finally {
-    setBuyNowLoading(false);
-  }
-};
+    try {
+      setIsBuyingNow(true);
+      await addItem.mutateAsync({ productId: product.id, quantity: 1 });
+      toast.success(`${product.name} added to cart`);
+      navigate("/cart");
+    } catch (error) {
+      toast.error(apiErrorMessage(error, "Could not process your request"));
+      setIsBuyingNow(false);
+    }
+  };
 
 
   if (isLoading) {
@@ -360,8 +363,12 @@ const handleBuyNow = async () => {
               <button
                 type="button"
                 onClick={handleAddToCart}
-                disabled={addItem.isPending}
+                disabled={isAddingToCart || isBuyingNow || addItem.isPending}
                 className="
+                  inline-flex
+                  items-center
+                  justify-center
+                  gap-2
                   rounded-lg
                   border
                   border-[#333]
@@ -371,19 +378,28 @@ const handleBuyNow = async () => {
                   text-[#444]
                   transition-all
                   duration-200
+                  disabled:cursor-not-allowed
+                  disabled:opacity-75
 
                   hover:border-[#079447]
                   hover:bg-[#079447]
                   hover:text-white
                 "
               >
-                Add to Cart
+                {isAddingToCart ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>Adding...</span>
+                  </>
+                ) : (
+                  "Add to Cart"
+                )}
               </button>
 
               <button
                 type="button"
                 onClick={handleBuyNow}
-                disabled={buyNowLoading || addItem.isPending}
+                disabled={isAddingToCart || isBuyingNow || addItem.isPending}
                 className="
                   inline-flex
                   items-center
@@ -403,10 +419,10 @@ const handleBuyNow = async () => {
                   hover:bg-[#057a3a]
                 "
               >
-                {buyNowLoading ? (
+                {isBuyingNow ? (
                   <>
-                    <Loader2 size={17} className="animate-spin" />
-                    <span>Adding…</span>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>Processing...</span>
                   </>
                 ) : (
                   "Buy Now"
