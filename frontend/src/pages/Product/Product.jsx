@@ -746,7 +746,7 @@ console.log("product", product);
   };
 
   return (
-    <main className="mx-auto w-full max-w-[1380px] px-4 py-6 sm:px-6 sm:py-10 overflow-x-hidden">
+    <main className="mx-auto w-full max-w-[1380px] px-4 py-6 sm:px-6 sm:py-10">
       {/* Top Header Bar with Close / Back Button */}
       <div className="mb-6 flex items-center justify-between border-b border-gray-100 pb-4">
         <button
@@ -768,20 +768,21 @@ console.log("product", product);
        
       </div>
 
-      <div className="grid gap-10 lg:grid-cols-2 lg:gap-16 w-full max-w-full overflow-hidden">
-        <div className="space-y-6 w-full max-w-full overflow-hidden lg:sticky lg:top-[74px] lg:mt-[74px] lg:self-start">
+      {/* Two-column layout: image preview (sticky) + product details & description */}
+      <div className="grid gap-6 sm:gap-10 lg:grid-cols-2 lg:gap-16 w-full max-w-full lg:items-start">
+        {/* Image preview column — stays fixed in place while reading right column / description */}
+        <div className="w-full max-w-full lg:sticky lg:top-[150px] xl:top-[90px] lg:self-start">
           <ProductImageGallery
             product={product}
             selectedVariant={selectedVariant}
           />
-
-         
         </div>
-        <div className="py-4">
+        {/* Right column: product info + description — controls sticky boundary */}
+        <div className="py-2 sm:py-4">
           <p className="font-semibold uppercase tracking-[0.18em] text-[#079447]">
             {product.category_name || "SNA Sundaram"}
           </p>
-          <h1 className="mt-3 text-4xl font-semibold leading-tight text-gray-900 sm:text-5xl">
+          <h1 className="mt-2 text-3xl sm:text-4xl lg:text-5xl font-semibold leading-tight text-gray-900">
             {product.name}
           </h1>
           <p className="mt-3 text-gray-500">
@@ -902,11 +903,11 @@ console.log("product", product);
               <Heart fill={favorite ? "currentColor" : "none"} />
             </button>
           </div>
-         <div className="mt-6 leading-7 text-gray-600">
-  <ProductDescription
-  description={product.description || product.short_description}
-/>
-</div>
+          <div className="w-full max-w-full break-words overflow-hidden mt-6 text-sm sm:text-base leading-relaxed sm:leading-7 text-gray-600">
+            <ProductDescription
+              description={product.description || product.short_description}
+            />
+          </div>
        
          
         </div>

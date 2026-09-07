@@ -20,7 +20,7 @@ const ProductDescription = ({ description }) => {
   };
 
   return (
-    <div className="mt-6 leading-7 text-gray-600">
+    <div className="w-full max-w-full break-words overflow-hidden text-sm sm:text-base leading-relaxed sm:leading-7 text-gray-600">
       {text.split("\n").map((line, index) => {
         const trimmedLine = line.trim();
 

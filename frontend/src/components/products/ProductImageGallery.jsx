@@ -268,7 +268,7 @@ const ProductImageGallery = ({ product, selectedVariant = null }) => {
   }, [isLightboxOpen, mediaList.length]);
 
   return (
-    <div className="flex flex-col-reverse gap-4 w-full max-w-full overflow-hidden lg:flex-row lg:items-start">
+    <div className="flex flex-col-reverse gap-3 w-full max-w-full overflow-hidden lg:flex-row lg:items-start">
       {/* Thumbnails Sidebar / Bar */}
       {mediaList.length > 1 && (
         <div className="relative flex w-full max-w-full shrink-0 items-center justify-center overflow-hidden lg:w-20 lg:flex-col lg:justify-start">
@@ -285,7 +285,7 @@ const ProductImageGallery = ({ product, selectedVariant = null }) => {
           {/* Thumbnails Container */}
           <div
             ref={thumbnailsRef}
-            className="no-scrollbar flex max-h-[520px] w-full items-center gap-3 overflow-x-auto p-1 lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden"
+            className="no-scrollbar flex max-h-[72px] w-full items-center gap-2 overflow-x-auto p-1 lg:max-h-[520px] lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden lg:gap-3"
           >
             {mediaList.map((item, idx) => {
               const isActive = idx === activeIndex;
@@ -297,7 +297,7 @@ const ProductImageGallery = ({ product, selectedVariant = null }) => {
                   type="button"
                   onClick={() => setActiveIndex(idx)}
                   onMouseEnter={() => setActiveIndex(idx)}
-                  className={`group relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 bg-[#f5f7f1] transition-all duration-200 focus-visible:outline-none lg:h-20 lg:w-20 ${
+                  className={`group relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border-2 bg-[#f5f7f1] transition-all duration-200 focus-visible:outline-none sm:h-14 sm:w-14 lg:h-20 lg:w-20 lg:rounded-xl ${
                     isActive
                       ? "border-[#079447] ring-2 ring-[#079447]/30 scale-105 shadow-sm"
                       : "border-gray-200 opacity-75 hover:opacity-100 hover:border-gray-300"
@@ -362,7 +362,7 @@ const ProductImageGallery = ({ product, selectedVariant = null }) => {
       {/* Main Media Display Stage */}
       <div className="relative w-full max-w-full flex-1 overflow-hidden">
         {currentMedia.type === "video" ? (
-          <div className="relative aspect-square w-full overflow-hidden rounded-[2rem] bg-black p-0 shadow-inner flex items-center justify-center">
+          <div className="relative aspect-square w-full max-h-[42vh] sm:max-h-[480px] lg:max-h-none overflow-hidden rounded-[2rem] bg-black p-0 shadow-inner flex items-center justify-center">
             {currentMedia.isEmbed ? (
               <iframe
                 src={currentMedia.embedUrl}
@@ -439,7 +439,7 @@ const ProductImageGallery = ({ product, selectedVariant = null }) => {
             onMouseLeave={() => setIsHovered(false)}
             onMouseMove={handleMouseMove}
             onClick={() => setIsLightboxOpen(true)}
-            className="group relative aspect-square w-full cursor-zoom-in overflow-hidden rounded-[2rem] bg-[#f5f7f1] p-6 shadow-inner transition-all duration-300"
+            className="group relative aspect-square w-full max-h-[42vh] sm:max-h-[480px] lg:max-h-none cursor-zoom-in overflow-hidden rounded-[2rem] bg-[#f5f7f1] p-4 sm:p-6 shadow-inner transition-all duration-300 flex items-center justify-center"
           >
             {/* Main Display Image */}
             <img
