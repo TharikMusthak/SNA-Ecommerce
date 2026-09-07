@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 
-const apiOrigin = "https://sna-ecommerce.vercel.app";
+const apiOrigin = "https://www.snasundaram.com";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
