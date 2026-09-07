@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import HomeMadeBadge from "@assets/images/home-made-badge.png";
@@ -78,6 +79,7 @@ const TopFeaturedProduct = () => {
   const product = data?.items?.[0] || null;
  
   const [selectedSize, setSelectedSize] = useState(null);
+  const [buyNowLoading, setBuyNowLoading] = useState(false);
 
   const sizes = useMemo(() => normalizeSizes(product), [product]);
 
@@ -135,11 +137,14 @@ const handleAddToCart = async () => {
 };
 
 const handleBuyNow = async () => {
-  const added = await addToCart();
-
-  
+  if (buyNowLoading || addItem.isPending) return;
+  setBuyNowLoading(true);
+  try {
+    await addToCart();
     navigate("/cart");
-   
+  } finally {
+    setBuyNowLoading(false);
+  }
 };
 
 
@@ -378,8 +383,12 @@ const handleBuyNow = async () => {
               <button
                 type="button"
                 onClick={handleBuyNow}
-                disabled={addItem.isPending}
+                disabled={buyNowLoading || addItem.isPending}
                 className="
+                  inline-flex
+                  items-center
+                  justify-center
+                  gap-2
                   rounded-lg
                   bg-[#079447]
                   px-8
@@ -388,11 +397,20 @@ const handleBuyNow = async () => {
                   text-white
                   transition-all
                   duration-200
+                  disabled:cursor-not-allowed
+                  disabled:opacity-75
 
                   hover:bg-[#057a3a]
                 "
               >
-                Buy Now
+                {buyNowLoading ? (
+                  <>
+                    <Loader2 size={17} className="animate-spin" />
+                    <span>Adding…</span>
+                  </>
+                ) : (
+                  "Buy Now"
+                )}
               </button>
             </div>
           </div>
