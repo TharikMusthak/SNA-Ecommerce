@@ -114,40 +114,17 @@ router.delete("/:id", requireCustomer, asyncHandler(async (req, res) => {
 router.post("/:id/helpful", requireCustomer, asyncHandler(async (req, res) => {
   const id = parsePositiveId(req.params.id);
   if (!id) return fail(res, 400, "Invalid review ID");
-
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
-
-    // 1. Verify review exists (check for 'approved' or 'published' status)
-    const [reviews] = await connection.query(
-      "SELECT id FROM reviews WHERE id = ? AND status IN ('approved', 'published', 'active')", 
-      [id]
-    );
-    if (!reviews.length) {
+    const [insert] = await connection.query("INSERT IGNORE INTO review_helpful(review_id,user_id) SELECT id,? FROM reviews WHERE id=? AND status='approved'", [req.user.id, id]);
+    if (!insert.affectedRows) {
       await connection.rollback();
-      return fail(res, 404, "Review not found or not approved");
+      return fail(res, 409, "Review was already marked helpful or was not found");
     }
-
-    // 2. Check if user already marked this review helpful
-    const [existing] = await connection.query(
-      "SELECT id FROM review_helpful WHERE review_id = ? AND user_id = ?",
-      [id, req.user.id]
-    );
-
-    if (existing.length > 0) {
-      // Toggle OFF: Remove helpful vote
-      await connection.query("DELETE FROM review_helpful WHERE review_id = ? AND user_id = ?", [id, req.user.id]);
-      await connection.query("UPDATE reviews SET helpful_count = GREATEST(0, helpful_count - 1) WHERE id = ?", [id]);
-      await connection.commit();
-      return ok(res, { helpful: false }, "Helpful vote removed");
-    } else {
-      // Toggle ON: Add helpful vote
-      await connection.query("INSERT INTO review_helpful(review_id, user_id) VALUES(?, ?)", [id, req.user.id]);
-      await connection.query("UPDATE reviews SET helpful_count = helpful_count + 1 WHERE id = ?", [id]);
-      await connection.commit();
-      return ok(res, { helpful: true }, "Review marked helpful");
-    }
+    await connection.query("UPDATE reviews SET helpful_count=helpful_count+1 WHERE id=?", [id]);
+    await connection.commit();
+    return ok(res, null, "Review marked helpful");
   } catch (error) {
     await connection.rollback();
     throw error;
