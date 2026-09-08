@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertCircle, AlertTriangle, Camera, CheckCircle2, ChevronLeft, ChevronRight, Heart, LogIn, Minus, Pencil, Play, Plus, ShoppingBag, Sparkles, Star, ThumbsUp, Trash2, UserPlus, X } from "lucide-react";
+import { AlertCircle, AlertTriangle, Camera, CheckCircle2, ChevronLeft, ChevronRight, Heart, LogIn, Minus, MoreHorizontal, MoreVertical, Pencil, Play, Plus, ShoppingBag, Sparkles, Star, ThumbsUp, Trash2, UserPlus, UserRound, X } from "lucide-react";
 import {
   useLocation,
   useNavigate,
@@ -31,7 +31,7 @@ import {
   useUpdateReview,
 } from "@hooks/useReviews";
 import formatCurrency from "@utils/formatCurrency";
-import { assetUrl, effectivePrice } from "@utils/helpers";
+import { assetUrl, effectivePrice, formatAmazonReviewDate, getRelativeTime } from "@utils/helpers";
 
 export function extractReviewMedia(review) {
   if (!review) return [];
@@ -331,10 +331,19 @@ console.log("product", product);
   const [prevUserId, setPrevUserId] = useState(userId);
   const [localHelpfulMap, setLocalHelpfulMap] = useState(() => getSavedHelpfulReviews(userId));
   const [lightboxMedia, setLightboxMedia] = useState(null);
+  const [activeMenuId, setActiveMenuId] = useState(null);
+
   if (prevUserId !== userId) {
     setPrevUserId(userId);
     setLocalHelpfulMap(getSavedHelpfulReviews(userId));
   }
+
+  useEffect(() => {
+    if (activeMenuId === null) return;
+    const handleClickOutside = () => setActiveMenuId(null);
+    window.addEventListener("click", handleClickOutside);
+    return () => window.removeEventListener("click", handleClickOutside);
+  }, [activeMenuId]);
 
   useEffect(() => {
     if (!lightboxMedia) return;
@@ -465,11 +474,7 @@ console.log("product", product);
   const maxRatingCount = Math.max(...ratingBreakdown.map((item) => item.count), 1);
 
   const formatReviewDate = (value) => {
-    if (!value) return "Recent purchase";
-    const date = new Date(value);
-    return Number.isNaN(date.getTime())
-      ? "Recent purchase"
-      : new Intl.DateTimeFormat("en-IN", { month: "short", year: "numeric" }).format(date);
+    return getRelativeTime(value);
   };
 
   const ensureLogin = () => {
@@ -912,36 +917,43 @@ console.log("product", product);
          
         </div>
       </div>
-      <section className="mt-8 sm:mt-10 rounded-[2rem] border border-emerald-100 bg-[#f5f7f1] p-4 sm:p-6 lg:p-7" aria-labelledby="reviews-heading">
-        <div className="flex flex-col justify-between gap-3 border-b border-emerald-100 pb-4 sm:flex-row sm:items-end">
+      <section className="mt-12 sm:mt-16 rounded-[2.5rem] border border-emerald-100/90 bg-gradient-to-b from-[#f4f7f1]/80 via-white to-emerald-50/20 p-5 sm:p-8 lg:p-10 shadow-xl shadow-emerald-950/[0.03]" aria-labelledby="reviews-heading">
+        <div className="flex flex-col justify-between gap-4 border-b border-emerald-100/80 pb-6 sm:flex-row sm:items-end">
           <div>
-            <div className="flex items-center gap-1"><span className="text-[clamp(22px,1.8vw,27px)] font-bold leading-none text-[#3d3d3d]">Customer feedback</span><img className="h-auto w-[17px]" alt="" aria-hidden="true" src={Tinyleaf} /></div>
-            <h2 id="reviews-heading" className="mt-2 text-2xl sm:text-3xl font-semibold text-gray-900">Loved by our customers</h2>
+            <div className="flex items-center gap-2">
+              <span className="text-[clamp(22px,1.8vw,27px)] font-bold leading-none text-gray-800">Customer feedback</span>
+              <img className="h-auto w-5" alt="" aria-hidden="true" src={Tinyleaf} />
+            </div>
+            <h2 id="reviews-heading" className="mt-2 text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">Loved by our customers</h2>
             <p className="mt-1 text-sm text-gray-600">Honest feedback from people who have tried this product.</p>
           </div>
-          <span className="w-fit rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-[#079447] shadow-sm">{reviewCount} {reviewCount === 1 ? "review" : "reviews"}</span>
+          <span className="w-fit rounded-full bg-white/90 backdrop-blur-xs px-4 py-2 text-xs sm:text-sm font-bold text-[#079447] shadow-sm ring-1 ring-emerald-200/80">
+            {reviewCount} {reviewCount === 1 ? "review" : "reviews"}
+          </span>
         </div>
 
         {/* Rating Breakdown Banner */}
-        <div className="mt-4 rounded-2xl bg-white p-4 sm:p-5 shadow-sm ring-1 ring-black/[0.03]">
-          <div className="grid gap-4 md:grid-cols-[220px_minmax(0,1fr)] md:items-center md:divide-x md:divide-gray-100">
-            <div className="flex items-center gap-4 md:pr-5">
-              <span className="text-4xl sm:text-5xl font-bold tracking-tight text-gray-900">{productRating ? productRating.toFixed(1) : "—"}</span>
+        <div className="mt-6 rounded-3xl bg-white/90 backdrop-blur-md p-5 sm:p-7 shadow-md shadow-emerald-900/[0.03] border border-emerald-100/90">
+          <div className="grid gap-6 md:grid-cols-[240px_minmax(0,1fr)] md:items-center md:divide-x md:divide-gray-100">
+            <div className="flex items-center gap-4 md:pr-6">
+              <span className="text-5xl sm:text-6xl font-extrabold tracking-tight text-gray-900">{productRating ? productRating.toFixed(1) : "—"}</span>
               <div>
-                <div className="flex gap-0.5" aria-label={`${productRating || 0} out of 5 stars`}>
-                  {[1, 2, 3, 4, 5].map((star) => <Star key={star} size={18} className={star <= Math.round(productRating) ? "fill-amber-400 text-amber-400" : "text-gray-200"} />)}
+                <div className="flex gap-1" aria-label={`${productRating || 0} out of 5 stars`}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star key={star} size={20} className={star <= Math.round(productRating) ? "fill-amber-400 text-amber-400" : "text-gray-200"} />
+                  ))}
                 </div>
-                <p className="mt-1 text-xs text-gray-500">Based on {reviewCount || "no"} customer {reviewCount === 1 ? "review" : "reviews"}</p>
+                <p className="mt-1.5 text-xs font-medium text-gray-500">Based on {reviewCount || "no"} customer {reviewCount === 1 ? "review" : "reviews"}</p>
               </div>
             </div>
-            <div className="space-y-2 md:pl-5">
+            <div className="space-y-2.5 md:pl-6">
               {ratingBreakdown.map(({ score, count }) => (
-                <div key={score} className="grid grid-cols-[1.5rem_1fr_1.75rem] items-center gap-2 text-xs text-gray-500">
+                <div key={score} className="grid grid-cols-[2rem_1fr_2rem] items-center gap-3 text-xs font-semibold text-gray-600">
                   <span>{score} star</span>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
-                    <div className="h-full rounded-full bg-amber-400" style={{ width: `${(count / maxRatingCount) * 100}%` }} />
+                  <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+                    <div className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-500 shadow-xs transition-all duration-500" style={{ width: `${(count / maxRatingCount) * 100}%` }} />
                   </div>
-                  <span className="text-right">{count}</span>
+                  <span className="text-right text-gray-400">{count}</span>
                 </div>
               ))}
             </div>
@@ -949,22 +961,22 @@ console.log("product", product);
         </div>
 
         {/* 2-Column Grid: Review Form (Left) & Customer Reviews (Right) */}
-        <div className="mt-4 grid gap-4 sm:gap-5 lg:grid-cols-2 lg:items-start">
+        <div className="mt-6 grid gap-6 lg:grid-cols-2 lg:items-start">
           <div
             ref={reviewFormRef}
-            className={`flex flex-col rounded-2xl border border-emerald-100 bg-white/90 p-4 sm:p-5 shadow-sm ${
-              !isAuthenticated ? "bg-gradient-to-b from-white via-white to-emerald-50/30" : ""
+            className={`flex flex-col rounded-3xl border border-emerald-100/90 bg-white/95 p-5 sm:p-7 shadow-lg shadow-emerald-900/[0.04] transition-all ${
+              !isAuthenticated ? "bg-gradient-to-b from-white via-white to-emerald-50/40" : ""
             }`}
           >
             <div>
-              <h3 className="font-semibold text-gray-900">{editingReviewId != null ? "Edit your review" : "Share your experience"}</h3>
-              <p className="mt-0.5 text-xs leading-relaxed text-gray-500">{editingReviewId != null ? "Update your rating or feedback, then save your changes." : "Your review helps others shop with confidence."}</p>
+              <h3 className="text-lg font-bold text-gray-900">{editingReviewId != null ? "Edit your review" : "Share your experience"}</h3>
+              <p className="mt-1 text-xs leading-relaxed text-gray-500">{editingReviewId != null ? "Update your rating or feedback, then save your changes." : "Your review helps others shop with confidence."}</p>
             </div>
             {isAuthenticated ? (
-              <form onSubmit={submitRating} className="mt-2.5" noValidate>
+              <form onSubmit={submitRating} className="mt-4" noValidate>
                 {/* Star Rating Section */}
                 <div>
-                  <div className="flex gap-1" onMouseLeave={() => setHoveredRating(0)}>
+                  <div className="flex gap-1.5" onMouseLeave={() => setHoveredRating(0)}>
                     {[1, 2, 3, 4, 5].map((star) => (
                       <button
                         key={star}
@@ -980,18 +992,18 @@ console.log("product", product);
                             rating: validateSingleReviewField("rating", star),
                           }));
                         }}
-                        className="rounded-md p-1 text-gray-200 transition hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447]"
+                        className="rounded-lg p-1 text-gray-200 transition-all duration-200 hover:scale-125 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447]"
                         aria-label={`Rate ${star} out of 5 stars`}
                         aria-pressed={rating === star}
                       >
                         <Star
-                          size={28}
+                          size={30}
                           className={
                             star <= (hoveredRating || rating)
-                              ? "fill-amber-400 text-amber-400"
+                              ? "fill-amber-400 text-amber-400 drop-shadow-xs"
                               : reviewErrors.rating
                               ? "text-red-300"
-                              : "text-current"
+                              : "text-gray-200"
                           }
                         />
                       </button>
@@ -1014,11 +1026,11 @@ console.log("product", product);
                   onChange={(event) => setReviewTitle(event.target.value)}
                   maxLength={150}
                   placeholder="Give your review a title (optional)"
-                  className="mt-2.5 w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-800 outline-none transition focus:border-[#079447] focus:ring-2 focus:ring-emerald-100 placeholder:text-gray-400"
+                  className="mt-3 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 outline-none transition-all focus:border-[#079447] focus:ring-4 focus:ring-emerald-500/10 placeholder:text-gray-400"
                 />
 
                 {/* Review Text Textarea */}
-                <div className="mt-2.5">
+                <div className="mt-3">
                   <textarea
                     value={reviewText}
                     onChange={(event) => {
@@ -1039,16 +1051,16 @@ console.log("product", product);
                       }));
                     }}
                     maxLength={500}
-                    rows={2}
+                    rows={3}
                     placeholder="What did you like about it?"
                     aria-invalid={Boolean(reviewErrors.reviewText)}
-                    className={`w-full resize-none rounded-xl border ${
+                    className={`w-full resize-none rounded-2xl border ${
                       reviewErrors.reviewText
                         ? "border-red-400 bg-red-50/20 text-[#333] focus:border-red-500 focus:bg-white focus:ring-4 focus:ring-red-500/10"
-                        : "border-gray-200 bg-white text-gray-800 focus:border-[#079447] focus:ring-2 focus:ring-emerald-100"
-                    } px-4 py-2.5 text-sm outline-none transition placeholder:text-gray-400`}
+                        : "border-gray-200 bg-white text-gray-800 focus:border-[#079447] focus:ring-4 focus:ring-emerald-500/10"
+                    } px-4 py-3 text-sm outline-none transition-all placeholder:text-gray-400`}
                   />
-                  <p className="mt-0.5 flex min-h-[14px] items-center gap-1 text-[11px] font-medium leading-4 text-red-600">
+                  <p className="mt-1 flex min-h-[14px] items-center gap-1 text-[11px] font-medium leading-4 text-red-600">
                     {reviewErrors.reviewText && (
                       <>
                         <AlertCircle size={12} className="shrink-0 text-red-600" />
@@ -1065,26 +1077,26 @@ console.log("product", product);
                   const isMediaMaxed = hasImage && hasVideo;
 
                   return (
-                    <div className={`mt-4 rounded-xl border ${reviewErrors.media ? "border-red-300 bg-red-50/10" : "border-gray-200 bg-white"} p-4`}>
+                    <div className={`mt-4 rounded-2xl border ${reviewErrors.media ? "border-red-300 bg-red-50/10" : "border-gray-200 bg-white"} p-4`}>
                       <div className="flex flex-wrap items-center justify-between gap-1">
-                        <p className="text-sm font-semibold text-gray-900">Add a photo or video (Optional)</p>
-                        <span className="text-[11px] font-medium text-gray-400">
+                        <p className="text-xs font-bold text-gray-900 uppercase tracking-wider">Add a photo or video (Optional)</p>
+                        <span className="text-[11px] font-semibold text-gray-400">
                           {hasImage ? "1/1 Image" : "0/1 Image"} · {hasVideo ? "1/1 Video" : "0/1 Video"}
                         </span>
                       </div>
-                      <p className="mt-0.5 text-xs text-gray-500">
-                        Shoppers find images and videos helpful. Max 1 image (up to 5MB) and 1 video (up to 50MB) allowed.
+                      <p className="mt-1 text-xs text-gray-500">
+                        Max 1 image (up to 5MB) and 1 video (up to 50MB) allowed.
                       </p>
                       
-                      <div className="mt-3.5 flex flex-wrap items-center gap-3">
+                      <div className="mt-3 flex flex-wrap items-center gap-3">
                         {/* Plus Upload Box */}
                         {!isMediaMaxed ? (
-                          <label className="flex h-20 w-20 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 transition hover:border-[#079447] hover:bg-emerald-50/40 group">
-                            <div className="flex items-center text-gray-400 group-hover:text-[#079447]">
+                          <label className="flex h-20 w-20 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-emerald-200 bg-emerald-50/30 transition-all hover:border-[#079447] hover:bg-emerald-50/80 group">
+                            <div className="flex items-center text-[#079447] transition-transform duration-200 group-hover:scale-110">
                               <Camera size={20} />
                               <Plus size={12} className="-ml-0.5" />
                             </div>
-                            <span className="mt-1 text-[11px] font-medium text-gray-600 group-hover:text-[#079447]">Add media</span>
+                            <span className="mt-1 text-[11px] font-bold text-[#079447]">Add media</span>
                             <input
                               type="file"
                               accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml,image/avif,video/mp4,video/webm,video/quicktime"
@@ -1094,7 +1106,7 @@ console.log("product", product);
                             />
                           </label>
                         ) : (
-                          <div className="flex h-20 w-20 flex-col items-center justify-center rounded-xl border border-gray-200 bg-gray-100 p-2 text-center text-gray-400">
+                          <div className="flex h-20 w-20 flex-col items-center justify-center rounded-2xl border border-gray-200 bg-gray-100 p-2 text-center text-gray-400">
                             <Camera size={18} />
                             <span className="mt-1 text-[10px] font-medium leading-tight">Media limit reached</span>
                           </div>
@@ -1102,7 +1114,7 @@ console.log("product", product);
 
                         {/* Selected Media Thumbnails */}
                         {reviewMedia.map((media, mIdx) => (
-                          <div key={media.id} className="relative h-20 w-20 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-xs group">
+                          <div key={media.id} className="relative h-20 w-20 overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 shadow-xs group">
                             <button
                               type="button"
                               onClick={() =>
@@ -1151,10 +1163,10 @@ console.log("product", product);
                   );
                 })()}
 
-                <div className="mt-4 flex flex-wrap items-center gap-3">
+                <div className="mt-5 flex flex-wrap items-center gap-3">
                   <button
                     disabled={submitReview.isPending || updateReview.isPending}
-                    className="rounded-xl bg-[#079447] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#057a3a] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447] disabled:bg-gray-300"
+                    className="rounded-2xl bg-gradient-to-r from-[#079447] to-[#057a3a] px-6 py-3 text-sm font-bold text-white shadow-md shadow-emerald-700/25 transition-all duration-200 hover:from-[#06833e] hover:to-[#046831] hover:shadow-lg hover:shadow-emerald-700/35 hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447] disabled:bg-gray-300 disabled:shadow-none"
                   >
                     {updateReview.isPending ? "Saving..." : submitReview.isPending ? "Submitting..." : editingReviewId != null ? "Save changes" : "Submit review"}
                   </button>
@@ -1163,7 +1175,7 @@ console.log("product", product);
                       type="button"
                       disabled={updateReview.isPending}
                       onClick={cancelReviewEdit}
-                      className="rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447] disabled:opacity-50"
+                      className="rounded-2xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-600 transition hover:bg-gray-100 disabled:opacity-50"
                     >
                       Cancel
                     </button>
@@ -1173,13 +1185,13 @@ console.log("product", product);
             ) : (
               <div className="mt-5 flex flex-1 flex-col justify-between space-y-6">
                 <div className="space-y-3.5">
-                  <div className="rounded-xl border border-emerald-100/80 bg-white/80 p-3.5 shadow-2xs transition hover:border-[#079447]/30">
+                  <div className="rounded-2xl border border-emerald-100/80 bg-white/80 p-4 shadow-2xs transition hover:border-[#079447]/30">
                     <div className="flex items-start gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100/80 text-[#079447]">
-                        <Sparkles size={18} />
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100/80 text-[#079447]">
+                        <Sparkles size={20} />
                       </div>
                       <div>
-                        <h4 className="text-xs font-semibold text-gray-900 sm:text-sm">Rate & Review Products</h4>
+                        <h4 className="text-xs font-bold text-gray-900 sm:text-sm">Rate & Review Products</h4>
                         <p className="mt-0.5 text-[11px] text-gray-500 leading-relaxed sm:text-xs">
                           Help fellow shoppers make informed choices by sharing your honest feedback.
                         </p>
@@ -1187,13 +1199,13 @@ console.log("product", product);
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-emerald-100/80 bg-white/80 p-3.5 shadow-2xs transition hover:border-[#079447]/30">
+                  <div className="rounded-2xl border border-emerald-100/80 bg-white/80 p-4 shadow-2xs transition hover:border-[#079447]/30">
                     <div className="flex items-start gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100/80 text-[#079447]">
-                        <Camera size={18} />
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100/80 text-[#079447]">
+                        <Camera size={20} />
                       </div>
                       <div>
-                        <h4 className="text-xs font-semibold text-gray-900 sm:text-sm">Upload Photos & Videos</h4>
+                        <h4 className="text-xs font-bold text-gray-900 sm:text-sm">Upload Photos & Videos</h4>
                         <p className="mt-0.5 text-[11px] text-gray-500 leading-relaxed sm:text-xs">
                           Show real product packaging, texture, and results to inspire the community.
                         </p>
@@ -1201,13 +1213,13 @@ console.log("product", product);
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-emerald-100/80 bg-white/80 p-3.5 shadow-2xs transition hover:border-[#079447]/30">
+                  <div className="rounded-2xl border border-emerald-100/80 bg-white/80 p-4 shadow-2xs transition hover:border-[#079447]/30">
                     <div className="flex items-start gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100/80 text-[#079447]">
-                        <CheckCircle2 size={18} />
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100/80 text-[#079447]">
+                        <CheckCircle2 size={20} />
                       </div>
                       <div>
-                        <h4 className="text-xs font-semibold text-gray-900 sm:text-sm">Verified Shopper Badge</h4>
+                        <h4 className="text-xs font-bold text-gray-900 sm:text-sm">Verified Shopper Badge</h4>
                         <p className="mt-0.5 text-[11px] text-gray-500 leading-relaxed sm:text-xs">
                           Your reviews gain trusted verified status so shoppers know your experience is authentic.
                         </p>
@@ -1220,7 +1232,7 @@ console.log("product", product);
                   <button
                     type="button"
                     onClick={ensureLogin}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#079447] px-5 py-3 text-sm font-semibold text-white transition duration-200 hover:bg-[#057a3a] hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447]"
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#079447] to-[#057a3a] px-5 py-3.5 text-sm font-bold text-white shadow-md shadow-emerald-700/25 transition duration-200 hover:shadow-lg hover:shadow-emerald-700/35 hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447]"
                   >
                     <LogIn size={18} />
                     Log in to write a review
@@ -1228,9 +1240,9 @@ console.log("product", product);
                   <button
                     type="button"
                     onClick={() => navigate("/auth/login", { state: { from: location.pathname } })}
-                    className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-xl border border-emerald-200/80 bg-white px-4 py-2.5 text-xs font-semibold text-[#079447] transition hover:bg-emerald-50/50"
+                    className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-2xl border border-emerald-200/80 bg-white px-4 py-3 text-xs font-bold text-[#079447] transition hover:bg-emerald-50/50"
                   >
-                    <UserPlus size={14} />
+                    <UserPlus size={15} />
                     New to SNA? Create an account
                   </button>
                 </div>
@@ -1239,19 +1251,19 @@ console.log("product", product);
           </div>
           <div
             style={formHeight ? { height: `${formHeight}px` } : {}}
-            className="flex flex-col rounded-2xl bg-white p-4 sm:p-5 shadow-sm overflow-hidden"
+            className="flex flex-col rounded-3xl bg-white p-5 sm:p-7 shadow-lg shadow-gray-200/50 border border-emerald-100/90 overflow-hidden"
           >
             <div className="flex shrink-0 items-end justify-between gap-4">
               <div>
-                <h3 className="text-xl font-semibold text-gray-900">Customer reviews</h3>
+                <h3 className="text-xl font-bold text-gray-900">Customer reviews</h3>
                 <p className="mt-1 text-sm text-gray-500">Most recent feedback</p>
               </div>
             </div>
 
             {/* Customer Photos & Videos Gallery Strip */}
             {allCustomerReviewMedia.length > 0 && (
-              <div className="mt-5 shrink-0 rounded-2xl border border-emerald-100 bg-[#f5f7f1]/60 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wider text-[#079447]">
+              <div className="mt-5 shrink-0 rounded-2xl border border-emerald-100 bg-[#f5f7f1]/70 p-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-[#079447]">
                   Photos & videos from customers
                 </p>
                 <div className="no-scrollbar mt-3 flex items-center gap-3 overflow-x-auto pb-1">
@@ -1260,7 +1272,7 @@ console.log("product", product);
                       key={`all-media-${item.url}-${idx}`}
                       type="button"
                       onClick={() => setLightboxMedia({ items: allCustomerReviewMedia, activeIndex: idx })}
-                      className="group relative h-16 w-16 sm:h-20 sm:w-20 shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 transition hover:border-[#079447] hover:shadow-md focus:outline-none"
+                      className="group relative h-16 w-16 sm:h-20 sm:w-20 shrink-0 overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 transition duration-300 hover:border-[#079447] hover:shadow-md focus:outline-none"
                       aria-label="View customer photo/video"
                     >
                       {item.type === "image" ? (
@@ -1279,7 +1291,7 @@ console.log("product", product);
               </div>
             )}
 
-            <div className="mt-5 flex-1 min-h-0 overflow-y-auto pr-2 space-y-0 review-scrollbar">
+            <div className="mt-5 flex-1 min-h-0 overflow-y-auto pr-2 space-y-4 review-scrollbar">
               {reviewsLoading && <p className="py-8 text-sm text-gray-500">Loading customer reviews...</p>}
               {!reviewsLoading && !reviews.length && (
                 <p className="py-8 text-sm leading-6 text-gray-500">
@@ -1313,39 +1325,130 @@ console.log("product", product);
                   ? Math.max(0, rawHelpfulCount - 1)
                   : rawHelpfulCount;
 
+                const rawDate = review.created_at || review.createdAt || review.date;
+                const relativeTime = getRelativeTime(rawDate);
+
+                const isVerifiedPurchase = Boolean(
+                  review.is_verified === true ||
+                  Number(review.is_verified) === 1 ||
+                  review.is_verified_purchase === true ||
+                  Number(review.is_verified_purchase) === 1 ||
+                  review.verified_purchase === true ||
+                  Number(review.verified_purchase) === 1 ||
+                  review.verified === true ||
+                  Number(review.verified) === 1 ||
+                  review.isVerified === true ||
+                  Number(review.isVerified) === 1 ||
+                  review.isVerifiedPurchase === true ||
+                  Number(review.isVerifiedPurchase) === 1 ||
+                  review.verifiedPurchase === true ||
+                  Number(review.verifiedPurchase) === 1 ||
+                  review.is_buyer === true ||
+                  Number(review.is_buyer) === 1 ||
+                  review.is_verified_buyer === true ||
+                  Number(review.is_verified_buyer) === 1 ||
+                  review.has_ordered === true ||
+                  Number(review.has_ordered) === 1 ||
+                  review.is_purchased === true ||
+                  Number(review.is_purchased) === 1 ||
+                  review.purchased === true ||
+                  Number(review.purchased) === 1 ||
+                  review.order_id != null ||
+                  review.orderId != null ||
+                  review.order_code != null ||
+                  review.orderCode != null ||
+                  review.user?.is_verified === true ||
+                  review.user?.has_ordered === true
+                );
+
                 return (
-                  <article key={review.id} className="border-b border-gray-100 py-5 first:pt-0 last:border-0 last:pb-0">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-[#057a3a]">
+                  <article key={review.id} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-2xs transition-all duration-200 hover:border-emerald-200/70 hover:shadow-md">
+                    {/* Review Header: Avatar + Author Name + relative date + Three Dots */}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-gray-500">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-100 to-teal-100 text-xs font-bold text-[#057a3a] ring-2 ring-emerald-400/20 shadow-2xs">
                           {initials}
                         </span>
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                            <p className="font-semibold text-gray-900">{author}</p>
-                            <span className="inline-flex items-center gap-1 text-xs text-[#079447]">
-                              <CheckCircle2 size={13} /> Verified purchase
-                            </span>
-                          </div>
-                          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-500">
-                            <span>{formatReviewDate(review.created_at || review.createdAt || review.date)}</span>
-                            {Boolean(review.is_edited) && <span aria-label="Review edited">· Edited</span>}
-                          </p>
-                        </div>
+                        <span className="font-bold text-gray-900">{author}</span>
+                        <span className="text-gray-400 font-normal">· {relativeTime}</span>
+                        {Boolean(review.is_edited) && <span aria-label="Review edited" className="text-gray-400">· Edited</span>}
                       </div>
+
+                      {/* Amazon Style Horizontal Three-Dot Menu */}
+                      {isOwnReview && (
+                        <div className="relative shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveMenuId((current) => (current === review.id ? null : review.id));
+                            }}
+                            className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-800 focus:outline-none transition-colors"
+                            aria-label="Review options"
+                            title="More options"
+                          >
+                            <MoreHorizontal size={20} />
+                          </button>
+
+                          {/* Dropdown Options Popup */}
+                          {activeMenuId === review.id && (
+                            <div
+                              className="absolute right-0 top-9 z-30 min-w-[150px] overflow-hidden rounded-2xl border border-gray-100 bg-white p-1.5 shadow-2xl ring-1 ring-black/5"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <button
+                                type="button"
+                                disabled={updateReview.isPending || deleteReview.isPending}
+                                onClick={() => {
+                                  setActiveMenuId(null);
+                                  startReviewEdit(review);
+                                }}
+                                className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-emerald-50 hover:text-[#079447] disabled:opacity-50"
+                              >
+                                <Pencil size={14} className="text-[#079447]" />
+                                <span>Edit review</span>
+                              </button>
+                              <button
+                                type="button"
+                                disabled={updateReview.isPending || deleteReview.isPending}
+                                onClick={() => {
+                                  setActiveMenuId(null);
+                                  setDeletingReviewId(review.id);
+                                }}
+                                className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-rose-600 transition hover:bg-rose-50 disabled:opacity-50"
+                              >
+                                <Trash2 size={14} className="text-rose-600" />
+                                <span>Delete review</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Star Rating & Verified Purchase */}
+                    <div className="mt-3 flex flex-wrap items-center gap-2.5">
                       <div className="flex shrink-0 gap-0.5" aria-label={`${score} out of 5 stars`}>
                         {[1, 2, 3, 4, 5].map((star) => (
                           <Star
                             key={star}
-                            size={15}
+                            size={16}
                             className={star <= score ? "fill-amber-400 text-amber-400" : "text-gray-200"}
                           />
                         ))}
                       </div>
+                      {isVerifiedPurchase && (
+                        <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-[#c45500] ring-1 ring-amber-200/60">
+                          Verified Purchase
+                        </span>
+                      )}
                     </div>
 
-                    {review.title && <h4 className="mt-4 font-semibold text-gray-800">{review.title}</h4>}
-                    {text && <p className="mt-2 text-sm leading-6 text-gray-600">{text}</p>}
+                    {/* Review Title */}
+                    {review.title && <h4 className="mt-2.5 font-bold text-sm sm:text-base text-gray-900">{review.title}</h4>}
+
+                    {/* Review Text Body */}
+                    {text && <p className="mt-2 text-sm leading-relaxed text-gray-700">{text}</p>}
 
                     {/* Customer Review Media Thumbnails */}
                     {reviewMediaList.length > 0 && (
@@ -1355,7 +1458,7 @@ console.log("product", product);
                             key={`rev-media-${media.url}-${mIdx}`}
                             type="button"
                             onClick={() => setLightboxMedia({ items: reviewMediaList, activeIndex: mIdx })}
-                            className="group relative h-16 w-16 sm:h-20 sm:w-20 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 transition hover:border-[#079447] hover:shadow-md focus:outline-none"
+                            className="group relative h-16 w-16 sm:h-20 sm:w-20 overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 transition duration-300 hover:border-[#079447] hover:shadow-md focus:outline-none"
                             aria-label={`View review ${media.type}`}
                           >
                             {media.type === "image" ? (
@@ -1377,58 +1480,62 @@ console.log("product", product);
                       </div>
                     )}
 
-                    <div className="mt-4 flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        disabled={markReviewHelpful.isPending}
-                        onClick={() => {
-                          const nextHelpful = !isHelpful;
-                          setLocalHelpfulMap((prev) => {
-                            const updated = { ...prev, [review.id]: nextHelpful };
-                            saveHelpfulReviews(userId, updated);
-                            return updated;
-                          });
-                          markReviewHelpful.mutate(review.id, {
-                            onError: (error) => {
-                              setLocalHelpfulMap((prev) => {
-                                const reverted = { ...prev, [review.id]: isHelpful };
-                                saveHelpfulReviews(userId, reverted);
-                                return reverted;
-                              });
-                              toast.error(apiErrorMessage(error, "Could not record your feedback"));
-                            },
-                          });
-                        }}
-                        className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447] disabled:opacity-50 ${
-                          isHelpful
-                            ? "bg-emerald-50 text-[#079447]"
-                            : "text-gray-500 hover:bg-emerald-50 hover:text-[#079447]"
-                        }`}
-                        aria-label={`Mark ${author}'s review as helpful`}
-                      >
-                        <ThumbsUp size={14} className={isHelpful ? "fill-[#079447] text-[#079447]" : ""} /> Helpful{helpfulCount > 0 ? ` (${helpfulCount})` : ""}
-                      </button>
-                      {isOwnReview && (
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            disabled={updateReview.isPending || deleteReview.isPending}
-                            onClick={() => startReviewEdit(review)}
-                            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-[#079447] transition hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447] disabled:opacity-50"
-                          >
-                            <Pencil size={14} /> Edit review
-                          </button>
-                          <button
-                            type="button"
-                            disabled={updateReview.isPending || deleteReview.isPending}
-                            onClick={() => setDeletingReviewId(review.id)}
-                            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:opacity-50"
-                          >
-                            <Trash2 size={14} /> Delete review
-                          </button>
-                        </div>
+                    {/* Helpful button code commented out as requested */}
+                    {/* 
+                    <div className="mt-4 flex flex-wrap items-center gap-3">
+                      {!isOwnReview ? (
+                        <button
+                          type="button"
+                          disabled={markReviewHelpful.isPending}
+                          onClick={() => {
+                            const nextHelpful = !isHelpful;
+                            setLocalHelpfulMap((prev) => {
+                              const updated = { ...prev, [review.id]: nextHelpful };
+                              saveHelpfulReviews(userId, updated);
+                              return updated;
+                            });
+                            markReviewHelpful.mutate(review.id, {
+                              onError: (error) => {
+                                const msg = apiErrorMessage(error, "");
+                                if (error?.response?.status === 409 || msg.includes("already marked helpful")) {
+                                  setLocalHelpfulMap((prev) => {
+                                    const updated = { ...prev, [review.id]: true };
+                                    saveHelpfulReviews(userId, updated);
+                                    return updated;
+                                  });
+                                  toast.success("Already marked as helpful");
+                                  return;
+                                }
+                                setLocalHelpfulMap((prev) => {
+                                  const reverted = { ...prev, [review.id]: isHelpful };
+                                  saveHelpfulReviews(userId, reverted);
+                                  return reverted;
+                                });
+                                toast.error(msg || "Could not record your feedback");
+                              },
+                            });
+                          }}
+                          className={`group inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold shadow-2xs transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#079447] disabled:opacity-50 ${
+                            isHelpful
+                              ? "border-[#079447] bg-[#079447] text-white shadow-xs"
+                              : "border-gray-200 bg-white text-gray-600 hover:border-[#079447]/40 hover:bg-emerald-50/50 hover:text-[#079447]"
+                          }`}
+                          aria-label={`Mark ${author}'s review as helpful`}
+                        >
+                          <ThumbsUp size={13} fill={isHelpful ? "currentColor" : "none"} className={isHelpful ? "text-white" : "text-gray-500 group-hover:text-[#079447] transition-colors"} /> Helpful{helpfulCount > 0 ? ` (${helpfulCount})` : ""}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => toast.error("You cannot mark your own review as helpful")}
+                          className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-xl border border-gray-100 bg-gray-50/80 px-3 py-1.5 text-xs font-medium text-gray-400 opacity-75 transition"
+                          title="You cannot mark your own review as helpful"
+                        >
+                          <ThumbsUp size={13} className="text-gray-300" /> Helpful{helpfulCount > 0 ? ` (${helpfulCount})` : ""}
+                        </button>
                       )}
                     </div>
+                    */}
                   </article>
                 );
               })}

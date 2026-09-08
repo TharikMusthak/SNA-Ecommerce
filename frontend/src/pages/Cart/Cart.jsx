@@ -33,7 +33,7 @@ const USER_COUPON_STORAGE_KEY = "sna_user_applied_coupon";
 function getDeliveryLabel(days) {
   if (!days) return null;
   const date = new Date();
-  date.setDate(date.getDate() + Number(days));
+  date.setDate(date.getDate() + Number(days)+2);
   const day = date.toLocaleDateString("en-IN", { weekday: "short" });
   const month = date.toLocaleDateString("en-IN", { month: "short" });
   const num = date.getDate();
