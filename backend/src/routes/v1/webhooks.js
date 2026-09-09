@@ -54,6 +54,41 @@ router.post("/blob-product-video", asyncHandler(async (req, res) => {
   }
 }));
 
+router.post("/blob-review-media", asyncHandler(async (req, res) => {
+  if (req.body?.type === "blob.generate-client-token") {
+    const authorization = String(req.get("authorization") || "");
+    const token = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
+    try {
+      const payload = jwt.verify(token, env.jwtSecret, {
+        algorithms: ["HS256"], issuer: env.jwtIssuer, audience: "sna-review-media-upload",
+      });
+      if (payload.scope !== "review-media-upload") throw new Error("Invalid scope");
+    } catch {
+      return fail(res, 401, "Review media upload authorization expired or is invalid");
+    }
+  }
+
+  try {
+    const result = await handleUpload({
+      body: req.body,
+      request: req,
+      onBeforeGenerateToken: async (pathname) => {
+        if (!String(pathname).startsWith("reviews/")) throw new Error("Invalid review media upload path");
+        return {
+          allowedContentTypes: ["image/jpeg", "image/png", "image/webp", "video/mp4", "video/webm", "video/quicktime"],
+          maximumSizeInBytes: 50 * 1024 * 1024,
+          addRandomSuffix: true,
+          tokenPayload: JSON.stringify({ kind: "review-media" }),
+        };
+      },
+      onUploadCompleted: async () => {},
+    });
+    return res.json(result);
+  } catch (error) {
+    return fail(res, 400, error?.message || "Unable to authorize review media upload");
+  }
+}));
+
 router.post("/tracking", asyncHandler(async (req, res) => {
   if (!env.shiprocket.webhookToken) return fail(res, 503, "Tracking webhook is not configured");
   if (!safeEqual(String(req.get("x-api-key") || ""), env.shiprocket.webhookToken)) {

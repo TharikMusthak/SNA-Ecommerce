@@ -5,10 +5,21 @@ import { optionalCustomer, requireCustomer } from "../../middleware/customerAuth
 import { reviewFileUrl, reviewUpload } from "../../middleware/reviewUpload.js";
 import { deleteUploadedFiles, uploadedFiles } from "../../middleware/uploadSecurity.js";
 import { parsePositiveId } from "../../security/validation.js";
-import { safelyDeleteUpload, safelyDeleteUploads, uploadReviewMedia } from "../../services/uploadFiles.js";
+import jwt from "jsonwebtoken";
+import { env } from "../../config/env.js";
+import { isReviewBlobUrl, safelyDeleteUpload, safelyDeleteUploads, uploadReviewMedia } from "../../services/uploadFiles.js";
 import { fail, ok, paginated } from "../../utils/apiResponse.js";
 
 const router = Router();
+
+router.post("/media-upload-token", requireCustomer, asyncHandler(async (req, res) => {
+  const token = jwt.sign(
+    { scope: "review-media-upload" },
+    env.jwtSecret,
+    { algorithm: "HS256", expiresIn: "10m", issuer: env.jwtIssuer, audience: "sna-review-media-upload", subject: String(req.user.id) },
+  );
+  return ok(res, { token }, "Review media upload authorized");
+}));
 
 router.get("/product/:productId", optionalCustomer, asyncHandler(async (req, res) => {
   const id = parsePositiveId(req.params.productId);
@@ -61,14 +72,16 @@ router.post("/", requireCustomer, ...reviewUpload, asyncHandler(async (req, res)
   const [[purchase]] = await pool.query(`SELECT oi.id FROM order_items oi JOIN orders o ON o.id=oi.order_id WHERE o.user_id=? AND oi.product_id=? AND o.status='delivered' ORDER BY oi.id DESC LIMIT 1`, [req.user.id, input.productId]);
   try {
     await uploadReviewMedia(files);
+    const imageUrl = reviewMediaUrl(req.body.image_blob_url, req.files?.image?.[0]);
+    const videoUrl = reviewMediaUrl(req.body.video_blob_url, req.files?.video?.[0]);
     const [result] = await pool.query(
       "INSERT INTO reviews(user_id,product_id,order_item_id,rating,title,review_text,image_url,video_url,is_verified_purchase,status) VALUES (?,?,?,?,?,?,?,?,?,'approved')",
-      [req.user.id, input.productId, purchase?.id || null, input.rating, input.title, input.reviewText, reviewFileUrl(req.files?.image?.[0]), reviewFileUrl(req.files?.video?.[0]), Boolean(purchase)],
+      [req.user.id, input.productId, purchase?.id || null, input.rating, input.title, input.reviewText, imageUrl, videoUrl, Boolean(purchase)],
     );
     return ok(res, { id: result.insertId, status: "approved" }, "Review published successfully", 201);
   } catch (error) {
     await deleteUploadedFiles(files);
-    await safelyDeleteUploads(files.map(reviewFileUrl), "reviews");
+    await safelyDeleteUploads([...files.map(reviewFileUrl), req.body.image_blob_url, req.body.video_blob_url], "reviews");
     if (error.code === "ER_DUP_ENTRY") return fail(res, 409, "You have already reviewed this product");
     throw error;
   }
@@ -88,12 +101,12 @@ router.put("/:id", requireCustomer, ...reviewUpload, asyncHandler(async (req, re
     return fail(res, 404, "Review not found");
   }
   await uploadReviewMedia(files);
-  const imageUrl = reviewFileUrl(req.files?.image?.[0]) || (req.body.remove_image === "1" ? null : existing.image_url);
-  const videoUrl = reviewFileUrl(req.files?.video?.[0]) || (req.body.remove_video === "1" ? null : existing.video_url);
+  const imageUrl = reviewMediaUrl(req.body.image_blob_url, req.files?.image?.[0]) || (req.body.remove_image === "1" ? null : existing.image_url);
+  const videoUrl = reviewMediaUrl(req.body.video_blob_url, req.files?.video?.[0]) || (req.body.remove_video === "1" ? null : existing.video_url);
   try {
     await pool.query("UPDATE reviews SET rating=?,title=?,review_text=?,image_url=?,video_url=?,status='approved',edited_at=CURRENT_TIMESTAMP WHERE id=? AND user_id=?", [input.rating, input.title, input.reviewText, imageUrl, videoUrl, id, req.user.id]);
   } catch (error) {
-    await safelyDeleteUploads(files.map(reviewFileUrl), "reviews");
+    await safelyDeleteUploads([...files.map(reviewFileUrl), req.body.image_blob_url, req.body.video_blob_url], "reviews");
     throw error;
   }
   if (existing.image_url !== imageUrl) await safelyDeleteUpload(existing.image_url, "reviews");
@@ -142,6 +155,14 @@ function reviewInput(body, requireProduct = true) {
     return { error: "Product, rating from 1 to 5, and review text are required" };
   }
   return { productId, rating, title, reviewText };
+}
+
+function reviewMediaUrl(blobUrl, file) {
+  if (blobUrl) {
+    if (!isReviewBlobUrl(blobUrl)) throw Object.assign(new Error("Invalid review media URL"), { status: 422 });
+    return blobUrl;
+  }
+  return reviewFileUrl(file);
 }
 
 export default router;
