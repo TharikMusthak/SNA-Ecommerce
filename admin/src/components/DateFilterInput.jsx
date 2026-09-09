@@ -1,6 +1,7 @@
 export default function DateFilterInput({ label, value = "", onChange }) {
   return (
     <input
+      className="date-filter-input"
       aria-label={label}
       type={value ? "date" : "text"}
       placeholder={label}

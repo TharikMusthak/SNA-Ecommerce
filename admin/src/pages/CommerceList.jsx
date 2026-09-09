@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { RotateCcw } from "lucide-react";
+import { Plus, RefreshCw, RotateCcw } from "lucide-react";
 import { api, assetUrl } from "../api";
 import Badge from "../components/Badge";
 import DataTable from "../components/DataTable";
@@ -480,6 +480,8 @@ export default function CommerceList({ type, onNotice }) {
         </div>
         {type === "Coupons" && (
           <button
+            className="primary-button"
+            type="button"
             onClick={() =>
               setModal({
                 kind: "form",
@@ -489,16 +491,16 @@ export default function CommerceList({ type, onNotice }) {
               })
             }
           >
-            + Add coupon
+            <Plus size={18} aria-hidden="true" /> Add coupon
           </button>
         )}
         {type === "Reviews" && (
-          <button onClick={() => setModal({ kind: "form", formType: "review", title: "Add review", path: "/v1/admin/reviews", method: "POST", data: {} })}>
-            + Add review
+          <button className="primary-button" type="button" onClick={() => setModal({ kind: "form", formType: "review", title: "Add review", path: "/v1/admin/reviews", method: "POST", data: {} })}>
+            <Plus size={18} aria-hidden="true" /> Add review
           </button>
         )}
       </div>
-      <div className="commerce-toolbar">
+      <div className={`commerce-toolbar commerce-toolbar--${config.route}`}>
         <input
           aria-label={`Search ${type}`}
           placeholder="Search"
@@ -544,8 +546,8 @@ export default function CommerceList({ type, onNotice }) {
           </CustomSelect>
         )}
         {["Customers", "Reviews"].includes(type) && <><DateFilterInput label="From date" value={query.from || ""} onChange={(e)=>setQuery({...query,from:e.target.value,page:1})}/><DateFilterInput label="To date" value={query.to || ""} onChange={(e)=>setQuery({...query,to:e.target.value,page:1})}/></>}
-        <button onClick={load} disabled={loading}>
-          Refresh
+        <button className="secondary-button toolbar-refresh" type="button" onClick={load} disabled={loading}>
+          <RefreshCw size={15} aria-hidden="true" /> Refresh
         </button>
         <button
           className="secondary-button"
@@ -565,6 +567,7 @@ export default function CommerceList({ type, onNotice }) {
         loading={loading}
         error={error}
         emptyMessage={`No ${type.toLowerCase()} found.`}
+        minWidth={type === "Reviews" ? 1760 : type === "Coupons" ? 1260 : undefined}
       >
         {rows.map((row, index) => (
           <tr
