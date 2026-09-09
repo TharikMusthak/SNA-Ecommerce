@@ -9,6 +9,7 @@ import Badge from "../components/Badge";
 import { TableImage } from "../components/DataTable";
 import { Dialog } from "../components/Dialog";
 import CustomSelect from "../components/CustomSelect";
+import DateFilterInput from "../components/DateFilterInput";
 
 const statuses = [
   "pending",
@@ -246,24 +247,16 @@ export default function Orders({ onStageChange }) {
             ),
           )}
         </CustomSelect>
-        <input
-          aria-label="From date"
-          type={query.from ? "date" : "text"}
-          placeholder="From date"
+        <DateFilterInput
+          label="From date"
           value={query.from}
-          onFocus={(event) => { event.currentTarget.type = "date"; }}
-          onBlur={(event) => { if (!event.currentTarget.value) event.currentTarget.type = "text"; }}
           onChange={(event) =>
             setQuery({ ...query, from: event.target.value, page: 1 })
           }
         />
-        <input
-          aria-label="To date"
-          type={query.to ? "date" : "text"}
-          placeholder="To date"
+        <DateFilterInput
+          label="To date"
           value={query.to}
-          onFocus={(event) => { event.currentTarget.type = "date"; }}
-          onBlur={(event) => { if (!event.currentTarget.value) event.currentTarget.type = "text"; }}
           onChange={(event) =>
             setQuery({ ...query, to: event.target.value, page: 1 })
           }

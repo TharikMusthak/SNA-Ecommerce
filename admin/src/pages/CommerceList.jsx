@@ -7,6 +7,7 @@ import { Dialog } from "../components/Dialog";
 import ImagePreviewField from "../components/ImagePreviewField";
 import VideoUploadField from "../components/VideoUploadField";
 import CustomSelect from "../components/CustomSelect";
+import DateFilterInput from "../components/DateFilterInput";
 
 const configs = {
   Customers: {
@@ -542,7 +543,7 @@ export default function CommerceList({ type, onNotice }) {
             <option value="">All priorities</option>{["low","normal","high","urgent"].map(value=><option key={value}>{value}</option>)}
           </CustomSelect>
         )}
-        {["Customers", "Reviews"].includes(type) && <><input aria-label="From date" type="date" value={query.from || ""} onChange={(e)=>setQuery({...query,from:e.target.value,page:1})}/><input aria-label="To date" type="date" value={query.to || ""} onChange={(e)=>setQuery({...query,to:e.target.value,page:1})}/></>}
+        {["Customers", "Reviews"].includes(type) && <><DateFilterInput label="From date" value={query.from || ""} onChange={(e)=>setQuery({...query,from:e.target.value,page:1})}/><DateFilterInput label="To date" value={query.to || ""} onChange={(e)=>setQuery({...query,to:e.target.value,page:1})}/></>}
         <button onClick={load} disabled={loading}>
           Refresh
         </button>

@@ -4,6 +4,7 @@ import Badge from "../components/Badge";
 import DataTable from "../components/DataTable";
 import { ConfirmDialog, Dialog } from "../components/Dialog";
 import CustomSelect from "../components/CustomSelect";
+import DateFilterInput from "../components/DateFilterInput";
 
 const statuses = ["pending", "confirmed", "processing", "packed", "ready_to_dispatch", "shipment_created", "awb_assigned", "pickup_scheduled", "picked_up", "in_transit", "out_for_delivery", "delivered", "delivery_failed", "rto_initiated", "rto_delivered", "cancelled"];
 
@@ -69,8 +70,8 @@ export default function Dispatch({ onNotice }) {
           <option value="">All shipment statuses</option>
           {statuses.map((status) => <option key={status} value={status}>{label(status)}</option>)}
         </CustomSelect>
-        <input aria-label="From date" type="date" value={query.from} onChange={(event) => setQuery({ ...query, from: event.target.value, page: 1 })} />
-        <input aria-label="To date" type="date" value={query.to} onChange={(event) => setQuery({ ...query, to: event.target.value, page: 1 })} />
+        <DateFilterInput label="From date" value={query.from} onChange={(event) => setQuery({ ...query, from: event.target.value, page: 1 })} />
+        <DateFilterInput label="To date" value={query.to} onChange={(event) => setQuery({ ...query, to: event.target.value, page: 1 })} />
         <CustomSelect aria-label="Sort dispatch orders" value={`${query.sort}:${query.order}`} onChange={(event) => { const [sort, order] = event.target.value.split(":"); setQuery({ ...query, sort, order, page: 1 }); }}>
           <option value="created_at:desc">Newest</option><option value="created_at:asc">Oldest</option><option value="amount:desc">Highest amount</option><option value="status:asc">Shipment status</option>
         </CustomSelect>
