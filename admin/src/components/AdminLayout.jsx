@@ -10,6 +10,7 @@ import {
   LogOut,
   Menu,
   MessageSquareText,
+  Moon,
   Package,
   PanelLeftClose,
   PanelLeftOpen,
@@ -21,6 +22,7 @@ import {
   ShoppingBag,
   SlidersHorizontal,
   Star,
+  Sun,
   Tags,
   TicketPercent,
   Truck,
@@ -73,6 +75,11 @@ export default function AdminLayout({
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem("sna_sidebar_collapsed") === "true",
   );
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem("sna_admin_theme");
+    if (saved === "dark" || saved === "light") return saved;
+    return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  });
   const visibleGroups = useMemo(
     () =>
       menuGroups
@@ -87,6 +94,16 @@ export default function AdminLayout({
   useEffect(() => {
     localStorage.setItem("sna_sidebar_collapsed", String(collapsed));
   }, [collapsed]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
+    localStorage.setItem("sna_admin_theme", theme);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute(
+      "content",
+      theme === "dark" ? "#101713" : "#ffffff",
+    );
+  }, [theme]);
 
   useEffect(() => {
     function onKeyDown(event) {
@@ -212,6 +229,15 @@ export default function AdminLayout({
             </div>
           </div>
           <div className="header-actions">
+            <button
+              className="theme-toggle"
+              type="button"
+              onClick={() => setTheme((current) => current === "dark" ? "light" : "dark")}
+              aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+              title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+            >
+              {theme === "dark" ? <Sun size={19} /> : <Moon size={19} />}
+            </button>
             <span className="header-role">{admin?.role}</span>
             {addButtonLabels[view] && (
               <button className="primary-button" type="button" onClick={onAdd}>
