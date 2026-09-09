@@ -43,27 +43,55 @@
 
 .existing-gallery-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  min-height: 36px;
+  border-top: 1px solid #dce3dd;
 }
 
-.existing-gallery-grid button {
+.existing-gallery-grid .gallery-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
-  padding: 7px;
+  min-width: 0;
+  min-height: 36px;
+  margin: 0;
+  padding: 6px 4px;
   border: 0;
-  color: #a12828;
-  background: #faecea;
+  border-right: 1px solid #dce3dd;
+  border-radius: 0;
   font-size: 9px;
   font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+  white-space: nowrap;
+  cursor: pointer;
 }
 
-.existing-gallery-grid button.make-primary {
+.existing-gallery-grid .gallery-action:last-child {
+  border-right: 0;
+}
+
+.existing-gallery-grid .gallery-action--replace {
+  color: #405149;
+  background: #f6f8f6;
+}
+
+.existing-gallery-grid .gallery-action--primary {
   color: #17653a;
   background: #e3f5e9;
 }
 
-.existing-gallery-grid button:disabled {
+.existing-gallery-grid .gallery-action--delete {
+  color: #a12828;
+  background: #faecea;
+}
+
+.existing-gallery-grid .gallery-action:disabled,
+.existing-gallery-grid .gallery-action[aria-disabled="true"] {
   cursor: not-allowed;
   opacity: .6;
+  pointer-events: none;
 }
 
 @media (max-width: 700px) {

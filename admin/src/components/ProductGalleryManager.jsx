@@ -114,13 +114,16 @@ export default function ProductGalleryManager({
               alt={`Existing product gallery image ${index + 1}`}
             />
             <div className="existing-gallery-actions">
-              <label className="make-primary">
+              <label
+                className="gallery-action gallery-action--replace"
+                aria-disabled={replacingId !== null || deletingId !== null || primaryId !== null}
+              >
                 {replacingId === image.id ? "Replacing…" : "Replace"}
                 <input type="file" accept="image/jpeg,image/png,image/webp" hidden disabled={replacingId !== null || deletingId !== null || primaryId !== null} onChange={(event) => replaceImage(image.id, event.target.files?.[0])} />
               </label>
               <button
                 type="button"
-                className="make-primary"
+                className="gallery-action gallery-action--primary"
                 disabled={deletingId !== null || primaryId !== null}
                 onClick={() => makePrimary(image)}
               >
@@ -128,6 +131,7 @@ export default function ProductGalleryManager({
               </button>
               <button
                 type="button"
+                className="gallery-action gallery-action--delete"
                 disabled={deletingId !== null || primaryId !== null}
                 onClick={() => setDeleteCandidate(image)}
                 aria-label={`Delete gallery image ${index + 1}`}
