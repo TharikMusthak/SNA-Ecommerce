@@ -43,8 +43,8 @@
 
 .existing-gallery-actions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  min-height: 36px;
+  grid-template-columns: minmax(0, .9fr) minmax(82px, 1.25fr) minmax(0, .9fr);
+  min-height: 40px;
   border-top: 1px solid #dce3dd;
 }
 
@@ -54,13 +54,13 @@
   justify-content: center;
   width: 100%;
   min-width: 0;
-  min-height: 36px;
+  min-height: 40px;
   margin: 0;
-  padding: 6px 4px;
+  padding: 7px 6px;
   border: 0;
   border-right: 1px solid #dce3dd;
   border-radius: 0;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   line-height: 1.15;
   text-align: center;
