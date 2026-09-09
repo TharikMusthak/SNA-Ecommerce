@@ -12,6 +12,7 @@ import { useAuth } from "@context/AuthProvider";
 import TinyLeaf from "@assets/images/tinyleaf.svg";
 import Logo from "@assets/images/Navbar/snaNavbarLogo.svg";
 import { useNavigate } from "react-router-dom";
+import { apiErrorMessage } from "@api/axios";
 
 const emailRegex = /^\S+@\S+\.\S+$/;
 const phoneRegex = /^[0-9+\-\s()]{7,15}$/;
@@ -216,12 +217,10 @@ const AuthModal = ({ onClose }) => {
       }
       onClose();
     } catch (err) {
-      setError(
-        err?.response?.data?.message ||
-          err?.response?.data?.error ||
-          err?.message ||
-          `Unable to ${isLogin ? "login" : "register"}. Please try again.`
-      );
+      setError(apiErrorMessage(
+        err,
+        `Unable to ${isLogin ? "login" : "register"}. Please try again.`,
+      ));
     }
   };
 
