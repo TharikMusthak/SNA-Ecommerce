@@ -68,7 +68,7 @@ export default function Dashboard({
     <div className="dashboard-page">
       <section className="dashboard-welcome">
         <div>
-          <span className="eyebrow">{welcome.greeting}, {admin?.name?.split(" ")[0] || "Admin"}</span>
+          <span className="eyebrow">{welcome.greeting}, SNA</span>
           <h2>{welcome.headline}</h2>
           <p>{welcome.description}</p>
         </div>
