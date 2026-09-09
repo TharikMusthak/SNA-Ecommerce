@@ -246,22 +246,28 @@ export default function Orders({ onStageChange }) {
             ),
           )}
         </CustomSelect>
-        <input
-          aria-label="From date"
-          type="date"
-          value={query.from}
-          onChange={(event) =>
-            setQuery({ ...query, from: event.target.value, page: 1 })
-          }
-        />
-        <input
-          aria-label="To date"
-          type="date"
-          value={query.to}
-          onChange={(event) =>
-            setQuery({ ...query, to: event.target.value, page: 1 })
-          }
-        />
+        <label className="order-date-filter">
+          <span>From date</span>
+          <input
+            aria-label="From date"
+            type="date"
+            value={query.from}
+            onChange={(event) =>
+              setQuery({ ...query, from: event.target.value, page: 1 })
+            }
+          />
+        </label>
+        <label className="order-date-filter">
+          <span>To date</span>
+          <input
+            aria-label="To date"
+            type="date"
+            value={query.to}
+            onChange={(event) =>
+              setQuery({ ...query, to: event.target.value, page: 1 })
+            }
+          />
+        </label>
         <button
           className="secondary-button"
           type="button"
