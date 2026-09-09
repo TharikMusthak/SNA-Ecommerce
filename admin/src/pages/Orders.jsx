@@ -434,6 +434,7 @@ function OrderDialog({ order, saving, onCollectCod, onClose }) {
   const canCollectCod =
     order.payment_status !== "paid" &&
     !["razorpay", "stripe"].includes(paymentProvider);
+  const timeline = orderTimeline(order);
   return (
     <Dialog
       title={`Order ${order.order_number || order.order_code}`}
@@ -480,7 +481,7 @@ function OrderDialog({ order, saving, onCollectCod, onClose }) {
       <section>
         <h3>Order timeline</h3>
         <div className="timeline">
-          {(order.status_history || order.history || []).map((item, index) => (
+          {timeline.map((item, index) => (
             <div key={item.id || index}><i /><span><b>{label(item.status)}</b><small>{formatDate(item.created_at)}{item.note ? ` · ${item.note}` : ""}</small></span></div>
           ))}
         </div>
@@ -492,6 +493,27 @@ function OrderDialog({ order, saving, onCollectCod, onClose }) {
       </footer>
     </Dialog>
   );
+}
+
+function orderTimeline(order) {
+  const history = order.status_history || order.history || [];
+  if (history.length) return history;
+  const currentStatus = order.status || "pending";
+  const timeline = [{
+    id: "fallback-created",
+    status: "pending",
+    note: "Order created",
+    created_at: order.created_at,
+  }];
+  if (currentStatus !== "pending") {
+    timeline.push({
+      id: "fallback-current",
+      status: currentStatus,
+      note: "Current order status (earlier history unavailable)",
+      created_at: order.updated_at || order.created_at,
+    });
+  }
+  return timeline;
 }
 
 function downloadInvoice(order) {

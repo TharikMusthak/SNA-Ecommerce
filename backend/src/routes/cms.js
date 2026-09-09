@@ -140,7 +140,7 @@ router.get("/orders/:id/details", manageOrders, async (req, res) => {
   const id = parsePositiveId(req.params.id);
   if (!id) return res.status(400).json({ message: "Invalid order ID" });
 
-  const [[orderRows], [items], [payments]] = await Promise.all([
+  const [[orderRows], [items], [payments], [statusHistory]] = await Promise.all([
     pool.query("SELECT * FROM orders WHERE id=? LIMIT 1", [id]),
     pool.query(
       `SELECT oi.*,p.main_image AS product_image,p.slug AS product_slug
@@ -154,6 +154,10 @@ router.get("/orders/:id/details", manageOrders, async (req, res) => {
       "SELECT id,provider,provider_payment_id,amount_minor,currency,status,created_at,updated_at FROM payments WHERE order_id=? ORDER BY id DESC",
       [id],
     ),
+    pool.query(
+      "SELECT id,status,note,created_at FROM order_status_history WHERE order_id=? ORDER BY id",
+      [id],
+    ),
   ]);
 
   const order = orderRows[0];
@@ -165,6 +169,8 @@ router.get("/orders/:id/details", manageOrders, async (req, res) => {
     item_count: items.reduce((total, item) => total + Number(item.quantity || 0), 0),
     payments,
     payment: payments[0] || null,
+    history: statusHistory,
+    status_history: statusHistory,
   });
 });
 

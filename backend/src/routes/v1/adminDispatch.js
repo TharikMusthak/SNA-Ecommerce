@@ -187,6 +187,13 @@ router.post("/shipments/:id/refresh", asyncHandler(async (req, res) => {
     const orderStatus = customerOrderStatus(status);
     if (orderStatus) {
       await connection.query(
+        `INSERT INTO order_status_history(order_id,status,note,actor_type)
+         SELECT id,?,'Updated from Shiprocket tracking','system'
+         FROM orders WHERE id=? AND status<>?
+           AND status NOT IN ('cancelled','returned','refunded')`,
+        [orderStatus, shipment.order_id, orderStatus],
+      );
+      await connection.query(
         "UPDATE orders SET status=? WHERE id=? AND status NOT IN ('cancelled','returned','refunded')",
         [orderStatus, shipment.order_id],
       );

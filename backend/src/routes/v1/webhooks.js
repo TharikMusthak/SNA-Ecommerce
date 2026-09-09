@@ -86,7 +86,16 @@ router.post("/tracking", asyncHandler(async (req, res) => {
       [shipment.id, providerEventId, status, description, location, eventTime, providerEventId],
     );
     const orderStatus = customerOrderStatus(status);
-    if (orderStatus) await connection.query("UPDATE orders SET status=? WHERE id=? AND status NOT IN ('cancelled','returned','refunded')", [orderStatus, shipment.order_id]);
+    if (orderStatus) {
+      await connection.query(
+        `INSERT INTO order_status_history(order_id,status,note,actor_type)
+         SELECT id,?,'Updated from Shiprocket webhook','system'
+         FROM orders WHERE id=? AND status<>?
+           AND status NOT IN ('cancelled','returned','refunded')`,
+        [orderStatus, shipment.order_id, orderStatus],
+      );
+      await connection.query("UPDATE orders SET status=? WHERE id=? AND status NOT IN ('cancelled','returned','refunded')", [orderStatus, shipment.order_id]);
+    }
     await connection.commit();
     return ok(res, null, "Webhook processed");
   } catch (error) {
