@@ -916,7 +916,7 @@ function formatCell(key, value) {
   }
   if (key.endsWith("_at") || key === "created_at" || key === "updated_at") {
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+    return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" });
   }
   if (
     typeof value === "boolean" ||

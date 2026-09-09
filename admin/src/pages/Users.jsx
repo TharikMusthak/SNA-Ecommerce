@@ -42,7 +42,7 @@ export default function Users({
             <td>
               <Badge value={user.status} />
             </td>
-            <td>{new Date(user.created_at).toLocaleDateString("en-IN")}</td>
+            <td>{new Date(user.created_at).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}</td>
             <td>
               <div className="action-buttons">
                 <button

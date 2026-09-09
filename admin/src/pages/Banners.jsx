@@ -31,4 +31,4 @@ export default function Banners({ rows = [], onEdit, onDelete }) {
 }
 
 function label(value) { return String(value || "—").replaceAll("_", " ").replace(/\b\w/g, (character) => character.toUpperCase()); }
-function formatDate(value) { return value ? new Date(value).toLocaleDateString("en-IN") : "Always"; }
+function formatDate(value) { return value ? new Date(value).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) : "Always"; }

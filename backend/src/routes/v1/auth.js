@@ -87,7 +87,7 @@ router.post(
       }
       const [result] = await connection.query(
         `INSERT INTO users (first_name,last_name,email,phone,password_hash,status,email_verified_at,referral_code,referred_by,terms_accepted_at)
-       VALUES (?,?,?,?,?,?,?,?,?,UTC_TIMESTAMP())`,
+       VALUES (?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
         [
           input.first_name,
           input.last_name,
@@ -102,7 +102,7 @@ router.post(
       );
       if (env.emailVerificationRequired) {
         await connection.query(
-          `INSERT INTO user_email_verifications (user_id,token_hash,expires_at) VALUES (?,?,DATE_ADD(UTC_TIMESTAMP(), INTERVAL 30 MINUTE))`,
+          `INSERT INTO user_email_verifications (user_id,token_hash,expires_at) VALUES (?,?,DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 30 MINUTE))`,
           [result.insertId, hashToken(verificationToken)],
         );
       }
@@ -158,7 +158,7 @@ router.post(
     if (!user || !passwordValid) {
       if (user)
         await pool.query(
-          `UPDATE users SET failed_login_attempts = failed_login_attempts + 1, locked_until = IF(failed_login_attempts + 1 >= 5, DATE_ADD(UTC_TIMESTAMP(), INTERVAL 15 MINUTE), locked_until) WHERE id = ?`,
+          `UPDATE users SET failed_login_attempts = failed_login_attempts + 1, locked_until = IF(failed_login_attempts + 1 >= 5, DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 15 MINUTE), locked_until) WHERE id = ?`,
           [user.id],
         );
       return fail(res, 401, "Incorrect login details. Please check and try again.");
@@ -176,7 +176,7 @@ router.post(
       metadata(req),
     );
     await pool.query(
-      "UPDATE users SET failed_login_attempts = 0, locked_until = NULL, last_login_at = UTC_TIMESTAMP() WHERE id = ?",
+      "UPDATE users SET failed_login_attempts = 0, locked_until = NULL, last_login_at = CURRENT_TIMESTAMP WHERE id = ?",
       [user.id],
     );
     res.cookie(
@@ -216,7 +216,7 @@ router.post(
           [stored.user_id],
         );
         await connection.query(
-          "UPDATE user_refresh_tokens SET revoked_at = COALESCE(revoked_at, UTC_TIMESTAMP()) WHERE user_id = ?",
+          "UPDATE user_refresh_tokens SET revoked_at = COALESCE(revoked_at, CURRENT_TIMESTAMP) WHERE user_id = ?",
           [stored.user_id],
         );
         await connection.commit();
@@ -248,7 +248,7 @@ router.post(
         metadata(req),
       );
       await connection.query(
-        "UPDATE user_refresh_tokens SET revoked_at = UTC_TIMESTAMP(), replaced_by_hash = ? WHERE id = ?",
+        "UPDATE user_refresh_tokens SET revoked_at = CURRENT_TIMESTAMP, replaced_by_hash = ? WHERE id = ?",
         [hashToken(nextToken), stored.id],
       );
       await connection.commit();
@@ -278,7 +278,7 @@ router.post(
     const token = req.cookies?.[env.customerRefreshCookie];
     if (token)
       await pool.query(
-        "UPDATE user_refresh_tokens SET revoked_at = COALESCE(revoked_at, UTC_TIMESTAMP()) WHERE token_hash = ?",
+        "UPDATE user_refresh_tokens SET revoked_at = COALESCE(revoked_at, CURRENT_TIMESTAMP) WHERE token_hash = ?",
         [hashToken(token)],
       );
     res.clearCookie(env.customerAccessCookie, {
@@ -308,7 +308,7 @@ router.post(
          FROM user_email_verifications AS verification
          JOIN users AS user ON user.id = verification.user_id
          WHERE verification.token_hash = ?
-           AND verification.expires_at > UTC_TIMESTAMP()
+           AND verification.expires_at > CURRENT_TIMESTAMP
          FOR UPDATE`,
         [hashToken(req.body.token)],
       );
@@ -323,11 +323,11 @@ router.post(
         return fail(res, 400, "Verification token has already been used");
       }
       await connection.query(
-        "UPDATE user_email_verifications SET used_at = UTC_TIMESTAMP() WHERE user_id = ? AND used_at IS NULL",
+        "UPDATE user_email_verifications SET used_at = CURRENT_TIMESTAMP WHERE user_id = ? AND used_at IS NULL",
         [record.user_id],
       );
       await connection.query(
-        "UPDATE users SET email_verified_at = UTC_TIMESTAMP(), status = 'active' WHERE id = ?",
+        "UPDATE users SET email_verified_at = CURRENT_TIMESTAMP, status = 'active' WHERE id = ?",
         [record.user_id],
       );
       await connection.commit();
@@ -363,12 +363,12 @@ router.post(
     try {
       await connection.beginTransaction();
       await connection.query(
-        "UPDATE user_email_verifications SET used_at = COALESCE(used_at, UTC_TIMESTAMP()) WHERE user_id = ? AND used_at IS NULL",
+        "UPDATE user_email_verifications SET used_at = COALESCE(used_at, CURRENT_TIMESTAMP) WHERE user_id = ? AND used_at IS NULL",
         [user.id],
       );
       await connection.query(
         `INSERT INTO user_email_verifications (user_id, token_hash, expires_at)
-         VALUES (?, ?, DATE_ADD(UTC_TIMESTAMP(), INTERVAL 30 MINUTE))`,
+         VALUES (?, ?, DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 30 MINUTE))`,
         [user.id, hashToken(verificationToken)],
       );
       await connection.commit();
@@ -402,11 +402,11 @@ router.post(
     if (user) {
       resetToken = randomBytes(48).toString("base64url");
       await pool.query(
-        "UPDATE user_password_reset_tokens SET used_at = UTC_TIMESTAMP() WHERE user_id = ? AND used_at IS NULL",
+        "UPDATE user_password_reset_tokens SET used_at = CURRENT_TIMESTAMP WHERE user_id = ? AND used_at IS NULL",
         [user.id],
       );
       await pool.query(
-        `INSERT INTO user_password_reset_tokens (user_id,token_hash,expires_at) VALUES (?,?,DATE_ADD(UTC_TIMESTAMP(), INTERVAL ? MINUTE))`,
+        `INSERT INTO user_password_reset_tokens (user_id,token_hash,expires_at) VALUES (?,?,DATE_ADD(CURRENT_TIMESTAMP, INTERVAL ? MINUTE))`,
         [user.id, hashToken(resetToken), env.resetMinutes],
       );
       await sendCustomerAuthEmail({
@@ -444,7 +444,7 @@ router.post(
     try {
       await connection.beginTransaction();
       const [[record]] = await connection.query(
-        `SELECT * FROM user_password_reset_tokens WHERE token_hash = ? AND used_at IS NULL AND expires_at > UTC_TIMESTAMP() FOR UPDATE`,
+        `SELECT * FROM user_password_reset_tokens WHERE token_hash = ? AND used_at IS NULL AND expires_at > CURRENT_TIMESTAMP FOR UPDATE`,
         [hashToken(req.body.token)],
       );
       if (!record) {
@@ -460,11 +460,11 @@ router.post(
         [passwordHash, record.user_id],
       );
       await connection.query(
-        "UPDATE user_password_reset_tokens SET used_at = UTC_TIMESTAMP() WHERE id = ?",
+        "UPDATE user_password_reset_tokens SET used_at = CURRENT_TIMESTAMP WHERE id = ?",
         [record.id],
       );
       await connection.query(
-        "UPDATE user_refresh_tokens SET revoked_at = COALESCE(revoked_at, UTC_TIMESTAMP()) WHERE user_id = ?",
+        "UPDATE user_refresh_tokens SET revoked_at = COALESCE(revoked_at, CURRENT_TIMESTAMP) WHERE user_id = ?",
         [record.user_id],
       );
       await connection.commit();
@@ -510,11 +510,11 @@ router.post(
     );
     if (user) {
       await pool.query(
-        "UPDATE user_otps SET used_at=UTC_TIMESTAMP() WHERE destination=? AND purpose=? AND used_at IS NULL",
+        "UPDATE user_otps SET used_at=CURRENT_TIMESTAMP WHERE destination=? AND purpose=? AND used_at IS NULL",
         [destination, purpose],
       );
       await pool.query(
-        `INSERT INTO user_otps (user_id,destination,purpose,otp_hash,expires_at) VALUES (?,?,?,?,DATE_ADD(UTC_TIMESTAMP(), INTERVAL 10 MINUTE))`,
+        `INSERT INTO user_otps (user_id,destination,purpose,otp_hash,expires_at) VALUES (?,?,?,?,DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 10 MINUTE))`,
         [user.id, destination, purpose, hashToken(otp)],
       );
       if (destination.includes("@"))
@@ -550,7 +550,7 @@ router.post(
     try {
       await connection.beginTransaction();
       const [[record]] = await connection.query(
-        `SELECT * FROM user_otps WHERE destination = ? AND purpose = ? AND used_at IS NULL AND expires_at > UTC_TIMESTAMP() ORDER BY id DESC LIMIT 1 FOR UPDATE`,
+        `SELECT * FROM user_otps WHERE destination = ? AND purpose = ? AND used_at IS NULL AND expires_at > CURRENT_TIMESTAMP ORDER BY id DESC LIMIT 1 FOR UPDATE`,
         [destination, purpose],
       );
       const candidateHash = hashToken(otp);
@@ -568,17 +568,17 @@ router.post(
         return fail(res, 400, "OTP is invalid or expired");
       }
       await connection.query(
-        "UPDATE user_otps SET used_at = UTC_TIMESTAMP() WHERE id = ?",
+        "UPDATE user_otps SET used_at = CURRENT_TIMESTAMP WHERE id = ?",
         [record.id],
       );
       if (purpose === "verify_email" && record.user_id)
         await connection.query(
-          "UPDATE users SET email_verified_at = UTC_TIMESTAMP(), status = 'active' WHERE id = ?",
+          "UPDATE users SET email_verified_at = CURRENT_TIMESTAMP, status = 'active' WHERE id = ?",
           [record.user_id],
         );
       if (purpose === "verify_phone" && record.user_id)
         await connection.query(
-          "UPDATE users SET phone_verified_at = UTC_TIMESTAMP() WHERE id = ?",
+          "UPDATE users SET phone_verified_at = CURRENT_TIMESTAMP WHERE id = ?",
           [record.user_id],
         );
       await connection.commit();

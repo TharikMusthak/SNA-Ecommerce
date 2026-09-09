@@ -76,7 +76,7 @@ publicRouter.get(
   "/coupons/available",
   asyncHandler(async (_req, res) => {
     const [rows] = await pool.query(
-      `SELECT code,discount_type,discount_value,minimum_order_value,maximum_discount,ends_at,first_order_only FROM coupons WHERE status='active' AND (starts_at IS NULL OR starts_at<=UTC_TIMESTAMP()) AND (ends_at IS NULL OR ends_at>=UTC_TIMESTAMP()) ORDER BY id DESC`,
+      `SELECT code,discount_type,discount_value,minimum_order_value,maximum_discount,ends_at,first_order_only FROM coupons WHERE status='active' AND (starts_at IS NULL OR starts_at<=CURRENT_TIMESTAMP) AND (ends_at IS NULL OR ends_at>=CURRENT_TIMESTAMP) ORDER BY id DESC`,
     );
     return ok(res, rows);
   }),
@@ -101,7 +101,7 @@ searchRouter.get(
   "/popular",
   asyncHandler(async (_req, res) => {
     const [rows] = await pool.query(
-      "SELECT query,COUNT(*) AS searches FROM search_logs WHERE searched_at>=DATE_SUB(UTC_TIMESTAMP(),INTERVAL 30 DAY) GROUP BY query ORDER BY searches DESC LIMIT 10",
+      "SELECT query,COUNT(*) AS searches FROM search_logs WHERE searched_at>=DATE_SUB(CURRENT_TIMESTAMP,INTERVAL 30 DAY) GROUP BY query ORDER BY searches DESC LIMIT 10",
     );
     return ok(res, rows);
   }),

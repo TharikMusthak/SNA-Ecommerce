@@ -10,7 +10,7 @@ const pageInfo = (query) => ({ page: Math.max(Number.parseInt(query.page) || 1, 
 
 async function listProducts(req, res, extra = []) {
   const { page, limit } = pageInfo(req.query);
-  const conditions = ["p.status = 'Active'", "p.deleted_at IS NULL", "(p.published_at IS NULL OR p.published_at<=UTC_TIMESTAMP())", "(p.category_id IS NULL OR c.status='Active')", "(p.brand_id IS NULL OR b.status='Active')", ...extra];
+  const conditions = ["p.status = 'Active'", "p.deleted_at IS NULL", "(p.published_at IS NULL OR p.published_at<=CURRENT_TIMESTAMP)", "(p.category_id IS NULL OR c.status='Active')", "(p.brand_id IS NULL OR b.status='Active')", ...extra];
   const params = [];
   const search = String(req.query.q || req.query.search || "").trim().slice(0, 120);
   if (search) { conditions.push("(p.name LIKE ? OR p.description LIKE ? OR p.short_description LIKE ?)"); params.push(`%${search}%`, `%${search}%`, `%${search}%`); }
@@ -29,14 +29,14 @@ async function listProducts(req, res, extra = []) {
 
 router.get("/search", asyncHandler((req, res) => listProducts(req, res)));
 router.get("/featured", asyncHandler((req, res) => listProducts(req, res, ["p.is_featured = TRUE"])));
-router.get("/new-arrivals", asyncHandler((req, res) => listProducts(req, res, ["p.created_at >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL 90 DAY)"])));
+router.get("/new-arrivals", asyncHandler((req, res) => listProducts(req, res, ["p.created_at >= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 90 DAY)"])));
 router.get("/bestsellers", asyncHandler(async (req, res) => {
   const {page,limit}=pageInfo(req.query);
   const [[count],[rows]] = await Promise.all([pool.query(`SELECT COUNT(DISTINCT p.id) total FROM order_items oi JOIN orders o ON o.id=oi.order_id JOIN products p ON p.id=oi.product_id WHERE o.status='delivered' AND o.payment_status='paid' AND p.status='Active' AND p.deleted_at IS NULL`),pool.query(`SELECT p.id,p.name,p.option_label,p.slug,p.price,p.sale_price,p.main_image,p.stock,SUM(oi.quantity) AS units_sold
     FROM order_items oi JOIN orders o ON o.id=oi.order_id JOIN products p ON p.id=oi.product_id
     LEFT JOIN categories c ON c.id=p.category_id LEFT JOIN brands b ON b.id=p.brand_id
     WHERE o.status='delivered' AND o.payment_status='paid' AND p.status='Active' AND p.deleted_at IS NULL
-      AND (p.published_at IS NULL OR p.published_at<=UTC_TIMESTAMP())
+      AND (p.published_at IS NULL OR p.published_at<=CURRENT_TIMESTAMP)
       AND (p.category_id IS NULL OR c.status='Active') AND (p.brand_id IS NULL OR b.status='Active')
     GROUP BY p.id ORDER BY units_sold DESC,p.id DESC LIMIT ? OFFSET ?`,[limit,(page-1)*limit])]);
   return paginated(res,rows,{page,limit,total:Number(count[0].total)});
@@ -53,7 +53,7 @@ router.get("/:id", asyncHandler((req, res) => { const id = parsePositiveId(req.p
 router.get("/", asyncHandler((req, res) => listProducts(req, res)));
 
 async function detail(_req, res, predicate, value) {
-  const [[product]] = await pool.query(`SELECT p.*,c.name AS category_name,b.name AS brand_name FROM products p LEFT JOIN categories c ON c.id=p.category_id LEFT JOIN brands b ON b.id=p.brand_id WHERE ${predicate} AND p.status='Active' AND p.deleted_at IS NULL AND (p.published_at IS NULL OR p.published_at<=UTC_TIMESTAMP()) AND (p.category_id IS NULL OR c.status='Active') AND (p.brand_id IS NULL OR b.status='Active') LIMIT 1`, [value]);
+  const [[product]] = await pool.query(`SELECT p.*,c.name AS category_name,b.name AS brand_name FROM products p LEFT JOIN categories c ON c.id=p.category_id LEFT JOIN brands b ON b.id=p.brand_id WHERE ${predicate} AND p.status='Active' AND p.deleted_at IS NULL AND (p.published_at IS NULL OR p.published_at<=CURRENT_TIMESTAMP) AND (p.category_id IS NULL OR c.status='Active') AND (p.brand_id IS NULL OR b.status='Active') LIMIT 1`, [value]);
   if (!product) return fail(res, 404, "Product not found");
   const [[images],[variants]] = await Promise.all([pool.query("SELECT id,image,sort_order FROM product_images WHERE product_id=? ORDER BY sort_order,id",[product.id]),pool.query("SELECT id,brand,color,size,sku,price,stock FROM product_variants WHERE product_id=? AND status='Active' ORDER BY id",[product.id])]);
   return ok(res, { ...product, images, variants });

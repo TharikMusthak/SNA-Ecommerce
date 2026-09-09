@@ -171,7 +171,7 @@ async function sendTrackedEmail({ event, recipient, mailer, message }) {
   if (!mailer || !message) return false;
   try {
     await mailer.sendMail(message);
-    if (deliveryId) await pool.query("UPDATE notification_deliveries SET status='sent',sent_at=UTC_TIMESTAMP() WHERE id=?", [deliveryId]);
+    if (deliveryId) await pool.query("UPDATE notification_deliveries SET status='sent',sent_at=CURRENT_TIMESTAMP WHERE id=?", [deliveryId]);
     return true;
   } catch {
     if (deliveryId) await pool.query("UPDATE notification_deliveries SET status='failed',last_error_code='SMTP_SEND_FAILED' WHERE id=?", [deliveryId]);

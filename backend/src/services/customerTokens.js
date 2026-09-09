@@ -20,7 +20,7 @@ export async function createCustomerRefreshToken(queryable, userId, sessionVersi
   await queryable.query(
     `INSERT INTO user_refresh_tokens
       (user_id, token_hash, session_version, expires_at, ip_address, user_agent)
-     VALUES (?, ?, ?, DATE_ADD(UTC_TIMESTAMP(), INTERVAL ? DAY), ?, ?)`,
+     VALUES (?, ?, ?, DATE_ADD(CURRENT_TIMESTAMP, INTERVAL ? DAY), ?, ?)`,
     [userId, hashToken(token), sessionVersion, env.refreshDays, metadata.ip || null, String(metadata.userAgent || "").slice(0, 500) || null],
   );
   return token;

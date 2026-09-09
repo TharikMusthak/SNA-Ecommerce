@@ -1,5 +1,5 @@
 export async function ensureCart(queryable, userId) {
-  await queryable.query("INSERT IGNORE INTO carts(user_id,expires_at) VALUES (?,DATE_ADD(UTC_TIMESTAMP(), INTERVAL 30 DAY))", [userId]);
+  await queryable.query("INSERT IGNORE INTO carts(user_id,expires_at) VALUES (?,DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 30 DAY))", [userId]);
   const [[cart]] = await queryable.query("SELECT id,coupon_code FROM carts WHERE user_id=? LIMIT 1", [userId]);
   return cart;
 }
@@ -32,8 +32,8 @@ export async function getCart(queryable, userId, { lock = false } = {}) {
         (SELECT COUNT(*) FROM coupon_usage cu WHERE cu.coupon_id=c.id AND cu.user_id=?) AS user_used,
         (SELECT COUNT(*) FROM orders o WHERE o.user_id=? AND o.status NOT IN ('cancelled','failed')) AS order_count
        FROM coupons c WHERE code=? AND status='active'
-       AND (starts_at IS NULL OR starts_at<=UTC_TIMESTAMP())
-       AND (ends_at IS NULL OR ends_at>=UTC_TIMESTAMP()) LIMIT 1 ${lock ? "FOR UPDATE" : ""}`, [userId,userId,cart.coupon_code],
+       AND (starts_at IS NULL OR starts_at<=CURRENT_TIMESTAMP)
+       AND (ends_at IS NULL OR ends_at>=CURRENT_TIMESTAMP) LIMIT 1 ${lock ? "FOR UPDATE" : ""}`, [userId,userId,cart.coupon_code],
     );
     const withinTotalLimit = validCoupon?.total_usage_limit == null || Number(validCoupon.total_used) < Number(validCoupon.total_usage_limit);
     const withinUserLimit = validCoupon?.per_user_limit == null || Number(validCoupon.user_used) < Number(validCoupon.per_user_limit);

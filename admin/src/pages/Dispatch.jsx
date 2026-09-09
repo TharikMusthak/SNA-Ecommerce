@@ -146,7 +146,7 @@ function DispatchModal({ data, saving, onClose, onAction, onRequestCancel }) {
 }
 
 function label(value) { return String(value || "").replaceAll("_", " ").replace(/\b\w/g, (character) => character.toUpperCase()); }
-function formatDate(value) { return value ? new Date(value).toLocaleString() : ""; }
+function formatDate(value) { return value ? new Date(value).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" }) : ""; }
 function destination(value) {
   try {
     const address = typeof value === "string" ? JSON.parse(value) : value;

@@ -50,7 +50,7 @@ router.post("/apply-coupon", asyncHandler(async(req,res)=>{
     (SELECT COUNT(*) FROM coupon_usage cu WHERE cu.coupon_id=c.id) AS total_used,
     (SELECT COUNT(*) FROM coupon_usage cu WHERE cu.coupon_id=c.id AND cu.user_id=?) AS user_used,
     (SELECT COUNT(*) FROM orders o WHERE o.user_id=? AND o.status NOT IN ('cancelled','failed')) AS order_count
-    FROM coupons c WHERE c.code=? AND c.status='active' AND (c.starts_at IS NULL OR c.starts_at<=UTC_TIMESTAMP()) AND (c.ends_at IS NULL OR c.ends_at>=UTC_TIMESTAMP()) LIMIT 1`,[req.user.id,req.user.id,code]);
+    FROM coupons c WHERE c.code=? AND c.status='active' AND (c.starts_at IS NULL OR c.starts_at<=CURRENT_TIMESTAMP) AND (c.ends_at IS NULL OR c.ends_at>=CURRENT_TIMESTAMP) LIMIT 1`,[req.user.id,req.user.id,code]);
   if(!coupon)return fail(res,422,"Coupon is invalid or expired");
   if(cart.summary.subtotal<Number(coupon.minimum_order_value))return fail(res,422,`Minimum order value is ${coupon.minimum_order_value}`);
   if(coupon.total_usage_limit!=null&&Number(coupon.total_used)>=Number(coupon.total_usage_limit))return fail(res,422,"Coupon usage limit has been reached");

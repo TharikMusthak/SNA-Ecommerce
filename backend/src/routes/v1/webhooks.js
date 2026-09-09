@@ -75,14 +75,14 @@ router.post("/tracking", asyncHandler(async (req, res) => {
     await connection.beginTransaction();
     await connection.query(
       `UPDATE shipments SET status=?,courier_name=COALESCE(?,courier_name),
-       delivered_at=IF(?='delivered',COALESCE(delivered_at,UTC_TIMESTAMP()),delivered_at)
+       delivered_at=IF(?='delivered',COALESCE(delivered_at,CURRENT_TIMESTAMP),delivered_at)
        WHERE id=?`,
       [status, courier, status, shipment.id],
     );
     await connection.query(
       `INSERT IGNORE INTO shipment_events
        (shipment_id,provider_event_id,status,description,location,event_time,raw_event_reference)
-       VALUES (?,?,?,?,?,COALESCE(?,UTC_TIMESTAMP()),?)`,
+       VALUES (?,?,?,?,?,COALESCE(?,CURRENT_TIMESTAMP),?)`,
       [shipment.id, providerEventId, status, description, location, eventTime, providerEventId],
     );
     const orderStatus = customerOrderStatus(status);
@@ -120,8 +120,8 @@ router.post("/wati", asyncHandler(async (req, res) => {
     }
     await connection.query(
       `UPDATE notification_deliveries SET status=?,last_error_code=?,
-       delivered_at=IF(?='delivered',COALESCE(delivered_at,UTC_TIMESTAMP()),delivered_at),
-       read_at=IF(?='read',COALESCE(read_at,UTC_TIMESTAMP()),read_at)
+       delivered_at=IF(?='delivered',COALESCE(delivered_at,CURRENT_TIMESTAMP),delivered_at),
+       read_at=IF(?='read',COALESCE(read_at,CURRENT_TIMESTAMP),read_at)
        WHERE provider_message_id=?`,
       [status, status === "failed" ? String(req.body?.failedCode || "WATI_DELIVERY_FAILED").slice(0, 120) : null, status, status, messageId],
     );
@@ -168,8 +168,19 @@ function customerOrderStatus(status) {
 
 function webhookDate(value) {
   if (!value) return null;
+  const text = String(value).trim();
+  const localMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
+  if (localMatch) {
+    return `${localMatch[1]}-${localMatch[2]}-${localMatch[3]} ${localMatch[4]}:${localMatch[5]}:${localMatch[6] || "00"}`;
+  }
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 19).replace("T", " ");
+  if (Number.isNaN(date.getTime())) return null;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
+  }).formatToParts(date).reduce((result, part) => ({ ...result, [part.type]: part.value }), {});
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
 }
 
 function safeEqual(left, right) {

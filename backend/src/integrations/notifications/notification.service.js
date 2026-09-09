@@ -35,7 +35,7 @@ export async function queueUserEvent(input, pool = defaultPool) {
 
 export async function processNotificationQueue({ pool = defaultPool, limit = 50, sendWhatsapp = sendWatiTemplate, sendEmail = deliverQueuedEmail } = {}) {
   const [ids] = await pool.query(
-    `SELECT id FROM notification_deliveries WHERE status IN ('queued','retrying') AND (next_attempt_at IS NULL OR next_attempt_at<=UTC_TIMESTAMP()) ORDER BY id LIMIT ?`,
+    `SELECT id FROM notification_deliveries WHERE status IN ('queued','retrying') AND (next_attempt_at IS NULL OR next_attempt_at<=CURRENT_TIMESTAMP) ORDER BY id LIMIT ?`,
     [Math.min(Math.max(Number(limit) || 50, 1), 100)],
   );
   const summary = { examined: ids.length, sent: 0, skipped: 0, retrying: 0, failed: 0 };
@@ -54,14 +54,14 @@ export async function processNotificationQueue({ pool = defaultPool, limit = 50,
         ? await sendWhatsapp({ recipient: delivery.recipient, template: { templateName: delivery.template_name }, payload: parsePayload(delivery.payload) })
         : await sendEmail({ recipient: delivery.recipient, event: delivery.event, payload: parsePayload(delivery.payload) });
       await pool.query(
-        "UPDATE notification_deliveries SET status=?,provider_message_id=?,last_error_code=?,sent_at=IF(?='sent',UTC_TIMESTAMP(),sent_at) WHERE id=?",
+        "UPDATE notification_deliveries SET status=?,provider_message_id=?,last_error_code=?,sent_at=IF(?='sent',CURRENT_TIMESTAMP,sent_at) WHERE id=?",
         [result.status, result.providerMessageId || null, result.code || null, result.status, id],
       );
       summary[result.status] = (summary[result.status] || 0) + 1;
     } catch (error) {
       const retry = error.retryable && Number(delivery.attempt_count) + 1 < env.wati.maxRetries;
       await pool.query(
-        "UPDATE notification_deliveries SET status=?,last_error_code=?,next_attempt_at=IF(?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 1 MINUTE),NULL) WHERE id=?",
+        "UPDATE notification_deliveries SET status=?,last_error_code=?,next_attempt_at=IF(?,DATE_ADD(CURRENT_TIMESTAMP,INTERVAL 1 MINUTE),NULL) WHERE id=?",
         [retry ? "retrying" : "failed", String(error.code || "WATI_FAILED").slice(0, 120), retry, id],
       );
       summary[retry ? "retrying" : "failed"] += 1;

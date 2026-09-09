@@ -85,7 +85,7 @@ router.post("/shipments", asyncHandler(async (req, res) => {
   const paymentMethod = String((await pool.query("SELECT provider FROM payments WHERE order_id=? ORDER BY id DESC LIMIT 1", [orderId]))[0][0]?.provider || "cod").toLowerCase();
   const nameParts = String(address.full_name || order.customer || "Customer").trim().split(/\s+/);
   const provider = await shiprocketRequest("/orders/create/adhoc", { method: "POST", body: {
-    order_id: order.order_code, order_date: new Date(order.created_at).toISOString().slice(0, 16).replace("T", " "), pickup_location: settings.pickup_location,
+    order_id: order.order_code, order_date: shiprocketDateTime(order.created_at), pickup_location: settings.pickup_location,
     billing_customer_name: nameParts.shift() || "Customer", billing_last_name: nameParts.join(" "), billing_address: address.address_line_1, billing_address_2: address.address_line_2 || "",
     billing_city: address.city, billing_pincode: String(address.postal_code), billing_state: address.state, billing_country: address.country || "India", billing_email: userRows[0]?.email || "", billing_phone: address.phone || order.phone,
     shipping_is_billing: true, order_items: shiprocketOrderItems(items, order.id),
@@ -178,9 +178,9 @@ router.post("/shipments/:id/refresh", asyncHandler(async (req, res) => {
     await connection.beginTransaction();
     await connection.query(
       `UPDATE shipments SET status=?,tracking_url=COALESCE(?,tracking_url),
-       picked_up_at=IF(?='picked_up',COALESCE(picked_up_at,UTC_TIMESTAMP()),picked_up_at),
-       shipped_at=IF(? IN ('picked_up','in_transit'),COALESCE(shipped_at,UTC_TIMESTAMP()),shipped_at),
-       delivered_at=IF(?='delivered',COALESCE(delivered_at,UTC_TIMESTAMP()),delivered_at)
+       picked_up_at=IF(?='picked_up',COALESCE(picked_up_at,CURRENT_TIMESTAMP),picked_up_at),
+       shipped_at=IF(? IN ('picked_up','in_transit'),COALESCE(shipped_at,CURRENT_TIMESTAMP),shipped_at),
+       delivered_at=IF(?='delivered',COALESCE(delivered_at,CURRENT_TIMESTAMP),delivered_at)
        WHERE id=?`,
       [status, tracking.track_url || null, status, status, status, shipment.id],
     );
@@ -204,7 +204,7 @@ router.post("/shipments/:id/refresh", asyncHandler(async (req, res) => {
 router.post("/shipments/:id/cancel", asyncHandler(async (req, res) => {
   const shipment = await getShipment(req.params.id, res); if (!shipment) return;
   await shiprocketRequest("/orders/cancel", { method: "POST", body: { ids: [Number(shipment.provider_order_id)] } });
-  await pool.query("UPDATE shipments SET status='cancelled',cancelled_at=UTC_TIMESTAMP() WHERE id=?", [shipment.id]);
+  await pool.query("UPDATE shipments SET status='cancelled',cancelled_at=CURRENT_TIMESTAMP WHERE id=?", [shipment.id]);
   await addEvent(shipment.id, "cancelled", "Shipment cancelled in Shiprocket");
   return ok(res, null, "Shipment cancelled");
 }));
@@ -262,6 +262,16 @@ function customerOrderStatus(status) {
   return null;
 }
 function parseJson(value) { try { return typeof value === "string" ? JSON.parse(value) : value || {}; } catch { return {}; } }
+function shiprocketDateTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(date).reduce((result, part) => ({ ...result, [part.type]: part.value }), {});
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`;
+}
 function shiprocketOrderItems(items, orderId) {
   const normalizedSkus = items.map((item) => shipmentSkuBase(item.sku));
   const skuCounts = normalizedSkus.reduce((counts, sku) => {
@@ -415,6 +425,6 @@ function findProviderError(value, depth = 0) {
   return "";
 }
 async function getShipment(value, res) { const id=parsePositiveId(value); if (!id) { fail(res,400,"Invalid shipment ID"); return null; } const [[row]]=await pool.query("SELECT * FROM shipments WHERE id=?",[id]); if (!row) { fail(res,404,"Shipment not found"); return null; } return row; }
-async function addEvent(shipmentId,status,description=null,location=null,eventTime=null) { const key=createHash("sha256").update(`${shipmentId}|${status}|${description}|${eventTime || ""}`).digest("hex"); await pool.query("INSERT IGNORE INTO shipment_events(shipment_id,provider_event_id,status,description,location,event_time,raw_event_reference) VALUES (?,?,?,?,?,COALESCE(?,UTC_TIMESTAMP()),?)",[shipmentId,key,status,String(description || "").slice(0,500)||null,String(location || "").slice(0,190)||null,eventTime,key]); }
+async function addEvent(shipmentId,status,description=null,location=null,eventTime=null) { const key=createHash("sha256").update(`${shipmentId}|${status}|${description}|${eventTime || ""}`).digest("hex"); await pool.query("INSERT IGNORE INTO shipment_events(shipment_id,provider_event_id,status,description,location,event_time,raw_event_reference) VALUES (?,?,?,?,?,COALESCE(?,CURRENT_TIMESTAMP),?)",[shipmentId,key,status,String(description || "").slice(0,500)||null,String(location || "").slice(0,190)||null,eventTime,key]); }
 
 export default router;

@@ -38,7 +38,7 @@ export default function Products({ rows = [], onEdit, onDelete, onToggleFeatured
             <td><span className="rating-chip"><Star size={13} fill="currentColor" /> {Number(product.average_rating || 0).toFixed(1)}</span></td>
             <td><Badge value={Number(product.is_featured) === 1 ? "Featured" : "Standard"} /></td>
             <td><Badge value={product.status} /></td>
-            <td>{product.updated_at ? new Date(product.updated_at).toLocaleDateString("en-IN") : "—"}</td>
+            <td>{product.updated_at ? new Date(product.updated_at).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) : "—"}</td>
             <td><div className="action-buttons"><button type="button" className="action-btn" onClick={() => onToggleFeatured(product)} aria-label={Number(product.is_featured) === 1 ? `Remove ${product.name} from featured products` : `Feature ${product.name}`}><Star size={13} fill={Number(product.is_featured) === 1 ? "currentColor" : "none"} /> {Number(product.is_featured) === 1 ? "Unfeature" : "Feature"}</button><button type="button" className="action-btn edit-btn" onClick={() => onEdit(product)}><Pencil size={13} /> Edit</button><button type="button" className="action-btn delete-btn" onClick={() => onDelete(product.id)}><Trash2 size={13} /> Delete</button></div></td>
           </tr>
         ))}

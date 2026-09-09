@@ -61,7 +61,7 @@ export async function createShippingQuote({ userId, addressId, paymentMethod }) 
   const payload = { selected, options, customer_rate: customerRate, actual_rate: selected.rate, summary };
   const [result] = await pool.query(
     `INSERT INTO shipping_rate_quotes(user_id,address_id,provider,delivery_pincode,payment_method,package_hash,options_json,selected_courier_id,selected_rate,expires_at)
-     VALUES (?,?,?,?,?,?,?,?,?,DATE_ADD(UTC_TIMESTAMP(), INTERVAL 15 MINUTE))`,
+     VALUES (?,?,?,?,?,?,?,?,?,DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 15 MINUTE))`,
     [userId, address.id, "shiprocket", deliveryPincode, paymentMethod, packageHash, JSON.stringify(payload), selected.courier_id, customerRate],
   );
   return { quote_id: result.insertId, provider: "shiprocket", courier: selected, shipping_charge: customerRate, actual_shipping_cost: selected.rate, free_shipping: free, expires_in_seconds: 900, summary };
@@ -69,7 +69,7 @@ export async function createShippingQuote({ userId, addressId, paymentMethod }) 
 
 export async function validateShippingQuote(connection, { quoteId, userId, address, paymentMethod, cart }) {
   const [[quote]] = await connection.query(
-    `SELECT * FROM shipping_rate_quotes WHERE id=? AND user_id=? AND address_id=? AND payment_method=? AND expires_at>UTC_TIMESTAMP() LIMIT 1 FOR UPDATE`,
+    `SELECT * FROM shipping_rate_quotes WHERE id=? AND user_id=? AND address_id=? AND payment_method=? AND expires_at>CURRENT_TIMESTAMP LIMIT 1 FOR UPDATE`,
     [quoteId, userId, address.id, paymentMethod],
   );
   if (!quote) throw Object.assign(new Error("Shipping quote is missing or expired; refresh the rate"), { status: 409 });

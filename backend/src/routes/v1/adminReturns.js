@@ -368,7 +368,7 @@ router.post(
         ? req.body.status
         : "pending";
       const [created] = await connection.query(
-        `INSERT INTO refund_records(return_id,order_id,user_id,refund_reference,refund_method,eligible_amount,refunded_amount,status,notes,processed_by,processed_at,external_provider_reference,idempotency_key) VALUES (?,?,?,?,?,?,?,?,?,?,IF(?='completed',UTC_TIMESTAMP(),NULL),?,?)`,
+        `INSERT INTO refund_records(return_id,order_id,user_id,refund_reference,refund_method,eligible_amount,refunded_amount,status,notes,processed_by,processed_at,external_provider_reference,idempotency_key) VALUES (?,?,?,?,?,?,?,?,?,?,IF(?='completed',CURRENT_TIMESTAMP,NULL),?,?)`,
         [
           id,
           record.order_id,
@@ -526,7 +526,7 @@ router.put(
         );
       }
       await connection.query(
-        "UPDATE refund_records SET status=?,processed_at=IF(?='completed',UTC_TIMESTAMP(),processed_at),notes=COALESCE(?,notes) WHERE id=?",
+        "UPDATE refund_records SET status=?,processed_at=IF(?='completed',CURRENT_TIMESTAMP,processed_at),notes=COALESCE(?,notes) WHERE id=?",
         [next, next, text(req.body.notes, 5000), id],
       );
       if (next === "completed")
@@ -610,7 +610,7 @@ async function transition(req, res, next) {
 
 async function setReturnStatus(connection, record, next, admin, note) {
   await connection.query(
-    "UPDATE returns SET status=?,admin_notes=COALESCE(?,admin_notes),completed_at=IF(?='completed',UTC_TIMESTAMP(),completed_at) WHERE id=?",
+    "UPDATE returns SET status=?,admin_notes=COALESCE(?,admin_notes),completed_at=IF(?='completed',CURRENT_TIMESTAMP,completed_at) WHERE id=?",
     [next, text(note, 5000), next, record.id],
   );
   await connection.query(

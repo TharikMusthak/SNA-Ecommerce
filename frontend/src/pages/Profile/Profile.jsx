@@ -570,7 +570,7 @@ function CustomerOrderCard({ order }) {
   return (
     <article className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
       <header className="flex flex-col gap-3 border-b border-gray-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <div><h3 className="font-bold text-gray-900">Order #: {order.order_code}</h3><p className="mt-1 text-xs text-gray-500">{order.items?.length || 0} products · {new Date(order.created_at).toLocaleString("en-IN")}</p></div>
+        <div><h3 className="font-bold text-gray-900">Order #: {order.order_code}</h3><p className="mt-1 text-xs text-gray-500">{order.items?.length || 0} products · {new Date(order.created_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}</p></div>
         <span className={`w-fit rounded-full px-3 py-1 text-xs font-bold ${isCod ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-700"}`}>{isCod ? "Cash on Delivery (COD)" : "Online payment · Paid"}</span>
       </header>
       <div className="grid gap-3 bg-gray-50/60 px-5 py-4 text-sm sm:grid-cols-4">
@@ -603,9 +603,9 @@ function formatDeliveryDate(value) {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
-  const day = date.toLocaleDateString("en-US", { day: "numeric" });
-  const month = date.toLocaleDateString("en-US", { month: "short" });
-  const weekday = date.toLocaleDateString("en-US", { weekday: "short" });
+  const day = date.toLocaleDateString("en-US", { timeZone: "Asia/Kolkata", day: "numeric" });
+  const month = date.toLocaleDateString("en-US", { timeZone: "Asia/Kolkata", month: "short" });
+  const weekday = date.toLocaleDateString("en-US", { timeZone: "Asia/Kolkata", weekday: "short" });
   return `Delivery by ${month} ${day}, ${weekday}`;
 }
 

@@ -36,7 +36,7 @@ router.put("/change-password", validate(changePasswordSchema), asyncHandler(asyn
   try {
     await connection.beginTransaction();
     await connection.query("UPDATE users SET password_hash = ?, session_version = session_version + 1 WHERE id = ?", [hash, req.user.id]);
-    await connection.query("UPDATE user_refresh_tokens SET revoked_at = COALESCE(revoked_at, UTC_TIMESTAMP()) WHERE user_id = ?", [req.user.id]);
+    await connection.query("UPDATE user_refresh_tokens SET revoked_at = COALESCE(revoked_at, CURRENT_TIMESTAMP) WHERE user_id = ?", [req.user.id]);
     await connection.commit();
     res.clearCookie(env.customerAccessCookie, { ...customerAccessCookieOptions(), maxAge: undefined });
     res.clearCookie(env.customerRefreshCookie, { ...customerRefreshCookieOptions(), maxAge: undefined });
@@ -52,9 +52,9 @@ router.delete("/account", asyncHandler(async (req, res) => {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
-    await connection.query(`UPDATE users SET first_name = 'Deleted', last_name = 'User', email = ?, phone = NULL, status = 'disabled', session_version = session_version + 1, deleted_at = UTC_TIMESTAMP() WHERE id = ?`, [anonymizedEmail, req.user.id]);
+    await connection.query(`UPDATE users SET first_name = 'Deleted', last_name = 'User', email = ?, phone = NULL, status = 'disabled', session_version = session_version + 1, deleted_at = CURRENT_TIMESTAMP WHERE id = ?`, [anonymizedEmail, req.user.id]);
     await connection.query("DELETE FROM user_addresses WHERE user_id = ?", [req.user.id]);
-    await connection.query("UPDATE user_refresh_tokens SET revoked_at = COALESCE(revoked_at, UTC_TIMESTAMP()) WHERE user_id = ?", [req.user.id]);
+    await connection.query("UPDATE user_refresh_tokens SET revoked_at = COALESCE(revoked_at, CURRENT_TIMESTAMP) WHERE user_id = ?", [req.user.id]);
     await connection.query(`INSERT INTO audit_logs(actor_type,actor_id,action,entity_type,entity_id,ip_address) VALUES ('customer',?,'account.deleted','user',?,?)`, [req.user.id, String(req.user.id), req.ip]);
     await connection.commit();
     res.clearCookie(env.customerAccessCookie, { ...customerAccessCookieOptions(), maxAge: undefined });
