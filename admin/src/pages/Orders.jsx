@@ -246,28 +246,28 @@ export default function Orders({ onStageChange }) {
             ),
           )}
         </CustomSelect>
-        <label className="order-date-filter">
-          <span>From date</span>
-          <input
-            aria-label="From date"
-            type="date"
-            value={query.from}
-            onChange={(event) =>
-              setQuery({ ...query, from: event.target.value, page: 1 })
-            }
-          />
-        </label>
-        <label className="order-date-filter">
-          <span>To date</span>
-          <input
-            aria-label="To date"
-            type="date"
-            value={query.to}
-            onChange={(event) =>
-              setQuery({ ...query, to: event.target.value, page: 1 })
-            }
-          />
-        </label>
+        <input
+          aria-label="From date"
+          type={query.from ? "date" : "text"}
+          placeholder="From date"
+          value={query.from}
+          onFocus={(event) => { event.currentTarget.type = "date"; }}
+          onBlur={(event) => { if (!event.currentTarget.value) event.currentTarget.type = "text"; }}
+          onChange={(event) =>
+            setQuery({ ...query, from: event.target.value, page: 1 })
+          }
+        />
+        <input
+          aria-label="To date"
+          type={query.to ? "date" : "text"}
+          placeholder="To date"
+          value={query.to}
+          onFocus={(event) => { event.currentTarget.type = "date"; }}
+          onBlur={(event) => { if (!event.currentTarget.value) event.currentTarget.type = "text"; }}
+          onChange={(event) =>
+            setQuery({ ...query, to: event.target.value, page: 1 })
+          }
+        />
         <button
           className="secondary-button"
           type="button"

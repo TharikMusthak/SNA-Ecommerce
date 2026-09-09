@@ -1324,9 +1324,6 @@ label.has-validation-error::after {
 .order-scope-tabs button { min-height: 36px; padding: 7px 18px; color: var(--color-text-muted); background: transparent; border: 0; border-radius: 7px; font-size: 12px; font-weight: 750; }
 .order-scope-tabs button.active { color: var(--color-primary-700); background: var(--color-surface); box-shadow: 0 1px 4px rgb(26 55 36 / 12%); }
 .order-toolbar { margin-top: 0; }
-.order-date-filter { display: grid; gap: 5px; min-width: 165px; margin: 0; }
-.order-date-filter > span { color: var(--color-text-muted); font-size: 10px; font-weight: 750; letter-spacing: .04em; text-transform: uppercase; }
-.order-date-filter > input { width: 100%; }
 .orders-state { min-height: 140px; display: grid; place-items: center; margin: 0; padding: 24px; color: var(--color-text-muted); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); }
 .orders-state--error { color: var(--color-danger); }
 .order-card-list { display: grid; gap: 14px; }
