@@ -156,9 +156,48 @@ router.post("/shipments/:id/refresh", asyncHandler(async (req, res) => {
   const shipment = await getShipment(req.params.id, res); if (!shipment) return;
   const result = await shiprocketRequest(`/courier/track/shipment/${encodeURIComponent(shipment.provider_shipment_id)}`);
   const tracking = result.tracking_data || result;
-  for (const event of tracking.shipment_track_activities || []) await addEvent(shipment.id, normalizeStatus(event['sr-status-label'] || event.activity), event.activity, event.location, event.date);
-  const status = normalizeStatus(tracking.shipment_status || tracking.track_status);
-  if (allowedStatuses.has(status)) await pool.query("UPDATE shipments SET status=?,tracking_url=COALESCE(?,tracking_url) WHERE id=?", [status,tracking.track_url || null,shipment.id]);
+  const activities = Array.isArray(tracking.shipment_track_activities)
+    ? tracking.shipment_track_activities
+    : [];
+  for (const event of activities) {
+    await addEvent(
+      shipment.id,
+      normalizeStatus(event['sr-status-label'] || event.activity),
+      event.activity,
+      event.location,
+      event.date,
+    );
+  }
+  const status = latestShipmentStatus(
+    shipment.status,
+    tracking.shipment_status || tracking.track_status,
+    activities,
+  );
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    await connection.query(
+      `UPDATE shipments SET status=?,tracking_url=COALESCE(?,tracking_url),
+       picked_up_at=IF(?='picked_up',COALESCE(picked_up_at,UTC_TIMESTAMP()),picked_up_at),
+       shipped_at=IF(? IN ('picked_up','in_transit'),COALESCE(shipped_at,UTC_TIMESTAMP()),shipped_at),
+       delivered_at=IF(?='delivered',COALESCE(delivered_at,UTC_TIMESTAMP()),delivered_at)
+       WHERE id=?`,
+      [status, tracking.track_url || null, status, status, status, shipment.id],
+    );
+    const orderStatus = customerOrderStatus(status);
+    if (orderStatus) {
+      await connection.query(
+        "UPDATE orders SET status=? WHERE id=? AND status NOT IN ('cancelled','returned','refunded')",
+        [orderStatus, shipment.order_id],
+      );
+    }
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
   return ok(res, tracking, "Tracking refreshed");
 }));
 
@@ -171,7 +210,57 @@ router.post("/shipments/:id/cancel", asyncHandler(async (req, res) => {
 }));
 
 const allowedStatuses = new Set(['shipment_created','pickup_scheduled','picked_up','in_transit','out_for_delivery','delivered','delivery_failed','rto_initiated','rto_in_transit','rto_delivered','cancelled']);
-function normalizeStatus(value) { const text = String(value || "").toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,""); if (text.includes("out_for_delivery")) return "out_for_delivery"; if (text.includes("delivered")) return text.includes("rto") ? "rto_delivered" : "delivered"; if (text.includes("transit")) return text.includes("rto") ? "rto_in_transit" : "in_transit"; if (text.includes("pickup")) return "picked_up"; return allowedStatuses.has(text) ? text : "shipment_created"; }
+function normalizeStatus(value) {
+  const text = String(value || "").toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"");
+  if (text.includes("rto") && text.includes("delivered")) return "rto_delivered";
+  if (text.includes("rto") && text.includes("transit")) return "rto_in_transit";
+  if (text.includes("rto")) return "rto_initiated";
+  if (text.includes("out_for_delivery")) return "out_for_delivery";
+  if (text.includes("delivery_failed") || text.includes("undeliver")) return "delivery_failed";
+  if (text.includes("delivered")) return "delivered";
+  if (text.includes("cancel")) return "cancelled";
+  if (text.includes("picked_up") || text.includes("out_for_pickup") || text.includes("pickup_done")) return "picked_up";
+  if (text.includes("pickup_scheduled") || text.includes("pickup_requested")) return "pickup_scheduled";
+  if (text.includes("transit") || text.includes("shipped") || text.includes("manifested")) return "in_transit";
+  return allowedStatuses.has(text) ? text : "shipment_created";
+}
+
+const shipmentProgress = new Map([
+  ["shipment_created", 0],
+  ["pickup_scheduled", 1],
+  ["picked_up", 2],
+  ["in_transit", 3],
+  ["out_for_delivery", 4],
+  ["delivered", 5],
+]);
+
+function latestShipmentStatus(currentStatus, providerStatus, activities) {
+  const candidates = [
+    normalizeStatus(currentStatus),
+    normalizeStatus(providerStatus),
+    ...activities.map((event) => normalizeStatus(event['sr-status-label'] || event.activity)),
+  ];
+  const terminal = candidates.find((status) => ["cancelled", "rto_delivered"].includes(status));
+  if (terminal) return terminal;
+  const rto = candidates.find((status) => status === "rto_in_transit")
+    || candidates.find((status) => status === "rto_initiated");
+  if (rto) return rto;
+  if (candidates.includes("delivered")) return "delivered";
+  if (candidates.includes("delivery_failed")) return "delivery_failed";
+  return candidates.reduce((latest, status) =>
+    (shipmentProgress.get(status) ?? -1) > (shipmentProgress.get(latest) ?? -1)
+      ? status
+      : latest,
+  "shipment_created");
+}
+
+function customerOrderStatus(status) {
+  if (status === "delivered") return "delivered";
+  if (status === "out_for_delivery") return "out_for_delivery";
+  if (["picked_up", "in_transit"].includes(status)) return "shipped";
+  if (status === "cancelled") return "cancelled";
+  return null;
+}
 function parseJson(value) { try { return typeof value === "string" ? JSON.parse(value) : value || {}; } catch { return {}; } }
 function shiprocketOrderItems(items, orderId) {
   const normalizedSkus = items.map((item) => shipmentSkuBase(item.sku));
