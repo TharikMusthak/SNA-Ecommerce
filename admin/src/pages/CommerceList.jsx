@@ -586,7 +586,7 @@ export default function CommerceList({ type, onNotice }) {
               <td key={key}>
                 {formatCell(key, row[key], (src) =>
                   setModal({ kind: "image", title: "Review image", src })
-                )}
+                , row)}
               </td>
             ))}
             <td>
@@ -668,7 +668,7 @@ function DetailView({ type, response, setModal }) {
               <dd>
                 {formatCell(key, value, (src) =>
                   setModal({ kind: "image", title: "Review image", src })
-                )}
+                , data)}
               </dd>
             </div>
           ))}
@@ -950,7 +950,7 @@ function label(value) {
     .replaceAll("_", " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
-function formatCell(key, value, onImagePreview) {
+function formatCell(key, value, onImagePreview, row) {
   if (value === null || value === undefined || value === "") return "—";
   if (key === "status" || key.endsWith("_status")) return <Badge value={value} />;
   if (key === "rating") return `${value} / 5`;
@@ -970,6 +970,9 @@ function formatCell(key, value, onImagePreview) {
     );
   }
   if (key === "video_url") return <a href={assetUrl(value)} target="_blank" rel="noreferrer">View video</a>;
+  if (key === "discount_value" && row?.discount_type === "percentage") {
+    return `${Number(value || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}%`;
+  }
   if (["amount", "refund_amount", "refunded_amount", "discount_value", "minimum_order_value"].some((part) => key.includes(part))) {
     return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(Number(value || 0));
   }
