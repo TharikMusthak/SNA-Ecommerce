@@ -12,19 +12,28 @@ import { JOURNEY_TEMPLATES } from "@data/journeyTemplates";
  * Returns a JOURNEY_TEMPLATES entry (never null).
  */
 export function resolveJourney(item = {}) {
-  const slug = String(item.product_slug || item.slug || "").toLowerCase().trim();
-  const name = String(item.product_name || item.name || "").toLowerCase().trim();
-  const cat  = String(item.category_name || item.category || "").toLowerCase().trim();
+  const slug = String(
+    item.product_slug || item.slug || item.product?.slug || item.product?.product_slug || ""
+  ).toLowerCase().trim();
+  const name = String(
+    item.product_name || item.name || item.title || item.product?.name || ""
+  ).toLowerCase().trim();
+  const cat = String(
+    item.category_name || item.category || item.category_slug || item.product?.category_name || ""
+  ).toLowerCase().trim();
 
   // ── 1. Direct slug / templateId match ───────────────────────────────────────
   if (JOURNEY_TEMPLATES[slug]) return JOURNEY_TEMPLATES[slug];
-  // Backwards-compat alias: old "garlic-honey" slug → poondu-halwa
   if (slug === "garlic-honey") return JOURNEY_TEMPLATES["poondu-halwa"];
+  if (slug.includes("ulunthu") || slug.includes("ulundhu")) return JOURNEY_TEMPLATES["ulundhu-laddu"];
+  if (slug.includes("ellu")) return JOURNEY_TEMPLATES["ellu-laddu"];
+  if (slug.includes("poondu") || slug.includes("halwa")) return JOURNEY_TEMPLATES["poondu-halwa"];
+  if (slug.includes("energy")) return JOURNEY_TEMPLATES["energy-laddu"];
 
   // ── 2. Keyword rules — product name ─────────────────────────────────────────
 
-  // Ulundhu Laddu — urad dal based
-  if (hasAny(name, ["ulundhu", "urad", "black gram", "ulundu"])) {
+  // Ulundhu / Ulunthu Laddu — urad dal / black gram based
+  if (hasAny(name, ["ulundhu", "ulunthu", "ulundu", "uluntu", "urad", "black gram", "blackgram"])) {
     return JOURNEY_TEMPLATES["ulundhu-laddu"];
   }
 
@@ -58,7 +67,7 @@ export function resolveJourney(item = {}) {
   }
 
   // ── 3. Keyword rules — category name ────────────────────────────────────────
-  if (hasAny(cat, ["ulundhu", "urad", "ulundu"])) return JOURNEY_TEMPLATES["ulundhu-laddu"];
+  if (hasAny(cat, ["ulundhu", "ulunthu", "ulundu", "uluntu", "urad", "black gram"])) return JOURNEY_TEMPLATES["ulundhu-laddu"];
   if (hasAny(cat, ["ellu", "sesame"])) return JOURNEY_TEMPLATES["ellu-laddu"];
   if (hasAny(cat, ["halwa", "halva", "poondu", "garlic"])) return JOURNEY_TEMPLATES["poondu-halwa"];
   if (hasAny(cat, ["laddu", "ladoo", "ladu", "sweet"])) return JOURNEY_TEMPLATES["energy-laddu"];

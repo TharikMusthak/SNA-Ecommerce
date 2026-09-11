@@ -319,3 +319,9 @@ export const JOURNEY_TEMPLATES = {
     ],
   },
 };
+
+// Aliases for slug matching
+JOURNEY_TEMPLATES["ulunthu-laddu"] = JOURNEY_TEMPLATES["ulundhu-laddu"];
+JOURNEY_TEMPLATES["ulunthu_laddu"] = JOURNEY_TEMPLATES["ulundhu-laddu"];
+JOURNEY_TEMPLATES["ulundhu_laddu"] = JOURNEY_TEMPLATES["ulundhu-laddu"];
+
