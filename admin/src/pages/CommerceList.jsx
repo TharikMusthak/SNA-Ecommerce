@@ -616,8 +616,8 @@ export default function CommerceList({ type, onNotice }) {
             <div className="review-image-preview">
               <img src={modal.src} alt="Customer review" />
               <footer>
-                <a href={modal.src} target="_blank" rel="noreferrer">Open full size</a>
-                <button type="button" onClick={() => setModal(null)}>Close</button>
+                <a className="review-image-open" href={modal.src} target="_blank" rel="noreferrer">Open full size</a>
+                <button className="review-image-close" type="button" onClick={() => setModal(null)}>Close</button>
               </footer>
             </div>
           ) : modal.kind === "details" ? (
