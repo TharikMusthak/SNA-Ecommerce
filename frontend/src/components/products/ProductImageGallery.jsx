@@ -205,34 +205,39 @@ const ProductImageGallery = ({ product, selectedVariant = null }) => {
   // Lightbox Modal state
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
+  // Touch & Mouse Live Drag & Swipe State
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDraggingState, setIsDraggingState] = useState(false);
+
   const containerRef = useRef(null);
   const thumbnailsRef = useRef(null);
-
-  // Touch & Mouse Swipe Handlers
   const touchStartX = useRef(null);
-  const touchEndX = useRef(null);
   const isDragging = useRef(false);
   const minSwipeDistance = 40;
 
   const handleSwipeStart = (clientX) => {
     touchStartX.current = clientX;
-    touchEndX.current = clientX;
     isDragging.current = true;
+    setIsDraggingState(true);
+    setDragOffset(0);
   };
 
   const handleSwipeMove = (clientX) => {
-    if (!isDragging.current) return;
-    touchEndX.current = clientX;
+    if (!isDragging.current || touchStartX.current === null) return;
+    const offset = clientX - touchStartX.current;
+    setDragOffset(offset);
   };
 
   const handleSwipeEnd = () => {
-    if (!isDragging.current || touchStartX.current === null || touchEndX.current === null) {
+    if (!isDragging.current || touchStartX.current === null) {
       isDragging.current = false;
+      setIsDraggingState(false);
+      setDragOffset(0);
       return;
     }
-    const distance = touchStartX.current - touchEndX.current;
+    const distance = dragOffset;
     if (Math.abs(distance) >= minSwipeDistance && mediaList.length > 1) {
-      if (distance > 0) {
+      if (distance < 0) {
         // Swiped Left -> Next media
         setActiveIndex((prev) => (prev === mediaList.length - 1 ? 0 : prev + 1));
       } else {
@@ -241,8 +246,9 @@ const ProductImageGallery = ({ product, selectedVariant = null }) => {
       }
     }
     touchStartX.current = null;
-    touchEndX.current = null;
     isDragging.current = false;
+    setIsDraggingState(false);
+    setDragOffset(0);
   };
 
   const swipeProps = {
@@ -428,165 +434,175 @@ const ProductImageGallery = ({ product, selectedVariant = null }) => {
 
       {/* Main Media Display Stage */}
       <div className="relative w-full max-w-full flex-1 overflow-hidden" {...swipeProps}>
-        {currentMedia.type === "video" ? (
-          <div className="relative aspect-square w-full max-h-[42vh] sm:max-h-[480px] lg:max-h-none overflow-hidden rounded-[2rem] bg-black p-0 shadow-inner flex items-center justify-center">
-            {currentMedia.isEmbed ? (
-              <iframe
-                src={currentMedia.embedUrl}
-                title={`${product?.name || "Product"} video`}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                className="h-full w-full border-0 rounded-[2rem]"
-              />
-            ) : (
-              <video
-                src={currentMedia.url}
-                controls
-                controlsList="nodownload noplaybackrate"
-                disablePictureInPicture
-                disableRemotePlayback
-                playsInline
-                preload="auto"
-                poster={currentMedia.thumbnail}
-                onContextMenu={(e) => e.preventDefault()}
-                className="h-full w-full rounded-[2rem] object-contain"
-              />
-            )}
+        <div
+          key={`stage-${activeIndex}`}
+          className="h-full w-full flex items-center justify-center transition-transform"
+          style={{
+            transform: `translateX(${dragOffset}px)`,
+            transition: isDraggingState ? "none" : "transform 300ms cubic-bezier(0.25, 1, 0.5, 1), opacity 300ms ease",
+            opacity: isDraggingState ? Math.max(0.5, 1 - Math.abs(dragOffset) / 350) : 1,
+          }}
+        >
+          {currentMedia.type === "video" ? (
+            <div className="relative aspect-square w-full max-h-[42vh] sm:max-h-[480px] lg:max-h-none overflow-hidden rounded-[2rem] bg-black p-0 shadow-inner flex items-center justify-center">
+              {currentMedia.isEmbed ? (
+                <iframe
+                  src={currentMedia.embedUrl}
+                  title={`${product?.name || "Product"} video`}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="h-full w-full border-0 rounded-[2rem]"
+                />
+              ) : (
+                <video
+                  src={currentMedia.url}
+                  controls
+                  controlsList="nodownload noplaybackrate"
+                  disablePictureInPicture
+                  disableRemotePlayback
+                  playsInline
+                  preload="auto"
+                  poster={currentMedia.thumbnail}
+                  onContextMenu={(e) => e.preventDefault()}
+                  className="h-full w-full rounded-[2rem] object-contain"
+                />
+              )}
 
-            {/* Video Header Badge */}
-            <div className="pointer-events-none absolute top-4 left-4 z-20 flex items-center gap-1.5 rounded-full bg-black/70 px-3.5 py-1.5 text-xs font-semibold text-white shadow-md backdrop-blur-md">
-              <Video size={15} className="text-[#079447]" />
-              <span>Product Video</span>
-            </div>
-
-            {/* Expand Fullscreen Button for Video */}
-            <button
-              type="button"
-              onClick={() => setIsLightboxOpen(true)}
-              aria-label="Expand video fullscreen"
-              className="absolute top-4 right-4 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white shadow-md backdrop-blur-md transition hover:bg-black hover:text-[#079447] focus:outline-none"
-            >
-              <Maximize2 size={16} />
-            </button>
-
-            {/* Navigation Buttons on Main Stage */}
-            {mediaList.length > 1 && (
-              <>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setActiveIndex((prev) =>
-                      prev === 0 ? mediaList.length - 1 : prev - 1,
-                    )
-                  }
-                  className="absolute left-3 top-1/2 z-20 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-black/70 p-2 text-white shadow-lg backdrop-blur-md transition hover:bg-black hover:scale-110 hover:text-[#079447]"
-                  aria-label="Previous media"
-                >
-                  <ChevronLeft size={22} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setActiveIndex((prev) =>
-                      prev === mediaList.length - 1 ? 0 : prev + 1,
-                    )
-                  }
-                  className="absolute right-3 top-1/2 z-20 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-black/70 p-2 text-white shadow-lg backdrop-blur-md transition hover:bg-black hover:scale-110 hover:text-[#079447]"
-                  aria-label="Next media"
-                >
-                  <ChevronRight size={22} />
-                </button>
-              </>
-            )}
-          </div>
-        ) : (
-          <div
-            ref={containerRef}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-            onMouseMove={handleMouseMove}
-            onClick={() => setIsLightboxOpen(true)}
-            className="group relative aspect-square w-full max-h-[42vh] sm:max-h-[480px] lg:max-h-none cursor-zoom-in overflow-hidden rounded-[2rem] bg-[#f5f7f1] p-4 sm:p-6 shadow-inner transition-all duration-300 flex items-center justify-center"
-          >
-            {/* Main Display Image */}
-            <img
-              src={currentMedia.url}
-              alt={product?.name || "Product image"}
-              style={{
-                transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`,
-                transform: isHovered ? "scale(1.5)" : "scale(1)",
-              }}
-              className="h-full w-full object-contain transition-transform duration-100 ease-out select-none"
-            />
-
-            {/* Hover Hint Overlay */}
-            <div
-              className={`pointer-events-none absolute bottom-4 left-4 flex items-center gap-2 rounded-full bg-white/80 px-3.5 py-1.5 text-xs font-semibold text-gray-700 shadow-sm backdrop-blur-md transition-opacity duration-200 ${
-                isHovered ? "opacity-0" : "opacity-100"
-              }`}
-            >
-              <ZoomIn size={14} className="text-[#079447]" />
-              <span>Hover to zoom</span>
-            </div>
-
-            {/* Fullscreen Expand Button */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsLightboxOpen(true);
-              }}
-              aria-label="Expand image fullscreen"
-              className="absolute top-4 right-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-gray-700 shadow-md backdrop-blur-md transition hover:bg-white hover:text-[#079447] focus:outline-none"
-            >
-              <Maximize2 size={16} />
-            </button>
-
-            {/* Image Navigation Buttons */}
-            {mediaList.length > 1 && (
-              <>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setActiveIndex((prev) =>
-                      prev === 0 ? mediaList.length - 1 : prev - 1,
-                    );
-                  }}
-                  className={`absolute left-3 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 p-2 text-gray-800 shadow-lg backdrop-blur-md transition hover:bg-white hover:scale-110 hover:text-[#079447] ${
-                    isHovered ? "opacity-0" : "opacity-100"
-                  }`}
-                  aria-label="Previous image"
-                >
-                  <ChevronLeft size={22} />
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setActiveIndex((prev) =>
-                      prev === mediaList.length - 1 ? 0 : prev + 1,
-                    );
-                  }}
-                  className={`absolute right-3 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 p-2 text-gray-800 shadow-lg backdrop-blur-md transition hover:bg-white hover:scale-110 hover:text-[#079447] ${
-                    isHovered ? "opacity-0" : "opacity-100"
-                  }`}
-                  aria-label="Next image"
-                >
-                  <ChevronRight size={22} />
-                </button>
-              </>
-            )}
-
-            {/* Lens Indicator */}
-            {isHovered && (
-              <div className="pointer-events-none absolute right-4 top-4 flex items-center gap-1 rounded-full bg-[#079447]/90 px-3 py-1 text-[11px] font-medium text-white shadow-lg backdrop-blur-md animate-fade-in">
-                <Move size={12} />
-                <span>{Math.round(zoomPos.x)}% x {Math.round(zoomPos.y)}%</span>
+              {/* Video Header Badge */}
+              <div className="pointer-events-none absolute top-4 left-4 z-20 flex items-center gap-1.5 rounded-full bg-black/70 px-3.5 py-1.5 text-xs font-semibold text-white shadow-md backdrop-blur-md">
+                <Video size={15} className="text-[#079447]" />
+                <span>Product Video</span>
               </div>
-            )}
-          </div>
-        )}
+
+              {/* Expand Fullscreen Button for Video */}
+              <button
+                type="button"
+                onClick={() => setIsLightboxOpen(true)}
+                aria-label="Expand video fullscreen"
+                className="absolute top-4 right-4 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white shadow-md backdrop-blur-md transition hover:bg-black hover:text-[#079447] focus:outline-none"
+              >
+                <Maximize2 size={16} />
+              </button>
+
+              {/* Navigation Buttons on Main Stage */}
+              {mediaList.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setActiveIndex((prev) =>
+                        prev === 0 ? mediaList.length - 1 : prev - 1,
+                      )
+                    }
+                    className="absolute left-3 top-1/2 z-20 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-black/70 p-2 text-white shadow-lg backdrop-blur-md transition hover:bg-black hover:scale-110 hover:text-[#079447]"
+                    aria-label="Previous media"
+                  >
+                    <ChevronLeft size={22} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setActiveIndex((prev) =>
+                        prev === mediaList.length - 1 ? 0 : prev + 1,
+                      )
+                    }
+                    className="absolute right-3 top-1/2 z-20 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-black/70 p-2 text-white shadow-lg backdrop-blur-md transition hover:bg-black hover:scale-110 hover:text-[#079447]"
+                    aria-label="Next media"
+                  >
+                    <ChevronRight size={22} />
+                  </button>
+                </>
+              )}
+            </div>
+          ) : (
+            <div
+              ref={containerRef}
+              onMouseEnter={() => setIsHovered(true)}
+              onMouseLeave={() => setIsHovered(false)}
+              onMouseMove={handleMouseMove}
+              onClick={() => setIsLightboxOpen(true)}
+              className="group relative aspect-square w-full max-h-[42vh] sm:max-h-[480px] lg:max-h-none cursor-zoom-in overflow-hidden rounded-[2rem] bg-[#f5f7f1] p-4 sm:p-6 shadow-inner transition-all duration-300 flex items-center justify-center"
+            >
+              {/* Main Display Image */}
+              <img
+                src={currentMedia.url}
+                alt={product?.name || "Product image"}
+                style={{
+                  transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`,
+                  transform: isHovered ? "scale(1.5)" : "scale(1)",
+                }}
+                className="h-full w-full object-contain transition-transform duration-100 ease-out select-none"
+              />
+
+              {/* Hover Hint Overlay */}
+              <div
+                className={`pointer-events-none absolute bottom-4 left-4 flex items-center gap-2 rounded-full bg-white/80 px-3.5 py-1.5 text-xs font-semibold text-gray-700 shadow-sm backdrop-blur-md transition-opacity duration-200 ${
+                  isHovered ? "opacity-0" : "opacity-100"
+                }`}
+              >
+                <ZoomIn size={14} className="text-[#079447]" />
+                <span>Hover to zoom</span>
+              </div>
+
+              {/* Fullscreen Expand Button */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsLightboxOpen(true);
+                }}
+                aria-label="Expand image fullscreen"
+                className="absolute top-4 right-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-gray-700 shadow-md backdrop-blur-md transition hover:bg-white hover:text-[#079447] focus:outline-none"
+              >
+                <Maximize2 size={16} />
+              </button>
+
+              {/* Image Navigation Buttons */}
+              {mediaList.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveIndex((prev) =>
+                        prev === 0 ? mediaList.length - 1 : prev - 1,
+                      );
+                    }}
+                    className={`absolute left-3 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 p-2 text-gray-800 shadow-lg backdrop-blur-md transition hover:bg-white hover:scale-110 hover:text-[#079447] ${
+                      isHovered ? "opacity-0" : "opacity-100"
+                    }`}
+                    aria-label="Previous image"
+                  >
+                    <ChevronLeft size={22} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveIndex((prev) =>
+                        prev === mediaList.length - 1 ? 0 : prev + 1,
+                      );
+                    }}
+                    className={`absolute right-3 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 p-2 text-gray-800 shadow-lg backdrop-blur-md transition hover:bg-white hover:scale-110 hover:text-[#079447] ${
+                      isHovered ? "opacity-0" : "opacity-100"
+                    }`}
+                    aria-label="Next image"
+                  >
+                    <ChevronRight size={22} />
+                  </button>
+                </>
+              )}
+
+              {/* Lens Indicator */}
+              {isHovered && (
+                <div className="pointer-events-none absolute right-4 top-4 flex items-center gap-1 rounded-full bg-[#079447]/90 px-3 py-1 text-[11px] font-medium text-white shadow-lg backdrop-blur-md animate-fade-in">
+                  <Move size={12} />
+                  <span>{Math.round(zoomPos.x)}% x {Math.round(zoomPos.y)}%</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Lightbox Modal */}
@@ -643,9 +659,14 @@ const ProductImageGallery = ({ product, selectedVariant = null }) => {
             </>
           )}
 
-          {/* Modal Active Media Content */}
+          {/* Modal Active Media Content with Swipe Drag animation */}
           <div
-            className="relative flex h-full max-h-[80vh] sm:max-h-[85vh] w-full max-w-5xl items-center justify-center p-2 sm:p-4 my-auto lg:mt-[74px]"
+            className="relative flex h-full max-h-[80vh] sm:max-h-[85vh] w-full max-w-5xl items-center justify-center p-2 sm:p-4 my-auto lg:mt-[74px] transition-transform"
+            style={{
+              transform: `translateX(${dragOffset}px)`,
+              transition: isDraggingState ? "none" : "transform 300ms cubic-bezier(0.25, 1, 0.5, 1), opacity 300ms ease",
+              opacity: isDraggingState ? Math.max(0.5, 1 - Math.abs(dragOffset) / 350) : 1,
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             {currentMedia.type === "video" ? (
@@ -732,3 +753,5 @@ const ProductImageGallery = ({ product, selectedVariant = null }) => {
 };
 
 export default ProductImageGallery;
+
+
