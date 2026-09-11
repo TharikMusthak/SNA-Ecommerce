@@ -208,6 +208,73 @@ const ProductImageGallery = ({ product, selectedVariant = null }) => {
   const containerRef = useRef(null);
   const thumbnailsRef = useRef(null);
 
+  // Touch & Mouse Swipe Handlers
+  const touchStartX = useRef(null);
+  const touchEndX = useRef(null);
+  const isDragging = useRef(false);
+  const minSwipeDistance = 40;
+
+  const handleSwipeStart = (clientX) => {
+    touchStartX.current = clientX;
+    touchEndX.current = clientX;
+    isDragging.current = true;
+  };
+
+  const handleSwipeMove = (clientX) => {
+    if (!isDragging.current) return;
+    touchEndX.current = clientX;
+  };
+
+  const handleSwipeEnd = () => {
+    if (!isDragging.current || touchStartX.current === null || touchEndX.current === null) {
+      isDragging.current = false;
+      return;
+    }
+    const distance = touchStartX.current - touchEndX.current;
+    if (Math.abs(distance) >= minSwipeDistance && mediaList.length > 1) {
+      if (distance > 0) {
+        // Swiped Left -> Next media
+        setActiveIndex((prev) => (prev === mediaList.length - 1 ? 0 : prev + 1));
+      } else {
+        // Swiped Right -> Previous media
+        setActiveIndex((prev) => (prev === 0 ? mediaList.length - 1 : prev - 1));
+      }
+    }
+    touchStartX.current = null;
+    touchEndX.current = null;
+    isDragging.current = false;
+  };
+
+  const swipeProps = {
+    onTouchStart: (e) => {
+      if (e.targetTouches?.length) handleSwipeStart(e.targetTouches[0].clientX);
+    },
+    onTouchMove: (e) => {
+      if (e.targetTouches?.length) handleSwipeMove(e.targetTouches[0].clientX);
+    },
+    onTouchEnd: handleSwipeEnd,
+    onMouseDown: (e) => {
+      if (
+        e.target.closest("button") ||
+        e.target.closest("iframe") ||
+        e.target.closest("video") ||
+        e.target.closest("a")
+      ) {
+        return;
+      }
+      handleSwipeStart(e.clientX);
+    },
+    onMouseMove: (e) => {
+      if (isDragging.current) handleSwipeMove(e.clientX);
+    },
+    onMouseUp: () => {
+      if (isDragging.current) handleSwipeEnd();
+    },
+    onMouseLeave: () => {
+      if (isDragging.current) handleSwipeEnd();
+    },
+  };
+
   // Update active index if selected variant changes
   useEffect(() => {
     if (!selectedVariant) return;
@@ -268,7 +335,7 @@ const ProductImageGallery = ({ product, selectedVariant = null }) => {
   }, [isLightboxOpen, mediaList.length]);
 
   return (
-    <div className="flex flex-col-reverse gap-3 w-full max-w-full overflow-hidden lg:flex-row lg:items-start">
+    <div className="flex flex-col-reverse gap-3 w-full max-w-full overflow-hidden lg:flex-row lg:items-start select-none">
       {/* Thumbnails Sidebar / Bar */}
       {mediaList.length > 1 && (
         <div className="relative flex w-full max-w-full shrink-0 items-center justify-center overflow-hidden lg:w-20 lg:flex-col lg:justify-start">
@@ -360,7 +427,7 @@ const ProductImageGallery = ({ product, selectedVariant = null }) => {
       )}
 
       {/* Main Media Display Stage */}
-      <div className="relative w-full max-w-full flex-1 overflow-hidden">
+      <div className="relative w-full max-w-full flex-1 overflow-hidden" {...swipeProps}>
         {currentMedia.type === "video" ? (
           <div className="relative aspect-square w-full max-h-[42vh] sm:max-h-[480px] lg:max-h-none overflow-hidden rounded-[2rem] bg-black p-0 shadow-inner flex items-center justify-center">
             {currentMedia.isEmbed ? (
@@ -412,10 +479,10 @@ const ProductImageGallery = ({ product, selectedVariant = null }) => {
                       prev === 0 ? mediaList.length - 1 : prev - 1,
                     )
                   }
-                  className="absolute left-3 top-1/2 z-20 -translate-y-1/2 rounded-full bg-black/60 p-2 text-white shadow-md backdrop-blur-md transition hover:bg-black hover:text-[#079447]"
+                  className="absolute left-3 top-1/2 z-20 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-black/70 p-2 text-white shadow-lg backdrop-blur-md transition hover:bg-black hover:scale-110 hover:text-[#079447]"
                   aria-label="Previous media"
                 >
-                  <ChevronLeft size={20} />
+                  <ChevronLeft size={22} />
                 </button>
                 <button
                   type="button"
@@ -424,10 +491,10 @@ const ProductImageGallery = ({ product, selectedVariant = null }) => {
                       prev === mediaList.length - 1 ? 0 : prev + 1,
                     )
                   }
-                  className="absolute right-3 top-1/2 z-20 -translate-y-1/2 rounded-full bg-black/60 p-2 text-white shadow-md backdrop-blur-md transition hover:bg-black hover:text-[#079447]"
+                  className="absolute right-3 top-1/2 z-20 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-black/70 p-2 text-white shadow-lg backdrop-blur-md transition hover:bg-black hover:scale-110 hover:text-[#079447]"
                   aria-label="Next media"
                 >
-                  <ChevronRight size={20} />
+                  <ChevronRight size={22} />
                 </button>
               </>
             )}
@@ -486,12 +553,12 @@ const ProductImageGallery = ({ product, selectedVariant = null }) => {
                       prev === 0 ? mediaList.length - 1 : prev - 1,
                     );
                   }}
-                  className={`absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 text-gray-800 shadow-md backdrop-blur-md transition hover:bg-white hover:text-[#079447] ${
+                  className={`absolute left-3 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 p-2 text-gray-800 shadow-lg backdrop-blur-md transition hover:bg-white hover:scale-110 hover:text-[#079447] ${
                     isHovered ? "opacity-0" : "opacity-100"
                   }`}
                   aria-label="Previous image"
                 >
-                  <ChevronLeft size={20} />
+                  <ChevronLeft size={22} />
                 </button>
                 <button
                   type="button"
@@ -501,12 +568,12 @@ const ProductImageGallery = ({ product, selectedVariant = null }) => {
                       prev === mediaList.length - 1 ? 0 : prev + 1,
                     );
                   }}
-                  className={`absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 text-gray-800 shadow-md backdrop-blur-md transition hover:bg-white hover:text-[#079447] ${
+                  className={`absolute right-3 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 p-2 text-gray-800 shadow-lg backdrop-blur-md transition hover:bg-white hover:scale-110 hover:text-[#079447] ${
                     isHovered ? "opacity-0" : "opacity-100"
                   }`}
                   aria-label="Next image"
                 >
-                  <ChevronRight size={20} />
+                  <ChevronRight size={22} />
                 </button>
               </>
             )}
@@ -525,8 +592,9 @@ const ProductImageGallery = ({ product, selectedVariant = null }) => {
       {/* Lightbox Modal */}
       {isLightboxOpen && (
         <div
-          className="fixed inset-0 z-[150] flex items-center justify-center bg-black/95 p-3 sm:p-6 backdrop-blur-sm animate-fade-in"
+          className="fixed inset-0 z-[150] flex items-center justify-center bg-black/95 p-3 sm:p-6 backdrop-blur-sm animate-fade-in select-none"
           onClick={() => setIsLightboxOpen(false)}
+          {...swipeProps}
         >
           {/* Top Left Count Indicator */}
           <div className="absolute top-4 left-4 z-50 sm:top-6 sm:left-6 lg:top-[90px]">
@@ -540,12 +608,40 @@ const ProductImageGallery = ({ product, selectedVariant = null }) => {
             <button
               type="button"
               onClick={() => setIsLightboxOpen(false)}
-              className="flex items-center gap-1.5 rounded-full bg-white px-1.5 py-1.5 text-xs font-bold text-gray-900 shadow-lg transition hover:bg-gray-100 hover:scale-105 focus:outline-none"
+              className="flex items-center gap-1.5 rounded-full bg-white/90 px-2.5 py-2 text-xs font-bold text-gray-900 shadow-xl transition hover:bg-white hover:scale-110 focus:outline-none"
               aria-label="Close modal"
             >
-              <X size={16} className="text-white-900" />
+              <X size={18} className="text-gray-900" />
             </button>
           </div>
+
+          {/* Modal Navigation Buttons - Fixed to the outer sides of the screen */}
+          {mediaList.length > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveIndex((prev) => (prev === 0 ? mediaList.length - 1 : prev - 1));
+                }}
+                className="fixed left-3 sm:left-6 top-1/2 z-[160] -translate-y-1/2 flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full border border-white/30 bg-black/75 text-white shadow-2xl backdrop-blur-md transition-all duration-200 hover:scale-110 hover:border-[#079447] hover:bg-black focus:outline-none"
+                aria-label="Previous media"
+              >
+                <ChevronLeft size={30} />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveIndex((prev) => (prev === mediaList.length - 1 ? 0 : prev + 1));
+                }}
+                className="fixed right-3 sm:right-6 top-1/2 z-[160] -translate-y-1/2 flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full border border-white/30 bg-black/75 text-white shadow-2xl backdrop-blur-md transition-all duration-200 hover:scale-110 hover:border-[#079447] hover:bg-black focus:outline-none"
+                aria-label="Next media"
+              >
+                <ChevronRight size={30} />
+              </button>
+            </>
+          )}
 
           {/* Modal Active Media Content */}
           <div
@@ -581,36 +677,6 @@ const ProductImageGallery = ({ product, selectedVariant = null }) => {
                 alt={product?.name || "Product image enlarged"}
                 className="max-h-full max-w-full object-contain transition-all"
               />
-            )}
-
-            {/* Modal Navigation Buttons */}
-            {mediaList.length > 1 && (
-              <>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setActiveIndex((prev) =>
-                      prev === 0 ? mediaList.length - 1 : prev - 1,
-                    )
-                  }
-                  className="absolute left-2 rounded-full bg-white/20 p-3 text-white transition hover:bg-white/40"
-                  aria-label="Previous media"
-                >
-                  <ChevronLeft size={28} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setActiveIndex((prev) =>
-                      prev === mediaList.length - 1 ? 0 : prev + 1,
-                    )
-                  }
-                  className="absolute right-2 rounded-full bg-white/20 p-3 text-white transition hover:bg-white/40"
-                  aria-label="Next media"
-                >
-                  <ChevronRight size={28} />
-                </button>
-              </>
             )}
           </div>
 

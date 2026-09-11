@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  AlertCircle,
   Banknote,
   CheckCircle2,
   ChevronDown,
@@ -11,13 +12,14 @@ import {
   ShoppingCart,
   Trash2,
   Tag,
+  X,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
 import fallbackImage from "@assets/images/product1.png";
 import { apiErrorMessage } from "@api/axios";
-import { getAddresses } from "@api/address.api";
+import { createAddress, getAddresses } from "@api/address.api";
 import { createOrder } from "@api/order.api";
 import { createRazorpayPaymentOrder, verifyRazorpayPayment } from "@api/payment.api";
 import { getShippingQuote } from "@api/shipping.api";
@@ -52,6 +54,7 @@ const Cart = () => {
   const [shippingError, setShippingError] = useState("");
   const [shippingLoading, setShippingLoading] = useState(false);
   const [showAddressPicker, setShowAddressPicker] = useState(false);
+  const [showAddAddressModal, setShowAddAddressModal] = useState(false);
   const [couponInput, setCouponInput] = useState("");
 
   // ─── Addresses ────────────────────────────────────────────────────────────
@@ -89,57 +92,6 @@ const Cart = () => {
     [cart.items],
   );
 
-  const isMutating = updateItem.isPending || removeItem.isPending || addItem.isPending;
-
-  useEffect(() => {
-    // Skip shipping recalc while a mutation is in-flight to avoid thrashing
-    if (!selectedAddressId || !cart.items.length || isMutating) return;
-
-    let active = true;
-    setShippingLoading(true);
-    setShippingError("");
-
-    getShippingQuote({
-      address_id: Number(selectedAddressId),
-      payment_method: paymentMethod,
-    })
-      .then((response) => {
-        if (active) setShippingQuote(response.data.data || response.data);
-      })
-      .catch((error) => {
-        if (active) {
-          setShippingQuote(null);
-          setShippingError(apiErrorMessage(error, "Shipping rate could not be calculated"));
-        }
-      })
-      .finally(() => {
-        if (active) setShippingLoading(false);
-      });
-
-    return () => { active = false; };
-    // cartFingerprint already encodes item count, so no need for cart.items.length separately
-  }, [selectedAddressId, paymentMethod, cartFingerprint, isMutating]);
-
-  // ─── Derived summary values ────────────────────────────────────────────────
-  const displaySummary = shippingQuote?.summary || cart.summary;
-
-  const { itemCount, subtotal, discount, tax, shipping, total, savings, isFreeShipping } = useMemo(() => {
-    const _subtotal  = displaySummary?.subtotal ?? 0;
-    const _discount  = displaySummary?.discount ?? 0;
-    const _tax       = displaySummary?.tax ?? 0;
-    const _shipping  = displaySummary?.shipping ?? 0;
-    return {
-      itemCount:      cart.items.reduce((s, i) => s + i.quantity, 0),
-      subtotal:       _subtotal,
-      discount:       _discount,
-      tax:            _tax,
-      shipping:       _shipping,
-      total:          displaySummary?.total ?? 0,
-      savings:        _discount,
-      isFreeShipping: shippingQuote?.free_shipping || _shipping === 0,
-    };
-  }, [displaySummary, cart.items, shippingQuote]);
-
   // ─── Coupon state ──────────────────────────────────────────────────────────
   const rawCouponCode = useMemo(
     () =>
@@ -159,13 +111,81 @@ const Cart = () => {
       : null;
   }, [rawCouponCode]);
 
-  // ─── Page loading guard ────────────────────────────────────────────────────
+  const isMutating = updateItem.isPending || removeItem.isPending || addItem.isPending;
+
+  useEffect(() => {
+    // Skip shipping recalc while a mutation is in-flight to avoid thrashing
+    if (!selectedAddressId || !cart.items.length || isMutating) return;
+
+    let active = true;
+    setShippingLoading(true);
+    setShippingError("");
+
+    getShippingQuote({
+      address_id: Number(selectedAddressId),
+      payment_method: paymentMethod,
+      coupon_code: appliedCouponCode || undefined,
+    })
+      .then((response) => {
+        if (active) setShippingQuote(response.data.data || response.data);
+      })
+      .catch((error) => {
+        if (active) {
+          setShippingError(apiErrorMessage(error, "Shipping rate could not be calculated"));
+        }
+      })
+      .finally(() => {
+        if (active) setShippingLoading(false);
+      });
+
+    return () => { active = false; };
+  }, [selectedAddressId, paymentMethod, cartFingerprint, appliedCouponCode, isMutating]);
+
+  // ─── Derived summary values (Instant update on cart/coupon changes) ───────
+  const displaySummary = useMemo(() => {
+    const baseSummary = cart.summary || {};
+    if (shippingQuote?.summary) {
+      const shippingCost = shippingQuote.summary.shipping ?? 0;
+      const subtotal = baseSummary.subtotal ?? shippingQuote.summary.subtotal ?? 0;
+      const discount = baseSummary.discount ?? shippingQuote.summary.discount ?? 0;
+      const tax = baseSummary.tax ?? shippingQuote.summary.tax ?? 0;
+      const total = Math.max(0, subtotal + tax + shippingCost - discount);
+      return {
+        ...baseSummary,
+        ...shippingQuote.summary,
+        subtotal,
+        discount,
+        tax,
+        shipping: shippingCost,
+        total,
+      };
+    }
+    return baseSummary;
+  }, [cart.summary, shippingQuote]);
+
+  const { itemCount, subtotal, discount, tax, shipping, total, savings, isFreeShipping } = useMemo(() => {
+    const _subtotal  = displaySummary?.subtotal ?? cart.items.reduce((s, i) => s + Number(i.line_total || i.unit_price * i.quantity), 0);
+    const _discount  = displaySummary?.discount ?? 0;
+    const _tax       = displaySummary?.tax ?? 0;
+    const _shipping  = displaySummary?.shipping ?? 0;
+    const _total     = displaySummary?.total ?? Math.max(0, _subtotal + _tax + _shipping - _discount);
+    return {
+      itemCount:      cart.items.reduce((s, i) => s + i.quantity, 0),
+      subtotal:       _subtotal,
+      discount:       _discount,
+      tax:            _tax,
+      shipping:       _shipping,
+      total:          _total,
+      savings:        _discount,
+      isFreeShipping: shippingQuote?.free_shipping || _shipping === 0,
+    };
+  }, [displaySummary, cart.items, shippingQuote]);
+
+  // ─── Page loading guard (only for initial load) ───────────────────────────
   const pageLoading =
     isLoading ||
     addItem.isPending ||
-    addresses.isLoading ||
-    (cart.items.length > 0 && !selectedAddressId && shippingLoading) ||
-    (cart.items.length > 0 && !!selectedAddressId && shippingLoading && !shippingQuote && !shippingError);
+    addresses.isLoading;
 
   // ─── Auto-remove stale / invalid coupons ──────────────────────────────────
   useEffect(() => {
@@ -222,14 +242,15 @@ const Cart = () => {
   const handleRemoveCoupon = useCallback(async () => {
     try {
       localStorage.removeItem(USER_COUPON_STORAGE_KEY);
+      setShippingQuote(null);
       await removeCoupon.mutateAsync();
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.cart });
       toast.success("Coupon removed");
       setCouponInput("");
     } catch (error) {
       toast.error(apiErrorMessage(error, "Could not remove coupon"));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [removeCoupon.mutateAsync]);
+  }, [removeCoupon.mutateAsync, queryClient]);
 
   const submitCoupon = useCallback(async (event) => {
     event.preventDefault();
@@ -241,6 +262,7 @@ const Cart = () => {
       return;
     }
     try {
+      setShippingQuote(null);
       const res = await applyCoupon.mutateAsync(code);
       if (res && (res.valid === false || res.is_valid === false)) {
         localStorage.removeItem(USER_COUPON_STORAGE_KEY);
@@ -250,11 +272,13 @@ const Cart = () => {
         return;
       }
       localStorage.setItem(USER_COUPON_STORAGE_KEY, code);
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.cart });
       toast.success("Coupon applied");
       setCouponInput("");
     } catch (error) {
       try {
         localStorage.removeItem(USER_COUPON_STORAGE_KEY);
+        setShippingQuote(null);
         await removeCoupon.mutateAsync();
       } catch {
         // ignore
@@ -262,17 +286,26 @@ const Cart = () => {
       toast.error(apiErrorMessage(error, "Invalid coupon code. Removed automatically."));
       setCouponInput("");
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [couponInput, applyCoupon.mutateAsync, removeCoupon.mutateAsync]);
+  }, [couponInput, applyCoupon.mutateAsync, removeCoupon.mutateAsync, queryClient]);
 
   // ─── Checkout ──────────────────────────────────────────────────────────────
   const checkout = useCallback(async () => {
+    if (!addresses.data?.length) {
+      toast.error("Please add a delivery address to place your order");
+      setShowAddAddressModal(true);
+      return;
+    }
     if (!selectedAddressId) {
-      toast.error("Select or add a delivery address");
+      toast.error("Please select a delivery address to place your order");
+      setShowAddressPicker(true);
+      const el = document.getElementById("delivery-address-banner");
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
     if (!shippingQuote?.quote_id) {
-      toast.error(shippingError || "Wait for the shipping rate to load");
+      toast.error(shippingError || "Wait for the shipping rate calculation to complete");
+      const el = document.getElementById("delivery-address-banner");
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
 
@@ -337,7 +370,7 @@ const Cart = () => {
     } finally {
       setCheckingOut(false);
     }
-  }, [selectedAddressId, shippingQuote, shippingError, paymentMethod, cart.items, navigate, queryClient]);
+  }, [addresses.data, selectedAddressId, shippingQuote, shippingError, paymentMethod, cart.items, navigate, queryClient]);
 
   // ─── Early returns ─────────────────────────────────────────────────────────
   if (pageLoading)
@@ -376,10 +409,10 @@ const Cart = () => {
           <div className="min-w-0 flex-1">
 
             {/*  Delivery Address Banner  */}
-            <div className="rounded-xl bg-white shadow-sm ring-1 ring-black/[0.03]">
+            <div id="delivery-address-banner" className={`rounded-xl bg-white shadow-sm transition-all duration-200 ${!selectedAddress ? "ring-2 ring-amber-400/80 bg-amber-50/10" : "ring-1 ring-black/[0.03]"}`}>
               <div className="flex items-center justify-between px-4 py-4 sm:px-6">
                 <div className="flex min-w-0 items-center gap-3">
-                  <MapPin size={20} className="shrink-0 text-[#079447]" />
+                  <MapPin size={20} className={`shrink-0 ${!selectedAddress ? "text-amber-600 animate-pulse" : "text-[#079447]"}`} />
                   <div className="min-w-0">
                     {selectedAddress ? (
                       <>
@@ -393,19 +426,29 @@ const Cart = () => {
                           {selectedAddress.state}
                         </p>
                       </>
+                    ) : !addresses.data?.length ? (
+                      <div>
+                        <span className="text-sm font-bold text-amber-800">
+                          No delivery address added
+                        </span>
+                        <p className="text-xs text-amber-700">Please add a delivery address to complete your order</p>
+                      </div>
                     ) : (
-                      <span className="text-sm font-semibold text-gray-500">
-                        No delivery address selected
-                      </span>
+                      <div>
+                        <span className="text-sm font-bold text-amber-800">
+                          No delivery address selected
+                        </span>
+                        <p className="text-xs text-amber-700">Select an address below to proceed</p>
+                      </div>
                     )}
                   </div>
                 </div>
                 <button
                   id="cart-change-address-btn"
                   onClick={() => setShowAddressPicker((v) => !v)}
-                  className="ml-4 shrink-0 rounded-xl border border-[#079447] px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-[#079447] transition hover:bg-emerald-50"
+                  className={`ml-4 shrink-0 rounded-xl px-4 py-1.5 text-xs font-bold uppercase tracking-wide transition ${!selectedAddress ? "border border-amber-600 bg-amber-600 text-white shadow-xs hover:bg-amber-700" : "border border-[#079447] text-[#079447] hover:bg-emerald-50"}`}
                 >
-                  {selectedAddress ? "Change" : "Add Address"}
+                  {selectedAddress ? "Change" : addresses.data?.length ? "Select Address" : "Add Address"}
                   <ChevronDown
                     size={12}
                     className={`ml-1 inline-block transition-transform ${showAddressPicker ? "rotate-180" : ""}`}
@@ -460,22 +503,32 @@ const Cart = () => {
                           </label>
                         );
                       })}
-                      <Link
-                        to="/profile"
-                        className="mt-1 block text-center text-xs font-semibold text-[#079447] underline-offset-2 hover:underline"
-                      >
-                        + Manage addresses
-                      </Link>
+                      <div className="mt-2 flex items-center justify-between pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setShowAddAddressModal(true)}
+                          className="text-xs font-bold text-[#079447] hover:underline"
+                        >
+                          + Quick Add Address
+                        </button>
+                        <Link
+                          to="/profile"
+                          className="text-xs font-semibold text-gray-500 underline-offset-2 hover:underline"
+                        >
+                          Manage addresses
+                        </Link>
+                      </div>
                     </div>
                   ) : (
                     <div className="py-4 text-center">
-                      <p className="text-sm text-gray-500">No saved addresses.</p>
-                      <Link
-                        to="/profile"
-                        className="mt-2 inline-block text-sm font-semibold text-[#079447] hover:underline"
+                      <p className="text-sm font-medium text-gray-600">No saved addresses found.</p>
+                      <button
+                        type="button"
+                        onClick={() => setShowAddAddressModal(true)}
+                        className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-[#079447] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#057a3a]"
                       >
-                        Add delivery address
-                      </Link>
+                        + Add Delivery Address Now
+                      </button>
                     </div>
                   )}
                 </div>
@@ -519,12 +572,12 @@ const Cart = () => {
                   <div className="space-y-3 text-sm">
                     <div className="flex items-center justify-between text-gray-700">
                       <span>Price ({itemCount} {itemCount === 1 ? "item" : "items"})</span>
-                      <span className="font-medium">{formatCurrency(subtotal + discount)}</span>
+                      <span className="font-medium">{formatCurrency(subtotal)}</span>
                     </div>
                     {discount > 0 && (
                       <div className="flex items-center justify-between text-[#388e3c]">
                         <span>Discount</span>
-                        <span className="font-semibold"> {formatCurrency(discount)}</span>
+                        <span className="font-semibold">- {formatCurrency(discount)}</span>
                       </div>
                     )}
                     {tax > 0 && (
@@ -655,15 +708,73 @@ const Cart = () => {
                 </div>
               </div>
 
+              {/* Address & Shipping Warnings */}
+              {!addresses.data?.length ? (
+                <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3.5 text-xs text-amber-900 shadow-2xs">
+                  <div className="flex items-start gap-2.5">
+                    <AlertCircle size={18} className="mt-0.5 shrink-0 text-amber-600" />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-amber-900">Delivery address required</p>
+                      <p className="mt-0.5 leading-relaxed text-amber-700">
+                        You have not added a delivery address. Please add an address to place your order.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setShowAddAddressModal(true)}
+                        className="mt-2 inline-flex items-center gap-1 font-bold text-[#079447] underline underline-offset-2 hover:text-[#057a3a]"
+                      >
+                        + Add Delivery Address Now
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : !selectedAddressId ? (
+                <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3.5 text-xs text-amber-900 shadow-2xs">
+                  <div className="flex items-start gap-2.5">
+                    <AlertCircle size={18} className="mt-0.5 shrink-0 text-amber-600" />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-amber-900">No delivery address selected</p>
+                      <p className="mt-0.5 leading-relaxed text-amber-700">
+                        Please select a delivery address from the list above.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowAddressPicker(true);
+                          document.getElementById("delivery-address-banner")?.scrollIntoView({ behavior: "smooth", block: "center" });
+                        }}
+                        className="mt-2 inline-flex items-center gap-1 font-bold text-[#079447] underline underline-offset-2 hover:text-[#057a3a]"
+                      >
+                        Select Delivery Address
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : shippingError ? (
+                <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs text-red-900 shadow-2xs">
+                  <div className="flex items-start gap-2.5">
+                    <AlertCircle size={18} className="mt-0.5 shrink-0 text-red-600" />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-red-900">Shipping calculation error</p>
+                      <p className="mt-0.5 text-red-700">{shippingError}</p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
               {/* Place Order CTA */}
               <div className="mt-3">
                 <button
                   id="cart-place-order-btn"
                   onClick={checkout}
-                  disabled={checkingOut || shippingLoading || !shippingQuote?.quote_id || !addresses.data?.length}
-                  className="w-full rounded-xl bg-[#079447] py-3.5 text-sm font-bold uppercase tracking-wider text-white shadow-md transition hover:bg-[#057a3a] hover:shadow-lg disabled:cursor-not-allowed disabled:bg-gray-300"
+                  disabled={checkingOut || (shippingLoading && Boolean(selectedAddressId))}
+                  className={`w-full rounded-xl py-3.5 text-sm font-bold uppercase tracking-wider text-white shadow-md transition ${!selectedAddress ? "bg-amber-600 hover:bg-amber-700 hover:shadow-lg" : "bg-[#079447] hover:bg-[#057a3a] hover:shadow-lg"} disabled:cursor-not-allowed disabled:bg-gray-300`}
                 >
-                  {checkingOut ? "Processing..." : "Place Order"}
+                  {checkingOut
+                    ? "Processing..."
+                    : !selectedAddress
+                    ? "Add / Select Address to Order"
+                    : "Place Order"}
                 </button>
               </div>
 
@@ -673,6 +784,15 @@ const Cart = () => {
 
         </div>
       </div>
+
+      {/* Quick Add Address Modal */}
+      <AddAddressModal
+        isOpen={showAddAddressModal}
+        onClose={() => setShowAddAddressModal(false)}
+        onSuccess={(newId) => {
+          if (newId) setAddressId(String(newId));
+        }}
+      />
     </main>
   );
 };
@@ -796,6 +916,194 @@ const CartItem = memo(function CartItem({
     </div>
   );
 });
+
+const emptyAddressModalState = {
+  full_name: "",
+  phone: "",
+  address_line_1: "",
+  address_line_2: "",
+  city: "",
+  district: "",
+  state: "Tamil Nadu",
+  country: "India",
+  postal_code: "",
+  address_type: "home",
+  is_default: true,
+};
+
+function AddAddressModal({ isOpen, onClose, onSuccess }) {
+  const queryClient = useQueryClient();
+  const [formData, setFormData] = useState(emptyAddressModalState);
+  const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+
+  if (!isOpen) return null;
+
+  const validate = () => {
+    const errs = {};
+    if (!formData.full_name.trim()) errs.full_name = "Full name is required";
+    if (!formData.phone.trim()) errs.phone = "Phone number is required";
+    else if (!/^[0-9+\-\s()]{7,15}$/.test(formData.phone.trim())) errs.phone = "Enter a valid phone number";
+    if (!formData.address_line_1.trim()) errs.address_line_1 = "Address line 1 is required";
+    if (!formData.city.trim()) errs.city = "City is required";
+    if (!formData.state.trim()) errs.state = "State is required";
+    if (!formData.postal_code.trim()) errs.postal_code = "6-digit PIN code is required";
+    else if (!/^\d{6}$/.test(formData.postal_code.trim())) errs.postal_code = "Enter valid 6-digit PIN code";
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validate()) return;
+    try {
+      setSubmitting(true);
+      const res = await createAddress(formData);
+      const newAddr = res?.data?.data || res?.data || res;
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.addresses });
+      toast.success("Delivery address added successfully!");
+      if (newAddr?.id) {
+        onSuccess(newAddr.id);
+      } else {
+        onSuccess();
+      }
+      onClose();
+    } catch (err) {
+      toast.error(apiErrorMessage(err, "Could not save address"));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-fade-in" onClick={onClose}>
+      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-black/5" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+          <div className="flex items-center gap-2">
+            <MapPin size={20} className="text-[#079447]" />
+            <h3 className="text-lg font-bold text-gray-900">Add Delivery Address</h3>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+            <X size={20} />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="mt-4 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-gray-700">Full Name *</label>
+              <input
+                type="text"
+                value={formData.full_name}
+                onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                placeholder="John Doe"
+                className={`mt-1 w-full rounded-xl border ${errors.full_name ? "border-red-400 bg-red-50/20" : "border-gray-200"} px-3 py-2 text-xs outline-none focus:border-[#079447]`}
+              />
+              {errors.full_name && <p className="mt-0.5 text-[10px] text-red-600">{errors.full_name}</p>}
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-700">Phone Number *</label>
+              <input
+                type="text"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                placeholder="9876543210"
+                className={`mt-1 w-full rounded-xl border ${errors.phone ? "border-red-400 bg-red-50/20" : "border-gray-200"} px-3 py-2 text-xs outline-none focus:border-[#079447]`}
+              />
+              {errors.phone && <p className="mt-0.5 text-[10px] text-red-600">{errors.phone}</p>}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-700">Address Line 1 (House No, Building, Street) *</label>
+            <input
+              type="text"
+              value={formData.address_line_1}
+              onChange={(e) => setFormData({ ...formData, address_line_1: e.target.value })}
+              placeholder="123 Main Street, Apt 4"
+              className={`mt-1 w-full rounded-xl border ${errors.address_line_1 ? "border-red-400 bg-red-50/20" : "border-gray-200"} px-3 py-2 text-xs outline-none focus:border-[#079447]`}
+            />
+            {errors.address_line_1 && <p className="mt-0.5 text-[10px] text-red-600">{errors.address_line_1}</p>}
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-700">Address Line 2 (Area, Landmark)</label>
+            <input
+              type="text"
+              value={formData.address_line_2}
+              onChange={(e) => setFormData({ ...formData, address_line_2: e.target.value })}
+              placeholder="Near Central Park"
+              className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-[#079447]"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-gray-700">City *</label>
+              <input
+                type="text"
+                value={formData.city}
+                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                placeholder="Chennai"
+                className={`mt-1 w-full rounded-xl border ${errors.city ? "border-red-400 bg-red-50/20" : "border-gray-200"} px-3 py-2 text-xs outline-none focus:border-[#079447]`}
+              />
+              {errors.city && <p className="mt-0.5 text-[10px] text-red-600">{errors.city}</p>}
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-700">PIN Code *</label>
+              <input
+                type="text"
+                maxLength={6}
+                value={formData.postal_code}
+                onChange={(e) => setFormData({ ...formData, postal_code: e.target.value })}
+                placeholder="600001"
+                className={`mt-1 w-full rounded-xl border ${errors.postal_code ? "border-red-400 bg-red-50/20" : "border-gray-200"} px-3 py-2 text-xs outline-none focus:border-[#079447]`}
+              />
+              {errors.postal_code && <p className="mt-0.5 text-[10px] text-red-600">{errors.postal_code}</p>}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-gray-700">State *</label>
+              <input
+                type="text"
+                value={formData.state}
+                onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                placeholder="Tamil Nadu"
+                className={`mt-1 w-full rounded-xl border ${errors.state ? "border-red-400 bg-red-50/20" : "border-gray-200"} px-3 py-2 text-xs outline-none focus:border-[#079447]`}
+              />
+              {errors.state && <p className="mt-0.5 text-[10px] text-red-600">{errors.state}</p>}
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-700">Address Type</label>
+              <select
+                value={formData.address_type}
+                onChange={(e) => setFormData({ ...formData, address_type: e.target.value })}
+                className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-[#079447]"
+              >
+                <option value="home">Home</option>
+                <option value="work">Work</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+          <div className="pt-3 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl border border-gray-200 px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-100"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="rounded-xl bg-[#079447] px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-[#057a3a] disabled:opacity-50"
+            >
+              {submitting ? "Saving..." : "Save & Deliver Here"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 /*  Razorpay helpers  */
 function loadRazorpayCheckout() {
