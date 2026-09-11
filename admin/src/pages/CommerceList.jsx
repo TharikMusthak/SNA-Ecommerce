@@ -257,8 +257,15 @@ export default function CommerceList({ type, onNotice }) {
       if (body[key] !== undefined)
         body[key] = String(body[key])
           .split(",")
-          .map(Number)
-          .filter(Number.isSafeInteger);
+          .map((value) => Number(value.trim()))
+          .filter((value) => Number.isSafeInteger(value) && value > 0);
+    for (const key of ["per_user_limit", "total_usage_limit"])
+      if (body[key] !== undefined)
+        body[key] = body[key] === "" ? null : Number(body[key]);
+    if (modal.formType === "coupon") {
+      body.first_order_only = form.has("first_order_only");
+      body.status = modal.data?.status || "active";
+    }
     if (modal.formType === "restock")
       body.items = (modal.data.items || [])
         .filter(
@@ -761,7 +768,7 @@ function DetailView({ type, response, setModal }) {
 }
 function ActionForm({ modal, saving, onSubmit, onCancel }) {
   return (
-    <form noValidate onInvalidCapture={(event) => event.preventDefault()} onSubmit={onSubmit}>
+    <form className="commerce-action-form" style={{ display: "grid", gap: 14 }} noValidate onInvalidCapture={(event) => event.preventDefault()} onSubmit={onSubmit}>
       {modal.formType === "reply" && (
         <label>
           Message
@@ -821,6 +828,17 @@ function ActionForm({ modal, saving, onSubmit, onCancel }) {
             />
           </label>
           <label>
+            Maximum discount
+            <input
+              name="maximum_discount"
+              type="number"
+              min="0"
+              step="0.01"
+              defaultValue={modal.data?.maximum_discount ?? ""}
+              placeholder="No maximum"
+            />
+          </label>
+          <label>
             Starts at
             <input name="starts_at" type="datetime-local" defaultValue={dateTimeLocal(modal.data?.starts_at)} />
           </label>
@@ -830,6 +848,14 @@ function ActionForm({ modal, saving, onSubmit, onCancel }) {
           </label>
           <label>Product IDs (comma separated)<input name="product_ids" defaultValue={jsonIds(modal.data?.product_restrictions)} /></label>
           <label>Category IDs (comma separated)<input name="category_ids" defaultValue={jsonIds(modal.data?.category_restrictions)} /></label>
+          <div className="row">
+            <label>Per-user limit<input name="per_user_limit" type="number" min="1" step="1" defaultValue={modal.data?.per_user_limit ?? ""} placeholder="Unlimited" /></label>
+            <label>Total usage limit<input name="total_usage_limit" type="number" min="1" step="1" defaultValue={modal.data?.total_usage_limit ?? ""} placeholder="Unlimited" /></label>
+          </div>
+          <label className="toggle-row">
+            <input name="first_order_only" type="checkbox" defaultChecked={Boolean(modal.data?.first_order_only)} />
+            <span><b>First order only</b></span>
+          </label>
         </>
       )}
       {modal.formType === "ticket" && (
@@ -910,7 +936,7 @@ function ActionForm({ modal, saving, onSubmit, onCancel }) {
           </label>
         </>
       )}
-      <footer>
+      <footer style={{ position: "sticky", bottom: -22, zIndex: 4, display: "flex", justifyContent: "flex-end", gap: 10, margin: "4px 0 -22px", padding: "14px 0 22px", borderTop: "1px solid var(--color-border)", background: "var(--color-surface)", boxShadow: "0 -10px 18px rgb(12 39 24 / 6%)" }}>
         <button type="button" onClick={onCancel}>
           Cancel
         </button>

@@ -1057,7 +1057,11 @@ function positive(value) {
 function jsonIds(value) {
   if (!Array.isArray(value)) return null;
   return JSON.stringify([
-    ...new Set(value.map(Number).filter(Number.isSafeInteger)),
+    ...new Set(
+      value
+        .map(Number)
+        .filter((item) => Number.isSafeInteger(item) && item > 0),
+    ),
   ]);
 }
 export default router;
