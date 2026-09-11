@@ -61,7 +61,6 @@ export function formatAmazonReviewDate(dateValue, locationValue = "") {
   if (Number.isNaN(date.getTime())) return `Reviewed in ${country} recently`;
 
   const formattedDate = new Intl.DateTimeFormat("en-IN", {
-    timeZone: "Asia/Kolkata",
     day: "numeric",
     month: "long",
     year: "numeric",

@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { registerUser } from "../../services/auth.service";
 import { AlertCircle, Eye, EyeOff } from "lucide-react";
-import { apiErrorMessage } from "@api/axios";
 
 const emailRegex = /^\S+@\S+\.\S+$/;
 const phoneRegex = /^[0-9+\-\s()]{7,15}$/;
@@ -107,7 +106,7 @@ const Register = () => {
     } catch (error) {
       setErrors((prev) => ({
         ...prev,
-        form: apiErrorMessage(error, "Registration failed"),
+        form: error.response?.data?.message || "Registration failed",
       }));
     } finally {
       setLoading(false);

@@ -14,6 +14,7 @@ import {
 import { apiErrorMessage } from "@api/axios";
 import { changePasswordRequest, updateProfileRequest } from "@api/user.api";
 import Spinner from "@components/ui/Spinner/Spinner";
+import AddressModal from "@components/modals/AddressModal";
 import { QUERY_KEYS } from "@config/constants";
 import { useAuth } from "@context/AuthProvider";
 import { listOrders } from "@services/order.service";
@@ -492,43 +493,13 @@ const Profile = () => {
         </Modal>
       )}
 
-      {showAddressForm && (
-        <Modal title={editingAddressId ? "Edit Address" : "Add New Address"} onClose={closeAddressForm}>
-          <form
-            className="mt-6 grid gap-2.5 sm:grid-cols-2"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (!validateAddress()) return;
-              (editingAddressId ? editAddress : addAddress).mutate();
-            }}
-          >
-            <AddressInput label="Full name" name="full_name" value={address} setValue={setAddress} error={addressErrors.full_name} maxLength={50} />
-            <AddressInput label="Phone number" name="phone" value={address} setValue={setAddress} error={addressErrors.phone} maxLength={15} />
-            <AddressInput label="Address line 1" name="address_line_1" value={address} setValue={setAddress} error={addressErrors.address_line_1} className="sm:col-span-2" maxLength={150} />
-            <AddressInput label="Address line 2 (optional)" name="address_line_2" value={address} setValue={setAddress} error={addressErrors.address_line_2} className="sm:col-span-2" required={false} maxLength={150} />
-            <AddressInput label="Landmark (optional)" name="landmark" value={address} setValue={setAddress} error={addressErrors.landmark} required={false} maxLength={100} />
-            <AddressInput label="City" name="city" value={address} setValue={setAddress} error={addressErrors.city} maxLength={50} />
-            <AddressInput label="District" name="district" value={address} setValue={setAddress} error={addressErrors.district} maxLength={50} />
-            <AddressInput label="State" name="state" value={address} setValue={setAddress} error={addressErrors.state} maxLength={50} />
-            <AddressInput label="PIN code" name="postal_code" value={address} setValue={setAddress} error={addressErrors.postal_code} maxLength={6} />
-            <div className="sm:col-span-2">
-              <select
-                value={address.address_type}
-                onChange={(e) => setAddress({ ...address, address_type: e.target.value })}
-                className="w-full appearance-none rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-[#333] outline-none transition-all focus:border-[#079447] focus:ring-4 focus:ring-emerald-50"
-              >
-                <option value="home">Address type: Home</option>
-                <option value="work">Address type: Work</option>
-                <option value="other">Address type: Other</option>
-              </select>
-            </div>
-            <div className="sm:col-span-2 flex justify-end gap-3 pt-2">
-              <button type="button" onClick={closeAddressForm} className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700">Cancel</button>
-              <button type="submit" disabled={addAddress.isPending || editAddress.isPending} className="rounded-xl bg-[#079447] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{editingAddressId ? "Update" : "Add"}</button>
-            </div>
-          </form>
-        </Modal>
-      )}
+      <AddressModal
+        isOpen={showAddressForm}
+        onClose={closeAddressForm}
+        editingAddress={editingAddressId ? { ...address, id: editingAddressId } : null}
+        submitButtonText={editingAddressId ? "Update Address" : "Save Address"}
+        onSuccess={() => closeAddressForm()}
+      />
 
       {showPasswordForm && (
         <Modal title="Change Password" onClose={() => { setShowPasswordForm(false); setPasswordErrors({}); }}>
@@ -570,7 +541,7 @@ function CustomerOrderCard({ order }) {
   return (
     <article className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
       <header className="flex flex-col gap-3 border-b border-gray-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <div><h3 className="font-bold text-gray-900">Order #: {order.order_code}</h3><p className="mt-1 text-xs text-gray-500">{order.items?.length || 0} products · {new Date(order.created_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}</p></div>
+        <div><h3 className="font-bold text-gray-900">Order #: {order.order_code}</h3><p className="mt-1 text-xs text-gray-500">{order.items?.length || 0} products · {new Date(order.created_at).toLocaleString("en-IN")}</p></div>
         <span className={`w-fit rounded-full px-3 py-1 text-xs font-bold ${isCod ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-700"}`}>{isCod ? "Cash on Delivery (COD)" : "Online payment · Paid"}</span>
       </header>
       <div className="grid gap-3 bg-gray-50/60 px-5 py-4 text-sm sm:grid-cols-4">
@@ -603,9 +574,9 @@ function formatDeliveryDate(value) {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
-  const day = date.toLocaleDateString("en-US", { timeZone: "Asia/Kolkata", day: "numeric" });
-  const month = date.toLocaleDateString("en-US", { timeZone: "Asia/Kolkata", month: "short" });
-  const weekday = date.toLocaleDateString("en-US", { timeZone: "Asia/Kolkata", weekday: "short" });
+  const day = date.toLocaleDateString("en-US", { day: "numeric" });
+  const month = date.toLocaleDateString("en-US", { month: "short" });
+  const weekday = date.toLocaleDateString("en-US", { weekday: "short" });
   return `Delivery by ${month} ${day}, ${weekday}`;
 }
 

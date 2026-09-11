@@ -711,7 +711,6 @@ function formatDate(value, includeTime = true) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
   return new Intl.DateTimeFormat("en-IN", {
-    timeZone: "Asia/Kolkata",
     day: "numeric",
     month: "short",
     year: "numeric",
