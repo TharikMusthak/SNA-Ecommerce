@@ -576,7 +576,11 @@ export default function CommerceList({ type, onNotice }) {
             }
           >
             {config.keys.map((key) => (
-              <td key={key}>{formatCell(key, row[key])}</td>
+              <td key={key}>
+                {formatCell(key, row[key], (src) =>
+                  setModal({ kind: "image", title: "Review image", src })
+                )}
+              </td>
             ))}
             <td>
               <div className="action-buttons">{actions(row)}</div>
@@ -605,10 +609,18 @@ export default function CommerceList({ type, onNotice }) {
         <Dialog
           title={modal.title || `${type} details`}
           onClose={() => !saving && setModal(null)}
-          size={modal.kind === "details" ? "large" : "medium"}
+          size={["details", "image"].includes(modal.kind) ? "large" : "medium"}
           tone={modal.method === "DELETE" ? "danger" : "default"}
         >
-          {modal.kind === "details" ? (
+          {modal.kind === "image" ? (
+            <div className="review-image-preview">
+              <img src={modal.src} alt="Customer review" />
+              <footer>
+                <a href={modal.src} target="_blank" rel="noreferrer">Open full size</a>
+                <button type="button" onClick={() => setModal(null)}>Close</button>
+              </footer>
+            </div>
+          ) : modal.kind === "details" ? (
             <DetailView type={type} response={modal.data} setModal={setModal} />
           ) : modal.kind === "form" ? (
             <ActionForm
@@ -908,11 +920,25 @@ function label(value) {
     .replaceAll("_", " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
-function formatCell(key, value) {
+function formatCell(key, value, onImagePreview) {
   if (value === null || value === undefined || value === "") return "—";
   if (key === "status" || key.endsWith("_status")) return <Badge value={value} />;
   if (key === "rating") return `${value} / 5`;
-  if (key === "image_url") return <img src={assetUrl(value)} alt="Review" style={{ width: 64, height: 48, objectFit: "cover", borderRadius: 6 }} />;
+  if (key === "image_url") {
+    const src = assetUrl(value);
+    if (!onImagePreview)
+      return <img src={src} alt="Review" style={{ width: 64, height: 48, objectFit: "cover", borderRadius: 6 }} />;
+    return (
+      <button
+        type="button"
+        className="review-thumbnail-button"
+        onClick={() => onImagePreview(src)}
+        aria-label="Preview review image"
+      >
+        <img src={src} alt="Review" />
+      </button>
+    );
+  }
   if (key === "video_url") return <a href={assetUrl(value)} target="_blank" rel="noreferrer">View video</a>;
   if (["amount", "refund_amount", "refunded_amount", "discount_value", "minimum_order_value"].some((part) => key.includes(part))) {
     return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(Number(value || 0));

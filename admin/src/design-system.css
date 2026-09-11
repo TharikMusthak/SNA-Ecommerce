@@ -1883,6 +1883,60 @@ body select:not([multiple]) option {
   .data-table td:first-child { position: static; box-shadow: none; }
 }
 
+.review-thumbnail-button {
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  cursor: zoom-in;
+}
+
+.review-thumbnail-button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-primary) 28%, transparent);
+  outline-offset: 2px;
+}
+
+.review-thumbnail-button img {
+  display: block;
+  width: 64px;
+  height: 48px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.review-image-preview {
+  display: grid;
+  gap: 18px;
+}
+
+.review-image-preview > img {
+  width: 100%;
+  max-height: min(68vh, 720px);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-subtle);
+  object-fit: contain;
+}
+
+.review-image-preview footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+}
+
+.review-image-preview footer a,
+.review-image-preview footer button {
+  min-height: 40px;
+  padding: 9px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+  font-weight: 750;
+  text-decoration: none;
+}
+
 @media (max-width: 560px) {
   .app-header { align-items: center; }
   .breadcrumbs { display: none; }
