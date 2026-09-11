@@ -658,7 +658,11 @@ function DetailView({ type, response, setModal }) {
           .map(([key, value]) => (
             <div key={key}>
               <dt>{label(key)}</dt>
-              <dd>{formatCell(key, value)}</dd>
+              <dd>
+                {formatCell(key, value, (src) =>
+                  setModal({ kind: "image", title: "Review image", src })
+                )}
+              </dd>
             </div>
           ))}
       </dl>
