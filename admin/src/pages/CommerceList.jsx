@@ -767,6 +767,15 @@ function DetailView({ type, response, setModal }) {
   );
 }
 function ActionForm({ modal, saving, onSubmit, onCancel }) {
+  const [discountType, setDiscountType] = useState(
+    modal.data?.discount_type || "percentage",
+  );
+  const [discountValue, setDiscountValue] = useState(
+    modal.data?.discount_value ?? "",
+  );
+  const isFreeShipping =
+    modal.formType === "coupon" && discountType === "free_shipping";
+
   return (
     <form className="commerce-action-form" style={{ display: "grid", gap: 14 }} noValidate onInvalidCapture={(event) => event.preventDefault()} onSubmit={onSubmit}>
       {modal.formType === "reply" && (
@@ -800,7 +809,7 @@ function ActionForm({ modal, saving, onSubmit, onCancel }) {
           </label>
           <label>
             Discount type
-            <CustomSelect name="discount_type" defaultValue={modal.data?.discount_type || "percentage"}>
+            <CustomSelect name="discount_type" value={discountType} onChange={(event) => setDiscountType(event.target.value)}>
               <option value="percentage">Percentage</option>
               <option value="fixed">Fixed</option>
               <option value="free_shipping">Free shipping</option>
@@ -808,13 +817,17 @@ function ActionForm({ modal, saving, onSubmit, onCancel }) {
           </label>
           <label>
             Discount value
+            {isFreeShipping && <input type="hidden" name="discount_value" value="0" />}
             <input
               name="discount_value"
               type="number"
               min="0"
               step="0.01"
-              required
-              defaultValue={modal.data?.discount_value ?? ""}
+              required={!isFreeShipping}
+              disabled={isFreeShipping}
+              value={isFreeShipping ? "" : discountValue}
+              onChange={(event) => setDiscountValue(event.target.value)}
+              placeholder={isFreeShipping ? "Not applicable for free shipping" : "Enter discount value"}
             />
           </label>
           <label>
