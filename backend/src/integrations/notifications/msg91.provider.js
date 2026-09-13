@@ -28,6 +28,9 @@ export async function sendMsg91Otp({ mobile, otp }) {
     mobile: `${env.msg91.countryCode}${localMobile}`,
     otp: String(otp),
   });
+  const templateFingerprint = env.msg91.templateId
+    ? `${env.msg91.templateId.slice(0, 4)}...${env.msg91.templateId.slice(-4)} (${env.msg91.templateId.length})`
+    : "missing";
   const response = await fetch(`https://api.msg91.com/api/v5/otp?${query}`, {
     method: "GET",
     headers: { accept: "application/json", authkey: env.msg91.authKey },
@@ -35,6 +38,13 @@ export async function sendMsg91Otp({ mobile, otp }) {
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok || String(body.type || "").toLowerCase() === "error") {
+    console.error("MSG91 OTP request failed", {
+      httpStatus: response.status,
+      providerType: body.type || null,
+      providerCode: body.code || null,
+      providerMessage: body.message || null,
+      template: templateFingerprint,
+    });
     throw Object.assign(new Error(body.message || "Unable to send mobile OTP"), {
       status: 502,
       code: "MSG91_SEND_FAILED",
