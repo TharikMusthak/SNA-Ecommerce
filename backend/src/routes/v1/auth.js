@@ -523,6 +523,7 @@ router.post(
       ],
     );
     const eligible = user && (purpose !== "login" || user.status === "active");
+    let providerResponse = null;
     if (eligible) {
       await pool.query(
         "UPDATE user_otps SET used_at=CURRENT_TIMESTAMP WHERE destination=? AND purpose=? AND used_at IS NULL",
@@ -535,7 +536,7 @@ router.post(
       if (destination.includes("@"))
         await sendOtpEmail({ email: destination, otp, purpose });
       else
-        await sendMsg91Otp({ mobile: destination, otp });
+        providerResponse = await sendMsg91Otp({ mobile: destination, otp });
       await queueUserEvent({
         userId: user.id,
         event: "otp_requested",
@@ -546,8 +547,14 @@ router.post(
     }
     return ok(
       res,
-      !env.isProduction && eligible ? { development_otp: otp } : null,
-      "If the destination is eligible, an OTP has been generated",
+      eligible && mobile
+        ? { provider: "MSG91", provider_response: providerResponse }
+        : !env.isProduction && eligible
+          ? { development_otp: otp }
+          : null,
+      eligible && mobile
+        ? "OTP request accepted by MSG91"
+        : "If the destination is eligible, an OTP has been generated",
     );
   }),
 );
