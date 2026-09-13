@@ -13,7 +13,9 @@ import { EMPTY_CART, QUERY_KEYS } from "@config/constants";
 import {
   getProfile,
   loginUser,
+  loginUserWithOtp,
   logoutUser,
+  requestLoginOtp,
   registerUser,
 } from "@services/auth.service";
 
@@ -45,7 +47,7 @@ export const AuthProvider = ({ children }) => {
       setUser(currentUser);
 
       return currentUser;
-    } catch (error) {
+    } catch {
       setUser(null);
       return null;
     } finally {
@@ -60,6 +62,14 @@ export const AuthProvider = ({ children }) => {
  
     setUser(userData);
 
+    return userData;
+  }, []);
+
+  const sendLoginOtp = useCallback(async (phone) => requestLoginOtp(phone), []);
+
+  const loginWithOtp = useCallback(async (credentials) => {
+    const userData = await loginUserWithOtp(credentials);
+    setUser(userData);
     return userData;
   }, []);
 
@@ -142,6 +152,8 @@ export const AuthProvider = ({ children }) => {
       isAuthenticated: Boolean(user),
 
       login,
+      sendLoginOtp,
+      loginWithOtp,
       register,
       logout,
 
@@ -152,6 +164,8 @@ export const AuthProvider = ({ children }) => {
       user,
       loading,
       login,
+      sendLoginOtp,
+      loginWithOtp,
       register,
       logout,
       refreshUser,

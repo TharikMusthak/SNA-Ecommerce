@@ -44,6 +44,9 @@ const { splitMigration } = await import(
 const { getOrderStatusLabels, ORDER_STATUS_DEFAULT_LABELS } = await import(
   "../src/services/orderStatusLabels.js"
 );
+const { normalizeIndianMobile } = await import(
+  "../src/integrations/notifications/msg91.provider.js"
+);
 const { createHmac } = await import("node:crypto");
 const { verifyCheckoutSignature, verifyWebhookSignature } = await import(
   "../src/integrations/payments/razorpay.js"
@@ -538,4 +541,12 @@ test("tracking labels fall back safely before the status-label migration", async
     await getOrderStatusLabels(database),
     ORDER_STATUS_DEFAULT_LABELS,
   );
+});
+
+test("MSG91 OTP mobile normalization accepts only Indian mobile numbers", () => {
+  assert.equal(normalizeIndianMobile("9876543210"), "9876543210");
+  assert.equal(normalizeIndianMobile("+91 98765 43210"), "9876543210");
+  assert.equal(normalizeIndianMobile("919876543210"), "9876543210");
+  assert.equal(normalizeIndianMobile("1234567890"), null);
+  assert.equal(normalizeIndianMobile("98765"), null);
 });

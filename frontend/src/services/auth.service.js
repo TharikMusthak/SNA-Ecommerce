@@ -8,10 +8,26 @@ import {
   resendVerificationRequest,
   forgotPasswordRequest,
   resetPasswordRequest,
+  sendOtpRequest,
+  verifyOtpRequest,
 } from "@api/auth.api";
 
 export const loginUser = async ({ login, email, password }) => {
   const response = await loginRequest({ login: login || email, password });
+  return response.data.data;
+};
+
+export const requestLoginOtp = async (phone) => {
+  const response = await sendOtpRequest({ destination: phone, purpose: "login" });
+  return response.data;
+};
+
+export const loginUserWithOtp = async ({ phone, otp }) => {
+  const response = await verifyOtpRequest({
+    destination: phone,
+    purpose: "login",
+    otp,
+  });
   return response.data.data;
 };
 

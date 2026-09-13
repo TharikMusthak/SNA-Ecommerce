@@ -19,13 +19,14 @@ const strongPasswordRegex =
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
 
 const AuthModal = ({ onClose }) => {
-  const { login, register, loading, isAuthenticated } = useAuth();
+  const { sendLoginOtp, loginWithOtp, register, loading } = useAuth();
   const [mode, setMode] = useState("login");
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
     email: "",
     phone: "",
+    otp: "",
     password: "",
     password_confirmation: "",
     accept_terms: false,
@@ -36,6 +37,8 @@ const AuthModal = ({ onClose }) => {
   const [touched, setTouched] = useState({});
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const navigate = useNavigate();
   const isLogin = mode === "login";
@@ -45,12 +48,13 @@ const AuthModal = ({ onClose }) => {
   ========================================================= */
   const validateSingleField = (name, value, allData, isLoginMode) => {
     if (isLoginMode) {
-      if (name === "email") {
-        if (!value || !value.trim()) return "Please enter your email.";
-        if (!emailRegex.test(value.trim())) return "Please enter a valid email address.";
+      if (name === "phone") {
+        const digits = String(value || "").replace(/\D/g, "").replace(/^91(?=[6-9]\d{9}$)/, "");
+        if (!digits) return "Please enter your mobile number.";
+        if (!/^[6-9]\d{9}$/.test(digits)) return "Enter a valid 10-digit Indian mobile number.";
       }
-      if (name === "password") {
-        if (!value) return "Please enter your password.";
+      if (name === "otp" && otpSent && !/^\d{6}$/.test(String(value || ""))) {
+        return "Enter the 6-digit OTP.";
       }
       return "";
     }
@@ -153,12 +157,14 @@ const AuthModal = ({ onClose }) => {
       last_name: "",
       email: "",
       phone: "",
+      otp: "",
       password: "",
       password_confirmation: "",
       accept_terms: false,
     });
     setShowPassword(false);
     setShowConfirmPassword(false);
+    setOtpSent(false);
     setMode((prev) => (prev === "login" ? "register" : "login"));
   };
 
@@ -170,7 +176,7 @@ const AuthModal = ({ onClose }) => {
     setError("");
 
     const fieldsToValidate = isLogin
-      ? ["email", "password"]
+      ? otpSent ? ["phone", "otp"] : ["phone"]
       : ["first_name", "last_name", "email", "phone", "password", "password_confirmation", "accept_terms"];
 
     const newFieldErrors = {};
@@ -192,11 +198,15 @@ const AuthModal = ({ onClose }) => {
     }
 
     try {
+      setSubmitting(true);
       if (isLogin) {
-        await login({
-          login: formData.email,
-          password: formData.password,
-        });
+        if (!otpSent) {
+          await sendLoginOtp(formData.phone);
+          setOtpSent(true);
+          setTouched({ phone: true });
+          return;
+        }
+        await loginWithOtp({ phone: formData.phone, otp: formData.otp });
       } else {
         await register({
           first_name: formData.first_name,
@@ -216,6 +226,8 @@ const AuthModal = ({ onClose }) => {
           err?.message ||
           `Unable to ${isLogin ? "login" : "register"}. Please try again.`
       );
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -687,22 +699,24 @@ const AuthModal = ({ onClose }) => {
 
                 <div>
                   <input
-                    id="email"
-                    type="email"
-                    name="email"
-                    value={formData.email}
+                    id={isLogin ? "phone" : "email"}
+                    type={isLogin ? "tel" : "email"}
+                    name={isLogin ? "phone" : "email"}
+                    value={isLogin ? formData.phone : formData.email}
                     onChange={handleChange}
                     onBlur={handleBlur}
-                    placeholder="Enter your email"
-                    maxLength={100}
-                    autoComplete="email"
-                    aria-invalid={Boolean(fieldErrors.email)}
+                    placeholder={isLogin ? "Enter your mobile number" : "Enter your email"}
+                    maxLength={isLogin ? 13 : 100}
+                    autoComplete={isLogin ? "tel" : "email"}
+                    inputMode={isLogin ? "tel" : undefined}
+                    disabled={isLogin && otpSent}
+                    aria-invalid={Boolean(isLogin ? fieldErrors.phone : fieldErrors.email)}
                     className={`
                       w-full
                       rounded-xl
                       border
                       ${
-                        fieldErrors.email
+                        (isLogin ? fieldErrors.phone : fieldErrors.email)
                           ? "border-red-400 bg-red-50/20 text-[#333] focus:border-red-500 focus:bg-white focus:ring-4 focus:ring-red-500/10"
                           : "border-gray-200 bg-gray-50 text-[#333] focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
                       }
@@ -715,14 +729,32 @@ const AuthModal = ({ onClose }) => {
                     `}
                   />
                   <p className="mt-0.5 flex min-h-[14px] items-center gap-1 text-[11px] font-medium leading-4 text-red-600">
-                    {fieldErrors.email && (
+                    {(isLogin ? fieldErrors.phone : fieldErrors.email) && (
                       <>
                         <AlertCircle size={12} className="shrink-0 text-red-600" />
-                        <span>{fieldErrors.email}</span>
+                        <span>{isLogin ? fieldErrors.phone : fieldErrors.email}</span>
                       </>
                     )}
                   </p>
                 </div>
+
+                {isLogin && otpSent && (
+                  <div>
+                    <input id="otp" name="otp" type="text" value={formData.otp}
+                      onChange={handleChange} onBlur={handleBlur} placeholder="Enter 6-digit OTP"
+                      maxLength={6} inputMode="numeric" autoComplete="one-time-code"
+                      aria-invalid={Boolean(fieldErrors.otp)}
+                      className={`w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400 ${fieldErrors.otp ? "border-red-400 bg-red-50/20 focus:ring-4 focus:ring-red-500/10" : "border-gray-200 bg-gray-50 focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"}`}
+                    />
+                    <div className="mt-0.5 flex min-h-[18px] items-center justify-between text-[11px]">
+                      <span className="font-medium text-red-600">{fieldErrors.otp || ""}</span>
+                      <button type="button" className="font-semibold text-[#079447] hover:underline"
+                        onClick={() => { setOtpSent(false); setFormData((current) => ({ ...current, otp: "" })); setFieldErrors({}); }}>
+                        Change number
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {!isLogin && (
                   <div>
@@ -766,7 +798,7 @@ const AuthModal = ({ onClose }) => {
                   </div>
                 )}
 
-                <div>
+                {!isLogin && <div>
                   <div className="relative">
                     <input
                       id="password"
@@ -827,14 +859,6 @@ const AuthModal = ({ onClose }) => {
                         </>
                       )}
                     </p>
-                    {isLogin && (
-                      <Link
-                        to="/auth/forgot-password"
-                        className="text-xs font-medium text-[#079447] transition hover:underline ml-auto"
-                      >
-                        Forgot password?
-                      </Link>
-                    )}
                   </div>
                   {!isLogin && (formData.password || touched.password) && (
                     <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px]">
@@ -852,7 +876,7 @@ const AuthModal = ({ onClose }) => {
                       </span>
                     </div>
                   )}
-                </div>
+                </div>}
 
                 {!isLogin && (
                   <div>
@@ -984,7 +1008,7 @@ const AuthModal = ({ onClose }) => {
 
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || submitting}
                   className="
                     group
                     mt-2
@@ -1011,7 +1035,7 @@ const AuthModal = ({ onClose }) => {
                     disabled:hover:translate-y-0
                   "
                 >
-                  {loading ? (
+                  {loading || submitting ? (
                     <>
                       <span
                         className="
@@ -1024,11 +1048,11 @@ const AuthModal = ({ onClose }) => {
                           border-t-white
                         "
                       />
-                      {isLogin ? "Logging in..." : "Creating account..."}
+                      {isLogin ? (otpSent ? "Verifying OTP..." : "Sending OTP...") : "Creating account..."}
                     </>
                   ) : (
                     <>
-                      {isLogin ? "Login to Account" : "Create My Account"}
+                      {isLogin ? (otpSent ? "Verify OTP & Login" : "Send OTP") : "Create My Account"}
                       <span
                         className="
                           transition-transform

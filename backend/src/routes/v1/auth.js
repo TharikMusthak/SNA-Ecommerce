@@ -27,6 +27,10 @@ import {
 import { fail, ok } from "../../utils/apiResponse.js";
 import { sendCustomerAuthEmail, sendOtpEmail } from "../../services/email.js";
 import { queueUserEvent } from "../../integrations/notifications/notification.service.js";
+import {
+  normalizeIndianMobile,
+  sendMsg91Otp,
+} from "../../integrations/notifications/msg91.provider.js";
 
 const router = Router();
 const limiter = rateLimit({
@@ -482,9 +486,11 @@ router.post(
   "/send-otp",
   limiter,
   asyncHandler(async (req, res) => {
-    const destination = String(req.body.destination || "")
+    const rawDestination = String(req.body.destination || "")
       .trim()
       .toLowerCase();
+    const mobile = normalizeIndianMobile(rawDestination);
+    const destination = mobile || rawDestination;
     const purpose = [
       "login",
       "verify_email",
@@ -496,7 +502,7 @@ router.post(
       : null;
     const validDestination =
       /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(destination) ||
-      /^(?:\+91)?[6-9]\d{9}$/.test(destination);
+      Boolean(mobile);
     if (!validDestination || !purpose)
       return fail(res, 422, "Validation failed", {
         destination: [
@@ -504,11 +510,20 @@ router.post(
         ],
       });
     const otp = String(randomInt(100000, 1000000));
+    if (mobile && !env.msg91.enabled)
+      return fail(res, 503, "Mobile OTP service is currently unavailable");
     const [[user]] = await pool.query(
-      "SELECT id,email FROM users WHERE (email = ? OR phone = ?) AND deleted_at IS NULL LIMIT 1",
-      [destination, destination],
+      `SELECT id,email,phone,status FROM users
+       WHERE (email = ? OR phone = ? OR phone = ? OR phone = ?) AND deleted_at IS NULL LIMIT 1`,
+      [
+        destination,
+        destination,
+        mobile ? `+91${mobile}` : destination,
+        mobile ? `91${mobile}` : destination,
+      ],
     );
-    if (user) {
+    const eligible = user && (purpose !== "login" || user.status === "active");
+    if (eligible) {
       await pool.query(
         "UPDATE user_otps SET used_at=CURRENT_TIMESTAMP WHERE destination=? AND purpose=? AND used_at IS NULL",
         [destination, purpose],
@@ -519,6 +534,8 @@ router.post(
       );
       if (destination.includes("@"))
         await sendOtpEmail({ email: destination, otp, purpose });
+      else
+        await sendMsg91Otp({ mobile: destination, otp });
       await queueUserEvent({
         userId: user.id,
         event: "otp_requested",
@@ -529,7 +546,7 @@ router.post(
     }
     return ok(
       res,
-      !env.isProduction && user ? { development_otp: otp } : null,
+      !env.isProduction && eligible ? { development_otp: otp } : null,
       "If the destination is eligible, an OTP has been generated",
     );
   }),
@@ -539,9 +556,10 @@ router.post(
   "/verify-otp",
   limiter,
   asyncHandler(async (req, res) => {
-    const destination = String(req.body.destination || "")
+    const rawDestination = String(req.body.destination || "")
       .trim()
       .toLowerCase();
+    const destination = normalizeIndianMobile(rawDestination) || rawDestination;
     const purpose = String(req.body.purpose || "");
     const otp = String(req.body.otp || "");
     if (!/^\d{6}$/.test(otp))
@@ -581,7 +599,46 @@ router.post(
           "UPDATE users SET phone_verified_at = CURRENT_TIMESTAMP WHERE id = ?",
           [record.user_id],
         );
+      let loginUser = null;
+      let refreshToken = null;
+      if (purpose === "login") {
+        [[loginUser]] = await connection.query(
+          "SELECT * FROM users WHERE id = ? AND deleted_at IS NULL FOR UPDATE",
+          [record.user_id],
+        );
+        if (!loginUser || loginUser.status !== "active") {
+          await connection.rollback();
+          return fail(res, 403, "Account is unavailable");
+        }
+        if (loginUser.locked_until && new Date(loginUser.locked_until) > new Date()) {
+          await connection.rollback();
+          return fail(res, 429, "Account is temporarily locked");
+        }
+        refreshToken = await createCustomerRefreshToken(
+          connection,
+          loginUser.id,
+          loginUser.session_version,
+          metadata(req),
+        );
+        await connection.query(
+          "UPDATE users SET failed_login_attempts = 0, locked_until = NULL, last_login_at = CURRENT_TIMESTAMP WHERE id = ?",
+          [loginUser.id],
+        );
+      }
       await connection.commit();
+      if (loginUser) {
+        res.cookie(
+          env.customerAccessCookie,
+          createCustomerAccessToken(loginUser),
+          customerAccessCookieOptions(),
+        );
+        res.cookie(
+          env.customerRefreshCookie,
+          refreshToken,
+          customerRefreshCookieOptions(),
+        );
+        return ok(res, publicUser(loginUser), "Signed in successfully");
+      }
       return ok(res, { verified: true }, "OTP verified successfully");
     } catch (error) {
       await connection.rollback();
