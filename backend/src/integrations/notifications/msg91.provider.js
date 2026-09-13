@@ -23,17 +23,27 @@ export async function sendMsg91Otp({ mobile, otp }) {
     });
   }
 
-  const query = new URLSearchParams({
+  const payload = {
     template_id: env.msg91.templateId,
-    mobile: `${env.msg91.countryCode}${localMobile}`,
-    otp: String(otp),
-  });
+    short_url: "0",
+    recipients: [
+      {
+        mobiles: `${env.msg91.countryCode}${localMobile}`,
+        OTP: String(otp),
+      },
+    ],
+  };
   const templateFingerprint = env.msg91.templateId
     ? `${env.msg91.templateId.slice(0, 4)}...${env.msg91.templateId.slice(-4)} (${env.msg91.templateId.length})`
     : "missing";
-  const response = await fetch(`https://api.msg91.com/api/v5/otp?${query}`, {
-    method: "GET",
-    headers: { accept: "application/json", authkey: env.msg91.authKey },
+  const response = await fetch("https://control.msg91.com/api/v5/flow", {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      authkey: env.msg91.authKey,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(payload),
     signal: AbortSignal.timeout(env.msg91.timeoutMs),
   });
   const body = await response.json().catch(() => ({}));
