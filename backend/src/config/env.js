@@ -3,7 +3,6 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const nodeEnv = process.env.NODE_ENV || "development";
-const msg91OtpTemplateId = "6aa81ffe345cce40350ecd63";
 const jwtSecret = String(process.env.JWT_SECRET || "").trim();
 const frontendOrigins = String(
   process.env.FRONTEND_ORIGIN ||
@@ -194,7 +193,7 @@ export const env = Object.freeze({
   msg91: Object.freeze({
     enabled: booleanValue(process.env.MSG91_ENABLED),
     authKey: String(process.env.MSG91_AUTH_KEY || "").trim(),
-    templateId: msg91OtpTemplateId,
+    templateId: String(process.env.MSG91_OTP_TEMPLATE_ID || "").trim(),
     countryCode: String(process.env.MSG91_COUNTRY_CODE || "91").replace(/\D/g, ""),
     timeoutMs: positiveInteger(process.env.MSG91_REQUEST_TIMEOUT_MS, 10_000),
   }),
@@ -237,8 +236,10 @@ if (env.wati.enabled && (!env.wati.apiBaseUrl || !env.wati.accessToken)) {
   );
 }
 
-if (env.msg91.enabled && !env.msg91.authKey) {
-  throw new Error("MSG91_ENABLED requires MSG91_AUTH_KEY");
+if (env.msg91.enabled && (!env.msg91.authKey || !env.msg91.templateId)) {
+  throw new Error(
+    "MSG91_ENABLED requires MSG91_AUTH_KEY and MSG91_OTP_TEMPLATE_ID",
+  );
 }
 
 export function isTrustedFrontendOrigin(origin) {
