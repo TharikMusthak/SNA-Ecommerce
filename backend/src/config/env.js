@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const nodeEnv = process.env.NODE_ENV || "development";
-const msg91OtpTemplateId = "6aa694b341736535dd0fa344";
+const msg91OtpTemplateId = "6aa81ffe345cce40350ecd63";
 const jwtSecret = String(process.env.JWT_SECRET || "").trim();
 const frontendOrigins = String(
   process.env.FRONTEND_ORIGIN ||
