@@ -57,24 +57,45 @@ router.post(
   validate(registerSchema),
   asyncHandler(async (req, res) => {
     const input = req.body;
-    const duplicateParameters = input.phone
-      ? [input.email, input.phone]
-      : [input.email];
+    if (!env.msg91.enabled)
+      return fail(res, 503, "Mobile OTP service is currently unavailable");
+
+    const mobile = normalizeIndianMobile(input.phone);
     const [[duplicate]] = await pool.query(
-      `SELECT id FROM users
-       WHERE email = ?${input.phone ? " OR phone = ?" : ""}
+      `SELECT id,email,phone,status FROM users
+       WHERE email = ? OR phone = ?
        LIMIT 1`,
-      duplicateParameters,
+      [input.email, input.phone],
     );
+    const isMatchingPendingRegistration =
+      duplicate &&
+      duplicate.status === "pending_verification" &&
+      duplicate.email === input.email &&
+      normalizeIndianMobile(duplicate.phone) === mobile;
+    if (isMatchingPendingRegistration) {
+      const otp = String(randomInt(100000, 1000000));
+      await pool.query(
+        "UPDATE user_otps SET used_at=CURRENT_TIMESTAMP WHERE user_id=? AND purpose='verify_phone' AND used_at IS NULL",
+        [duplicate.id],
+      );
+      await pool.query(
+        `INSERT INTO user_otps (user_id,destination,purpose,otp_hash,expires_at)
+         VALUES (?,?,?,?,DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 10 MINUTE))`,
+        [duplicate.id, mobile, "verify_phone", hashToken(otp)],
+      );
+      const providerResponse = await sendMsg91Otp({ mobile, otp });
+      return ok(res, {
+        id: duplicate.id,
+        phone_verification_required: true,
+        provider: "MSG91",
+        provider_response: providerResponse,
+      }, "A new OTP has been sent to your mobile number.");
+    }
     if (duplicate)
       return fail(res, 409, "Email or phone is already registered");
 
     const passwordHash = await bcrypt.hash(input.password, env.bcryptRounds);
     const referralCode = randomBytes(8).toString("hex").toUpperCase();
-    if (!env.msg91.enabled)
-      return fail(res, 503, "Mobile OTP service is currently unavailable");
-
-    const mobile = normalizeIndianMobile(input.phone);
     const connection = await pool.getConnection();
     try {
       await connection.beginTransaction();
