@@ -19,7 +19,7 @@ export const registerSchema = z
     first_name: z.string().trim().min(1).max(100),
     last_name: z.string().trim().min(1).max(100),
     email: z.string().trim().toLowerCase().email().max(190),
-    phone: indianPhone.optional(),
+    phone: indianPhone,
     password: strongPassword,
     password_confirmation: z.string(),
     referral_code: z.string().trim().max(32).optional(),

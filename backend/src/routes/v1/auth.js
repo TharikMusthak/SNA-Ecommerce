@@ -71,7 +71,10 @@ router.post(
 
     const passwordHash = await bcrypt.hash(input.password, env.bcryptRounds);
     const referralCode = randomBytes(8).toString("hex").toUpperCase();
-    const verificationToken = randomBytes(48).toString("base64url");
+    if (!env.msg91.enabled)
+      return fail(res, 503, "Mobile OTP service is currently unavailable");
+
+    const mobile = normalizeIndianMobile(input.phone);
     const connection = await pool.getConnection();
     try {
       await connection.beginTransaction();
@@ -98,18 +101,18 @@ router.post(
           input.email,
           input.phone || null,
           passwordHash,
-          env.emailVerificationRequired ? "pending_verification" : "active",
-          env.emailVerificationRequired ? null : new Date(),
+          "pending_verification",
+          null,
           referralCode,
           referredBy,
         ],
       );
-      if (env.emailVerificationRequired) {
-        await connection.query(
-          `INSERT INTO user_email_verifications (user_id,token_hash,expires_at) VALUES (?,?,DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 30 MINUTE))`,
-          [result.insertId, hashToken(verificationToken)],
-        );
-      }
+      const otp = String(randomInt(100000, 1000000));
+      await connection.query(
+        `INSERT INTO user_otps (user_id,destination,purpose,otp_hash,expires_at)
+         VALUES (?,?,?,?,DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 10 MINUTE))`,
+        [result.insertId, mobile, "verify_phone", hashToken(otp)],
+      );
       await queueUserEvent({
         userId: result.insertId,
         event: "customer_registered",
@@ -118,21 +121,18 @@ router.post(
         payload: { firstName: input.first_name },
       }).catch(() => []);
       await connection.commit();
-      if (env.emailVerificationRequired) {
-        await sendCustomerAuthEmail({
-          email: input.email,
-          name: input.first_name,
-          token: verificationToken,
-          type: "verification",
-        });
-      }
-      const data = {
-        id: result.insertId,
-        email_verification_required: env.emailVerificationRequired,
-      };
-      if (!env.isProduction && env.emailVerificationRequired)
-        data.development_verification_token = verificationToken;
-      return ok(res, data, "Account created successfully", 201);
+      const providerResponse = await sendMsg91Otp({ mobile, otp });
+      return ok(
+        res,
+        {
+          id: result.insertId,
+          phone_verification_required: true,
+          provider: "MSG91",
+          provider_response: providerResponse,
+        },
+        "Account created. Enter the OTP sent to your mobile number.",
+        201,
+      );
     } catch (error) {
       await connection.rollback();
       if (error.code === "ER_DUP_ENTRY")
@@ -522,7 +522,13 @@ router.post(
         mobile ? `91${mobile}` : destination,
       ],
     );
-    const eligible = user && (purpose !== "login" || user.status === "active");
+    const eligible =
+      user &&
+      (purpose === "login"
+        ? user.status === "active"
+        : purpose === "verify_phone"
+          ? Boolean(mobile) && user.status === "pending_verification"
+          : true);
     let providerResponse = null;
     if (eligible) {
       await pool.query(
@@ -603,7 +609,7 @@ router.post(
         );
       if (purpose === "verify_phone" && record.user_id)
         await connection.query(
-          "UPDATE users SET phone_verified_at = CURRENT_TIMESTAMP WHERE id = ?",
+          "UPDATE users SET phone_verified_at = CURRENT_TIMESTAMP, status = 'active' WHERE id = ?",
           [record.user_id],
         );
       let loginUser = null;

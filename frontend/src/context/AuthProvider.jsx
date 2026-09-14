@@ -16,7 +16,9 @@ import {
   loginUserWithOtp,
   logoutUser,
   requestLoginOtp,
+  requestPhoneVerificationOtp,
   registerUser,
+  verifyRegistrationOtp,
 } from "@services/auth.service";
 
 const AuthContext = createContext(null);
@@ -67,6 +69,11 @@ export const AuthProvider = ({ children }) => {
 
   const sendLoginOtp = useCallback(async (phone) => requestLoginOtp(phone), []);
 
+  const sendPhoneVerificationOtp = useCallback(
+    async (phone) => requestPhoneVerificationOtp(phone),
+    [],
+  );
+
   const loginWithOtp = useCallback(async (credentials) => {
     const userData = await loginUserWithOtp(credentials);
     setUser(userData);
@@ -76,11 +83,15 @@ export const AuthProvider = ({ children }) => {
   // Register
   const register = useCallback(async (payload) => {
     const userData = await registerUser(payload);
-
-    setUser(userData);
+    if (!userData?.phone_verification_required) setUser(userData);
 
     return userData;
   }, []);
+
+  const verifyPhoneRegistration = useCallback(
+    async (credentials) => verifyRegistrationOtp(credentials),
+    [],
+  );
 
   // Logout
   const logout = useCallback(async () => {
@@ -153,8 +164,10 @@ export const AuthProvider = ({ children }) => {
 
       login,
       sendLoginOtp,
+      sendPhoneVerificationOtp,
       loginWithOtp,
       register,
+      verifyPhoneRegistration,
       logout,
 
       refreshUser,
@@ -165,8 +178,10 @@ export const AuthProvider = ({ children }) => {
       loading,
       login,
       sendLoginOtp,
+      sendPhoneVerificationOtp,
       loginWithOtp,
       register,
+      verifyPhoneRegistration,
       logout,
       refreshUser,
       updateProfile,

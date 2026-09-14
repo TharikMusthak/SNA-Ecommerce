@@ -22,10 +22,27 @@ export const requestLoginOtp = async (phone) => {
   return response.data;
 };
 
+export const requestPhoneVerificationOtp = async (phone) => {
+  const response = await sendOtpRequest({
+    destination: phone,
+    purpose: "verify_phone",
+  });
+  return response.data;
+};
+
 export const loginUserWithOtp = async ({ phone, otp }) => {
   const response = await verifyOtpRequest({
     destination: phone,
     purpose: "login",
+    otp,
+  });
+  return response.data.data;
+};
+
+export const verifyRegistrationOtp = async ({ phone, otp }) => {
+  const response = await verifyOtpRequest({
+    destination: phone,
+    purpose: "verify_phone",
     otp,
   });
   return response.data.data;

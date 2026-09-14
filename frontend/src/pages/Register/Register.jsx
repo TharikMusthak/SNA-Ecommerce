@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { registerUser } from "../../services/auth.service";
+import {
+  registerUser,
+  verifyRegistrationOtp,
+} from "../../services/auth.service";
 import { AlertCircle, Eye, EyeOff } from "lucide-react";
 
 const emailRegex = /^\S+@\S+\.\S+$/;
@@ -16,11 +19,13 @@ const Register = () => {
     email: "",
     phone: "",
     password: "",
+    otp: "",
   });
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
 
   const validateField = (name, value) => {
     switch (name) {
@@ -42,6 +47,9 @@ const Register = () => {
         if (!strongPasswordRegex.test(value)) {
           return "Use 12+ characters with upper, lower, number, and symbol.";
         }
+        return "";
+      case "otp":
+        if (!/^\d{6}$/.test(value)) return "Enter the 6-digit OTP.";
         return "";
       default:
         return "";
@@ -85,7 +93,9 @@ const Register = () => {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    const fieldsToValidate = ["name", "email", "phone", "password"];
+    const fieldsToValidate = otpSent
+      ? ["otp"]
+      : ["name", "email", "phone", "password"];
     const nextErrors = {};
     const nextTouched = {};
 
@@ -101,7 +111,22 @@ const Register = () => {
 
     try {
       setLoading(true);
-      await registerUser(form);
+      if (!otpSent) {
+        const [firstName, ...lastName] = form.name.trim().split(/\s+/);
+        await registerUser({
+          first_name: firstName,
+          last_name: lastName.join(" ") || "Customer",
+          email: form.email,
+          phone: form.phone,
+          password: form.password,
+          password_confirmation: form.password,
+          accept_terms: true,
+        });
+        setOtpSent(true);
+        setTouched({ otp: true });
+        return;
+      }
+      await verifyRegistrationOtp({ phone: form.phone, otp: form.otp });
       navigate("/auth/login");
     } catch (error) {
       setErrors((prev) => ({
@@ -127,7 +152,7 @@ const Register = () => {
         </p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-2">
-          <div>
+          {!otpSent && <div>
             <input
               name="name"
               value={form.name}
@@ -150,9 +175,9 @@ const Register = () => {
                 </>
               )}
             </p>
-          </div>
+          </div>}
 
-          <div className="grid gap-2.5 sm:grid-cols-2">
+          {!otpSent && <div className="grid gap-2.5 sm:grid-cols-2">
             <div>
               <input
                 name="email"
@@ -203,9 +228,9 @@ const Register = () => {
                 )}
               </p>
             </div>
-          </div>
+          </div>}
 
-          <div>
+          {!otpSent && <div>
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
@@ -255,7 +280,34 @@ const Register = () => {
                 </span>
               </div>
             )}
-          </div>
+          </div>}
+
+          {otpSent && (
+            <div>
+              <p className="mb-2 text-sm text-gray-600">
+                Enter the OTP sent to your mobile number to activate your account.
+              </p>
+              <input
+                name="otp"
+                value={form.otp}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                placeholder="Enter 6-digit OTP"
+                maxLength={6}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                aria-invalid={Boolean(errors.otp)}
+                className={`w-full rounded-xl border ${
+                  errors.otp
+                    ? "border-red-400 bg-red-50/20 text-[#333] focus:border-red-500 focus:bg-white focus:ring-4 focus:ring-red-500/10"
+                    : "border-gray-200 bg-gray-50 text-[#333] focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
+                } px-3.5 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400`}
+              />
+              <p className="mt-0.5 flex min-h-[14px] items-center gap-1 text-[11px] font-medium leading-4 text-red-600">
+                {errors.otp && <><AlertCircle size={12} className="shrink-0 text-red-600" /><span>{errors.otp}</span></>}
+              </p>
+            </div>
+          )}
 
           {errors.form ? (
             <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
@@ -268,7 +320,7 @@ const Register = () => {
             disabled={loading}
             className="flex w-full items-center justify-center rounded-xl bg-[#079447] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#06753a] disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {loading ? "Creating..." : "Register"}
+            {loading ? (otpSent ? "Verifying..." : "Creating...") : (otpSent ? "Verify & Activate Account" : "Register")}
           </button>
         </form>
 

@@ -19,7 +19,7 @@ const strongPasswordRegex =
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,}$/;
 
 const AuthModal = ({ onClose }) => {
-  const { sendLoginOtp, loginWithOtp, register, loading } = useAuth();
+  const { sendLoginOtp, loginWithOtp, register, verifyPhoneRegistration, loading } = useAuth();
   const [mode, setMode] = useState("login");
   const [formData, setFormData] = useState({
     first_name: "",
@@ -38,6 +38,7 @@ const AuthModal = ({ onClose }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
+  const [registrationOtpSent, setRegistrationOtpSent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const navigate = useNavigate();
@@ -57,6 +58,10 @@ const AuthModal = ({ onClose }) => {
         return "Enter the 6-digit OTP.";
       }
       return "";
+    }
+
+    if (name === "otp" && registrationOtpSent && !/^\d{6}$/.test(String(value || ""))) {
+      return "Enter the 6-digit OTP.";
     }
 
     switch (name) {
@@ -165,6 +170,7 @@ const AuthModal = ({ onClose }) => {
     setShowPassword(false);
     setShowConfirmPassword(false);
     setOtpSent(false);
+    setRegistrationOtpSent(false);
     setMode((prev) => (prev === "login" ? "register" : "login"));
   };
 
@@ -177,7 +183,9 @@ const AuthModal = ({ onClose }) => {
 
     const fieldsToValidate = isLogin
       ? otpSent ? ["phone", "otp"] : ["phone"]
-      : ["first_name", "last_name", "email", "phone", "password", "password_confirmation", "accept_terms"];
+      : registrationOtpSent
+        ? ["otp"]
+        : ["first_name", "last_name", "email", "phone", "password", "password_confirmation", "accept_terms"];
 
     const newFieldErrors = {};
     const newTouched = {};
@@ -214,15 +222,21 @@ const AuthModal = ({ onClose }) => {
         /* =========================
            REGISTER
         ========================= */
-        await register({
-          first_name: formData.first_name,
-          last_name: formData.last_name,
-          email: formData.email,
-          phone: formData.phone,
-          password: formData.password,
-          password_confirmation: formData.password_confirmation,
-          accept_terms: formData.accept_terms,
-        });
+        if (!registrationOtpSent) {
+          await register({
+            first_name: formData.first_name,
+            last_name: formData.last_name,
+            email: formData.email,
+            phone: formData.phone,
+            password: formData.password,
+            password_confirmation: formData.password_confirmation,
+            accept_terms: formData.accept_terms,
+          });
+          setRegistrationOtpSent(true);
+          setTouched({ otp: true });
+          return;
+        }
+        await verifyPhoneRegistration({ phone: formData.phone, otp: formData.otp });
       }
       onClose();
     } catch (err) {
@@ -642,7 +656,7 @@ const AuthModal = ({ onClose }) => {
                 {/* =================================================
                     FIRST + LAST NAME
                 ================================================= */}
-                {!isLogin && (
+                {!isLogin && !registrationOtpSent && (
                   <div
                     className="
                       grid
@@ -736,7 +750,7 @@ const AuthModal = ({ onClose }) => {
                 {/* =================================================
                     EMAIL
                 ================================================= */}
-                <div>
+                {!registrationOtpSent && <div>
                   <input
                     id={isLogin ? "phone" : "email"}
                     type={isLogin ? "tel" : "email"}
@@ -775,7 +789,7 @@ const AuthModal = ({ onClose }) => {
                       </>
                     )}
                   </p>
-                </div>
+                </div>}
 
                 {isLogin && otpSent && (
                   <div>
@@ -798,7 +812,22 @@ const AuthModal = ({ onClose }) => {
                 {/* =================================================
                     PHONE - REGISTER ONLY
                 ================================================= */}
-                {!isLogin && (
+                {!isLogin && registrationOtpSent && (
+                  <div>
+                    <p className="mb-2 text-sm text-gray-600">
+                      Enter the OTP sent to your mobile number to activate your account.
+                    </p>
+                    <input id="registration-otp" name="otp" type="text" value={formData.otp}
+                      onChange={handleChange} onBlur={handleBlur} placeholder="Enter 6-digit OTP"
+                      maxLength={6} inputMode="numeric" autoComplete="one-time-code"
+                      aria-invalid={Boolean(fieldErrors.otp)}
+                      className={`w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400 ${fieldErrors.otp ? "border-red-400 bg-red-50/20 focus:ring-4 focus:ring-red-500/10" : "border-gray-200 bg-gray-50 focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"}`}
+                    />
+                    <span className="mt-1 block text-[11px] font-medium text-red-600">{fieldErrors.otp || ""}</span>
+                  </div>
+                )}
+
+                {!isLogin && !registrationOtpSent && (
                   <div>
                     <input
                       id="phone"
@@ -843,7 +872,7 @@ const AuthModal = ({ onClose }) => {
                 {/* =================================================
                     PASSWORD
                 ================================================= */}
-                {!isLogin && <div>
+                {!isLogin && !registrationOtpSent && <div>
                   <div className="relative">
                     <input
                       id="password"
@@ -926,7 +955,7 @@ const AuthModal = ({ onClose }) => {
                 {/* =================================================
                     CONFIRM PASSWORD
                 ================================================= */}
-                {!isLogin && (
+                {!isLogin && !registrationOtpSent && (
                   <div>
                     <div className="relative">
                       <input
@@ -1000,7 +1029,7 @@ const AuthModal = ({ onClose }) => {
                 {/* =================================================
                     TERMS - REGISTER ONLY
                 ================================================= */}
-                {!isLogin && (
+                {!isLogin && !registrationOtpSent && (
                   <div>
                     <label
                       className="
@@ -1103,11 +1132,11 @@ const AuthModal = ({ onClose }) => {
                           border-t-white
                         "
                       />
-                      {isLogin ? (otpSent ? "Verifying OTP..." : "Sending OTP...") : "Creating account..."}
+                      {isLogin ? (otpSent ? "Verifying OTP..." : "Sending OTP...") : (registrationOtpSent ? "Verifying OTP..." : "Creating account...")}
                     </>
                   ) : (
                     <>
-                      {isLogin ? (otpSent ? "Verify OTP & Login" : "Send OTP") : "Create My Account"}
+                      {isLogin ? (otpSent ? "Verify OTP & Login" : "Send OTP") : (registrationOtpSent ? "Verify & Activate Account" : "Create My Account")}
                       <span
                         className="
                           transition-transform
