@@ -19,8 +19,9 @@ const strongPasswordRegex =
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
 
 const AuthModal = ({ onClose }) => {
-  const { sendLoginOtp, loginWithOtp, register, verifyPhoneRegistration, loading } = useAuth();
+  const { login, sendLoginOtp, loginWithOtp, register, verifyPhoneRegistration, loading } = useAuth();
   const [mode, setMode] = useState("login");
+  const [loginMethod, setLoginMethod] = useState("otp");
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
@@ -50,10 +51,16 @@ const AuthModal = ({ onClose }) => {
   const validateSingleField = (name, value, allData, isLoginMode) => {
     if (isLoginMode) {
       if (name === "phone") {
-        const digits = String(value || "").replace(/\D/g, "").replace(/^91(?=[6-9]\d{9}$)/, "");
-        if (!digits) return "Please enter your mobile number.";
-        if (!/^[6-9]\d{9}$/.test(digits)) return "Enter a valid 10-digit Indian mobile number.";
+        if (loginMethod === "password") {
+          if (!String(value || "").trim()) return "Please enter your email or mobile number.";
+        } else {
+          const digits = String(value || "").replace(/\D/g, "").replace(/^91(?=[6-9]\d{9}$)/, "");
+          if (!digits) return "Please enter your mobile number.";
+          if (!/^[6-9]\d{9}$/.test(digits)) return "Enter a valid 10-digit Indian mobile number.";
+        }
       }
+      if (name === "password" && loginMethod === "password" && !value)
+        return "Please enter your password.";
       if (name === "otp" && otpSent && !/^\d{6}$/.test(String(value || ""))) {
         return "Enter the 6-digit OTP.";
       }
@@ -170,6 +177,7 @@ const AuthModal = ({ onClose }) => {
     setShowPassword(false);
     setShowConfirmPassword(false);
     setOtpSent(false);
+    setLoginMethod("otp");
     setRegistrationOtpSent(false);
     setMode((prev) => (prev === "login" ? "register" : "login"));
   };
@@ -182,7 +190,9 @@ const AuthModal = ({ onClose }) => {
     setError("");
 
     const fieldsToValidate = isLogin
-      ? otpSent ? ["phone", "otp"] : ["phone"]
+      ? loginMethod === "password"
+        ? ["phone", "password"]
+        : otpSent ? ["phone", "otp"] : ["phone"]
       : registrationOtpSent
         ? ["otp"]
         : ["first_name", "last_name", "email", "phone", "password", "password_confirmation", "accept_terms"];
@@ -208,7 +218,9 @@ const AuthModal = ({ onClose }) => {
     try {
       setSubmitting(true);
       if (isLogin) {
-        if (!otpSent) {
+        if (loginMethod === "password") {
+          await login({ login: formData.phone, password: formData.password });
+        } else if (!otpSent) {
           await sendLoginOtp(formData.phone);
           setOtpSent(true);
           setTouched({ phone: true });
@@ -622,6 +634,18 @@ const AuthModal = ({ onClose }) => {
               )}
 
               <form onSubmit={handleSubmit} className="mt-4 space-y-2">
+                {isLogin && !otpSent && (
+                  <div className="grid grid-cols-2 rounded-xl bg-gray-100 p-1 text-sm font-semibold">
+                    <button type="button" onClick={() => { setLoginMethod("otp"); setFieldErrors({}); setError(""); }}
+                      className={`rounded-lg px-3 py-2 transition ${loginMethod === "otp" ? "bg-white text-[#079447] shadow-sm" : "text-gray-500"}`}>
+                      Login with OTP
+                    </button>
+                    <button type="button" onClick={() => { setLoginMethod("password"); setOtpSent(false); setFieldErrors({}); setError(""); }}
+                      className={`rounded-lg px-3 py-2 transition ${loginMethod === "password" ? "bg-white text-[#079447] shadow-sm" : "text-gray-500"}`}>
+                      Use password
+                    </button>
+                  </div>
+                )}
                 {!isLogin && !registrationOtpSent && (
                   <div
                     className="
@@ -714,15 +738,15 @@ const AuthModal = ({ onClose }) => {
                 {!registrationOtpSent && <div>
                   <input
                     id={isLogin ? "phone" : "email"}
-                    type={isLogin ? "tel" : "email"}
+                    type={isLogin && loginMethod === "otp" ? "tel" : isLogin ? "text" : "email"}
                     name={isLogin ? "phone" : "email"}
                     value={isLogin ? formData.phone : formData.email}
                     onChange={handleChange}
                     onBlur={handleBlur}
-                    placeholder={isLogin ? "Enter your mobile number" : "Enter your email"}
-                    maxLength={isLogin ? 13 : 100}
-                    autoComplete={isLogin ? "tel" : "email"}
-                    inputMode={isLogin ? "tel" : undefined}
+                    placeholder={isLogin ? (loginMethod === "otp" ? "Enter your mobile number" : "Email or mobile number") : "Enter your email"}
+                    maxLength={isLogin && loginMethod === "otp" ? 13 : isLogin ? 190 : 100}
+                    autoComplete={isLogin ? (loginMethod === "otp" ? "tel" : "username") : "email"}
+                    inputMode={isLogin && loginMethod === "otp" ? "tel" : undefined}
                     disabled={isLogin && otpSent}
                     aria-invalid={Boolean(isLogin ? fieldErrors.phone : fieldErrors.email)}
                     className={`
@@ -782,6 +806,23 @@ const AuthModal = ({ onClose }) => {
                       className={`w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400 ${fieldErrors.otp ? "border-red-400 bg-red-50/20 focus:ring-4 focus:ring-red-500/10" : "border-gray-200 bg-gray-50 focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"}`}
                     />
                     <span className="mt-1 block text-[11px] font-medium text-red-600">{fieldErrors.otp || ""}</span>
+                  </div>
+                )}
+
+                {isLogin && loginMethod === "password" && (
+                  <div>
+                    <div className="relative">
+                      <input id="login-password" type={showPassword ? "text" : "password"} name="password"
+                        value={formData.password} onChange={handleChange} onBlur={handleBlur}
+                        placeholder="Enter your password" autoComplete="current-password"
+                        aria-invalid={Boolean(fieldErrors.password)}
+                        className={`w-full rounded-xl border px-3.5 py-2.5 pr-11 text-sm outline-none transition-all placeholder:text-gray-400 ${fieldErrors.password ? "border-red-400 bg-red-50/20 focus:ring-4 focus:ring-red-500/10" : "border-gray-200 bg-gray-50 focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"}`}
+                      />
+                      <button type="button" onClick={() => setShowPassword((prev) => !prev)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#079447]" aria-label={showPassword ? "Hide password" : "Show password"}>
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                    <span className="mt-1 block text-[11px] font-medium text-red-600">{fieldErrors.password || ""}</span>
                   </div>
                 )}
 
@@ -1077,11 +1118,11 @@ const AuthModal = ({ onClose }) => {
                           border-t-white
                         "
                       />
-                      {isLogin ? (otpSent ? "Verifying OTP..." : "Sending OTP...") : (registrationOtpSent ? "Verifying OTP..." : "Creating account...")}
+                      {isLogin ? (loginMethod === "password" ? "Signing in..." : (otpSent ? "Verifying OTP..." : "Sending OTP...")) : (registrationOtpSent ? "Verifying OTP..." : "Creating account...")}
                     </>
                   ) : (
                     <>
-                      {isLogin ? (otpSent ? "Verify OTP & Login" : "Send OTP") : (registrationOtpSent ? "Verify & Activate Account" : "Create My Account")}
+                      {isLogin ? (loginMethod === "password" ? "Login with password" : (otpSent ? "Verify OTP & Login" : "Send OTP")) : (registrationOtpSent ? "Verify & Activate Account" : "Create My Account")}
                       <span
                         className="
                           transition-transform
