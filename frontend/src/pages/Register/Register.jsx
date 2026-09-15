@@ -128,7 +128,7 @@ const Register = () => {
         return;
       }
       await verifyRegistrationOtp({ phone: form.phone, otp: form.otp });
-      navigate("/auth/login");
+      window.location.assign("/");
     } catch (error) {
       setErrors((prev) => ({
         ...prev,

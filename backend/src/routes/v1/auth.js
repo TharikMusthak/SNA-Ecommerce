@@ -662,11 +662,35 @@ router.post(
             pending.terms_accepted_at,
           ],
         );
+        const [[createdUser]] = await connection.query(
+          "SELECT * FROM users WHERE id = ? FOR UPDATE",
+          [result.insertId],
+        );
+        const refreshToken = await createCustomerRefreshToken(
+          connection,
+          createdUser.id,
+          createdUser.session_version,
+          metadata(req),
+        );
+        await connection.query(
+          "UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?",
+          [createdUser.id],
+        );
         await connection.query(
           "DELETE FROM pending_customer_registrations WHERE id = ?",
           [pending.id],
         );
         await connection.commit();
+        res.cookie(
+          env.customerAccessCookie,
+          createCustomerAccessToken(createdUser),
+          customerAccessCookieOptions(),
+        );
+        res.cookie(
+          env.customerRefreshCookie,
+          refreshToken,
+          customerRefreshCookieOptions(),
+        );
         await queueUserEvent({
           userId: result.insertId,
           event: "customer_registered",
@@ -674,7 +698,7 @@ router.post(
           entityId: result.insertId,
           payload: { firstName: pending.first_name },
         }).catch(() => []);
-        return ok(res, { verified: true }, "Account created successfully");
+        return ok(res, publicUser(createdUser), "Account created successfully");
       }
       const [[record]] = await connection.query(
         `SELECT * FROM user_otps WHERE destination = ? AND purpose = ? AND used_at IS NULL AND expires_at > CURRENT_TIMESTAMP ORDER BY id DESC LIMIT 1 FOR UPDATE`,

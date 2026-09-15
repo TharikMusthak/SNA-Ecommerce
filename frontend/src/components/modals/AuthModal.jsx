@@ -245,7 +245,7 @@ const AuthModal = ({ onClose }) => {
         await verifyPhoneRegistration({ phone: formData.phone, otp: formData.otp });
       }
       if (onClose) onClose();
-      else navigate(isLogin ? "/" : "/auth/login");
+      else navigate("/");
     } catch (err) {
       setError(
         err?.response?.data?.message ||

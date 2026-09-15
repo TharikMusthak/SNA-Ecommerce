@@ -88,10 +88,11 @@ export const AuthProvider = ({ children }) => {
     return userData;
   }, []);
 
-  const verifyPhoneRegistration = useCallback(
-    async (credentials) => verifyRegistrationOtp(credentials),
-    [],
-  );
+  const verifyPhoneRegistration = useCallback(async (credentials) => {
+    const userData = await verifyRegistrationOtp(credentials);
+    setUser(userData);
+    return userData;
+  }, []);
 
   // Logout
   const logout = useCallback(async () => {
