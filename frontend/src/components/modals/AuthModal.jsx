@@ -19,7 +19,7 @@ const strongPasswordRegex =
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
 
 const AuthModal = ({ onClose }) => {
-  const { login, sendLoginOtp, loginWithOtp, register, verifyPhoneRegistration, loading } = useAuth();
+  const { login, sendLoginOtp, sendPhoneVerificationOtp, loginWithOtp, register, verifyPhoneRegistration, loading } = useAuth();
   const [mode, setMode] = useState("login");
   const [loginMethod, setLoginMethod] = useState("otp");
   const [formData, setFormData] = useState({
@@ -806,7 +806,25 @@ const AuthModal = ({ onClose }) => {
                       aria-invalid={Boolean(fieldErrors.otp)}
                       className={`w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400 ${fieldErrors.otp ? "border-red-400 bg-red-50/20 focus:ring-4 focus:ring-red-500/10" : "border-gray-200 bg-gray-50 focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"}`}
                     />
-                    <span className="mt-1 block text-[11px] font-medium text-red-600">{fieldErrors.otp || ""}</span>
+                    <div className="mt-1 flex items-center justify-between text-[11px]">
+                      <span className="font-medium text-red-600">{fieldErrors.otp || ""}</span>
+                      <button type="button" disabled={submitting} className="font-semibold text-[#079447] hover:underline disabled:opacity-60"
+                        onClick={async () => {
+                          try {
+                            setSubmitting(true);
+                            await sendPhoneVerificationOtp(formData.phone);
+                            setFormData((current) => ({ ...current, otp: "" }));
+                            setFieldErrors({});
+                            setError("");
+                          } catch (err) {
+                            setError(err?.response?.data?.message || "Could not resend OTP. Please try again.");
+                          } finally {
+                            setSubmitting(false);
+                          }
+                        }}>
+                        Resend OTP
+                      </button>
+                    </div>
                   </div>
                 )}
 

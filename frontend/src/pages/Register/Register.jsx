@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   registerUser,
+  requestPhoneVerificationOtp,
   verifyRegistrationOtp,
 } from "../../services/auth.service";
 import { AlertCircle, Eye, EyeOff } from "lucide-react";
@@ -303,9 +304,26 @@ const Register = () => {
                     : "border-gray-200 bg-gray-50 text-[#333] focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
                 } px-3.5 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400`}
               />
-              <p className="mt-0.5 flex min-h-[14px] items-center gap-1 text-[11px] font-medium leading-4 text-red-600">
-                {errors.otp && <><AlertCircle size={12} className="shrink-0 text-red-600" /><span>{errors.otp}</span></>}
-              </p>
+              <div className="mt-0.5 flex min-h-[14px] items-center justify-between text-[11px]">
+                <span className="flex items-center gap-1 font-medium leading-4 text-red-600">
+                  {errors.otp && <><AlertCircle size={12} className="shrink-0 text-red-600" /><span>{errors.otp}</span></>}
+                </span>
+                <button type="button" disabled={loading} className="font-semibold text-[#079447] hover:underline disabled:opacity-60"
+                  onClick={async () => {
+                    try {
+                      setLoading(true);
+                      await requestPhoneVerificationOtp(form.phone);
+                      setForm((current) => ({ ...current, otp: "" }));
+                      setErrors({});
+                    } catch (error) {
+                      setErrors((prev) => ({ ...prev, form: error.response?.data?.message || "Could not resend OTP. Please try again." }));
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}>
+                  Resend OTP
+                </button>
+              </div>
             </div>
           )}
 
