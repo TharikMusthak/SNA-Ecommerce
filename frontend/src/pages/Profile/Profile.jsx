@@ -551,7 +551,11 @@ function CustomerOrderCard({ order }) {
         <div><span className="block text-[11px] font-bold uppercase text-gray-400">Total</span><b className="mt-1 block text-gray-900">{formatCurrency(order.amount)}</b><small className="capitalize text-gray-500">{isCod ? `COD · ${order.payment_status}` : order.payment_status}</small></div>
       </div>
       <div className="grid gap-3 p-5 sm:grid-cols-2">
-        {(order.items || []).map((item) => <div key={item.id} className="flex items-center gap-3 rounded-xl border border-gray-100 p-3"><img src={assetUrl(item.product_image, fallbackImage)} alt={item.product_name} className="h-14 w-14 rounded-lg bg-gray-50 object-contain p-1" /><div className="min-w-0 flex-1"><b className="block truncate text-sm text-gray-900">{item.product_name}</b><small className="block text-gray-500">Quantity: {item.quantity} · {formatCurrency(item.unit_price)}</small><small className="block text-gray-400">{item.sku || "Standard product"}</small></div><strong className="text-sm text-gray-900">{formatCurrency(item.total_amount)}</strong></div>)}
+        {(order.items || []).map((item) => {
+          const productPath = item.product_slug || item.product_id;
+          const content = <><img src={assetUrl(item.product_image, fallbackImage)} alt={item.product_name} className="h-14 w-14 rounded-lg bg-gray-50 object-contain p-1" /><div className="min-w-0 flex-1"><b className="block truncate text-sm text-gray-900">{item.product_name}</b><small className="block text-gray-500">Quantity: {item.quantity} · {formatCurrency(item.unit_price)}</small><small className="block text-gray-400">{item.sku || "Standard product"}</small></div><strong className="text-sm text-gray-900">{formatCurrency(item.total_amount)}</strong></>;
+          return productPath ? <Link key={item.id} to={`/products/${productPath}`} className="flex items-center gap-3 rounded-xl border border-gray-100 p-3 transition hover:border-emerald-300 hover:bg-emerald-50/30">{content}</Link> : <div key={item.id} className="flex items-center gap-3 rounded-xl border border-gray-100 p-3">{content}</div>;
+        })}
       </div>
       <footer className="flex justify-end border-t border-gray-100 px-5 py-4">
         <Link

@@ -135,12 +135,13 @@ router.post(
       );
       for (const item of cart.items) {
         await connection.query(
-          `INSERT INTO order_items(order_id,product_id,variant_id,product_name,sku,unit_price,quantity,tax_amount,total_amount) VALUES (?,?,?,?,?,?,?,?,?)`,
+          `INSERT INTO order_items(order_id,product_id,variant_id,product_name,product_image,sku,unit_price,quantity,tax_amount,total_amount) VALUES (?,?,?,?,?,?,?,?,?,?)`,
           [
             result.insertId,
             item.product_id,
             item.variant_id,
             item.name,
+            item.main_image || null,
             item.sku || null,
             item.unit_price,
             item.quantity,
@@ -271,7 +272,8 @@ router.get(
     if (orderIds.length) {
       const placeholders = orderIds.map(() => "?").join(",");
       const [items] = await pool.query(
-        `SELECT oi.id,oi.order_id,oi.product_id,oi.product_name,oi.sku,oi.unit_price,oi.quantity,oi.total_amount,p.main_image AS product_image
+        `SELECT oi.id,oi.order_id,oi.product_id,oi.product_name,oi.sku,oi.unit_price,oi.quantity,oi.total_amount,
+                p.slug AS product_slug,COALESCE(oi.product_image,p.main_image) AS product_image
            FROM order_items oi LEFT JOIN products p ON p.id=oi.product_id
           WHERE oi.order_id IN (${placeholders}) ORDER BY oi.id`,
         orderIds,

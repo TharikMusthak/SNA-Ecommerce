@@ -44,7 +44,7 @@ export async function findOrderDetails({
       database.query(
         `SELECT oi.id,oi.product_id,oi.variant_id,oi.product_name,oi.sku,
                 oi.unit_price,oi.quantity,oi.tax_amount,oi.total_amount,oi.created_at,
-                p.slug AS product_slug,p.main_image AS product_image,
+                p.slug AS product_slug,COALESCE(oi.product_image,p.main_image) AS product_image,
                 v.brand AS variant_brand,v.color AS variant_color,v.size AS variant_size
          FROM order_items oi
          LEFT JOIN products p ON p.id=oi.product_id
@@ -120,7 +120,7 @@ export async function findAdminOrdersDetails(orderIds, database = pool) {
       database.query(
         `SELECT oi.order_id,oi.id,oi.product_id,oi.variant_id,oi.product_name,oi.sku,
                 oi.unit_price,oi.quantity,oi.tax_amount,oi.total_amount,oi.created_at,
-                p.slug AS product_slug,p.main_image AS product_image,
+                p.slug AS product_slug,COALESCE(oi.product_image,p.main_image) AS product_image,
                 v.brand AS variant_brand,v.color AS variant_color,v.size AS variant_size
          FROM order_items oi
          LEFT JOIN products p ON p.id=oi.product_id

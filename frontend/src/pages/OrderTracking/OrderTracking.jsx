@@ -296,7 +296,10 @@ function ProductJourneySection({ item, currentStatus, isCancelled, isDelivered, 
 
       {/* Product identity strip */}
       {item && (
-        <div className="flex items-center gap-4 border-b border-gray-100 px-6 py-4">
+        <Link
+          to={`/products/${item.product_slug || item.product_id}`}
+          className="flex items-center gap-4 border-b border-gray-100 px-6 py-4 transition hover:bg-emerald-50/40"
+        >
           <img
             src={assetUrl(item.product_image, fallbackImage)}
             alt={item.product_name || "Product"}
@@ -317,7 +320,7 @@ function ProductJourneySection({ item, currentStatus, isCancelled, isDelivered, 
               {formatCurrency(item.total_amount)}
             </span>
           )}
-        </div>
+        </Link>
       )}
 
       <div className="p-6 sm:p-8">
