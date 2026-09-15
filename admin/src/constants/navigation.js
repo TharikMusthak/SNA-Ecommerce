@@ -16,7 +16,6 @@ const roleMenus = {
     "Customers",
     "Support Tickets",
     "Notifications",
-    "CMS Pages",
     "FAQ",
     "Shipping Settings",
     "Users",
@@ -30,7 +29,6 @@ const roleMenus = {
     "Banners",
     "Reviews",
     "Coupons",
-    "CMS Pages",
     "FAQ",
   ],
   "Order Manager": [
@@ -68,7 +66,7 @@ export const menuGroups = [
     label: "Customers",
     items: ["Customers", "Support Tickets", "Notifications"],
   },
-  { label: "Content", items: ["CMS Pages", "FAQ"] },
+  { label: "Content", items: ["FAQ"] },
   { label: "System", items: ["Shipping Settings", "Users"] },
 ];
 
