@@ -61,37 +61,13 @@ router.post(
       return fail(res, 503, "Mobile OTP service is currently unavailable");
 
     const mobile = normalizeIndianMobile(input.phone);
-    const [[duplicate]] = await pool.query(
-      `SELECT id,email,phone,status FROM users
+    const [[existingUser]] = await pool.query(
+      `SELECT id FROM users
        WHERE email = ? OR phone = ?
        LIMIT 1`,
       [input.email, input.phone],
     );
-    const isMatchingPendingRegistration =
-      duplicate &&
-      duplicate.status === "pending_verification" &&
-      duplicate.email === input.email &&
-      normalizeIndianMobile(duplicate.phone) === mobile;
-    if (isMatchingPendingRegistration) {
-      const otp = String(randomInt(100000, 1000000));
-      await pool.query(
-        "UPDATE user_otps SET used_at=CURRENT_TIMESTAMP WHERE user_id=? AND purpose='verify_phone' AND used_at IS NULL",
-        [duplicate.id],
-      );
-      await pool.query(
-        `INSERT INTO user_otps (user_id,destination,purpose,otp_hash,expires_at)
-         VALUES (?,?,?,?,DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 10 MINUTE))`,
-        [duplicate.id, mobile, "verify_phone", hashToken(otp)],
-      );
-      const providerResponse = await sendMsg91Otp({ mobile, otp });
-      return ok(res, {
-        id: duplicate.id,
-        phone_verification_required: true,
-        provider: "MSG91",
-        provider_response: providerResponse,
-      }, "A new OTP has been sent to your mobile number.");
-    }
-    if (duplicate)
+    if (existingUser)
       return fail(res, 409, "Email or phone is already registered");
 
     const passwordHash = await bcrypt.hash(input.password, env.bcryptRounds);
@@ -113,46 +89,65 @@ router.post(
         }
         referredBy = referrer.id;
       }
-      const [result] = await connection.query(
-        `INSERT INTO users (first_name,last_name,email,phone,password_hash,status,email_verified_at,referral_code,referred_by,terms_accepted_at)
-       VALUES (?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
-        [
-          input.first_name,
-          input.last_name,
-          input.email,
-          input.phone || null,
-          passwordHash,
-          "pending_verification",
-          null,
-          referralCode,
-          referredBy,
-        ],
+      const [[pending]] = await connection.query(
+        `SELECT id,email,phone FROM pending_customer_registrations
+         WHERE email = ? OR phone = ? LIMIT 1 FOR UPDATE`,
+        [input.email, input.phone],
       );
+      if (
+        pending &&
+        (pending.email !== input.email || normalizeIndianMobile(pending.phone) !== mobile)
+      ) {
+        await connection.rollback();
+        return fail(res, 409, "Email or phone is already registered");
+      }
       const otp = String(randomInt(100000, 1000000));
-      await connection.query(
-        `INSERT INTO user_otps (user_id,destination,purpose,otp_hash,expires_at)
-         VALUES (?,?,?,?,DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 10 MINUTE))`,
-        [result.insertId, mobile, "verify_phone", hashToken(otp)],
-      );
-      await queueUserEvent({
-        userId: result.insertId,
-        event: "customer_registered",
-        entityType: "user",
-        entityId: result.insertId,
-        payload: { firstName: input.first_name },
-      }).catch(() => []);
+      let pendingId = pending?.id;
+      if (pendingId) {
+        await connection.query(
+          `UPDATE pending_customer_registrations
+           SET first_name=?,last_name=?,password_hash=?,referral_code=?,referred_by=?,terms_accepted_at=CURRENT_TIMESTAMP,
+               otp_hash=?,otp_attempts=0,otp_expires_at=DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 10 MINUTE)
+           WHERE id=?`,
+          [
+            input.first_name,
+            input.last_name,
+            passwordHash,
+            referralCode,
+            referredBy,
+            hashToken(otp),
+            pendingId,
+          ],
+        );
+      } else {
+        const [result] = await connection.query(
+          `INSERT INTO pending_customer_registrations
+           (first_name,last_name,email,phone,password_hash,referral_code,referred_by,terms_accepted_at,otp_hash,otp_expires_at)
+           VALUES (?,?,?,?,?,?,?,CURRENT_TIMESTAMP,?,DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 10 MINUTE))`,
+          [
+            input.first_name,
+            input.last_name,
+            input.email,
+            mobile,
+            passwordHash,
+            referralCode,
+            referredBy,
+            hashToken(otp),
+          ],
+        );
+        pendingId = result.insertId;
+      }
       await connection.commit();
       const providerResponse = await sendMsg91Otp({ mobile, otp });
       return ok(
         res,
         {
-          id: result.insertId,
+          pending_registration_id: pendingId,
           phone_verification_required: true,
           provider: "MSG91",
           provider_response: providerResponse,
         },
-        "Account created. Enter the OTP sent to your mobile number.",
-        201,
+        "OTP sent. Enter it to complete account creation.",
       );
     } catch (error) {
       await connection.rollback();
@@ -533,6 +528,30 @@ router.post(
     const otp = String(randomInt(100000, 1000000));
     if (mobile && !env.msg91.enabled)
       return fail(res, 503, "Mobile OTP service is currently unavailable");
+    if (purpose === "verify_phone") {
+      const [[pending]] = await pool.query(
+        `SELECT id FROM pending_customer_registrations
+         WHERE phone = ? LIMIT 1`,
+        [mobile],
+      );
+      let providerResponse = null;
+      if (pending) {
+        await pool.query(
+          `UPDATE pending_customer_registrations
+           SET otp_hash=?,otp_attempts=0,otp_expires_at=DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 10 MINUTE)
+           WHERE id=?`,
+          [hashToken(otp), pending.id],
+        );
+        providerResponse = await sendMsg91Otp({ mobile, otp });
+      }
+      return ok(
+        res,
+        pending ? { provider: "MSG91", provider_response: providerResponse } : null,
+        pending
+          ? "OTP request accepted by MSG91"
+          : "If the destination is eligible, an OTP has been generated",
+      );
+    }
     const [[user]] = await pool.query(
       `SELECT id,email,phone,status FROM users
        WHERE (email = ? OR phone = ? OR phone = ? OR phone = ?) AND deleted_at IS NULL LIMIT 1`,
@@ -547,9 +566,7 @@ router.post(
       user &&
       (purpose === "login"
         ? user.status === "active"
-        : purpose === "verify_phone"
-          ? Boolean(mobile) && user.status === "pending_verification"
-          : true);
+        : true);
     let providerResponse = null;
     if (eligible) {
       await pool.query(
@@ -601,6 +618,64 @@ router.post(
     const connection = await pool.getConnection();
     try {
       await connection.beginTransaction();
+      if (purpose === "verify_phone") {
+        const [[pending]] = await connection.query(
+          `SELECT * FROM pending_customer_registrations
+           WHERE phone = ? LIMIT 1 FOR UPDATE`,
+          [destination],
+        );
+        const candidateHash = hashToken(otp);
+        const valid =
+          pending &&
+          pending.otp_attempts < 5 &&
+          new Date(pending.otp_expires_at) > new Date() &&
+          safeHashEqual(candidateHash, pending.otp_hash);
+        if (!valid) {
+          if (pending)
+            await connection.query(
+              "UPDATE pending_customer_registrations SET otp_attempts = otp_attempts + 1 WHERE id = ?",
+              [pending.id],
+            );
+          await connection.commit();
+          return fail(res, 400, "OTP is invalid or expired");
+        }
+        const [[existingUser]] = await connection.query(
+          "SELECT id FROM users WHERE email = ? OR phone = ? LIMIT 1 FOR UPDATE",
+          [pending.email, pending.phone],
+        );
+        if (existingUser) {
+          await connection.rollback();
+          return fail(res, 409, "Email or phone is already registered");
+        }
+        const [result] = await connection.query(
+          `INSERT INTO users
+           (first_name,last_name,email,phone,password_hash,status,email_verified_at,phone_verified_at,referral_code,referred_by,terms_accepted_at)
+           VALUES (?,?,?,?,?,'active',NULL,CURRENT_TIMESTAMP,?,?,?)`,
+          [
+            pending.first_name,
+            pending.last_name,
+            pending.email,
+            pending.phone,
+            pending.password_hash,
+            pending.referral_code,
+            pending.referred_by,
+            pending.terms_accepted_at,
+          ],
+        );
+        await connection.query(
+          "DELETE FROM pending_customer_registrations WHERE id = ?",
+          [pending.id],
+        );
+        await connection.commit();
+        await queueUserEvent({
+          userId: result.insertId,
+          event: "customer_registered",
+          entityType: "user",
+          entityId: result.insertId,
+          payload: { firstName: pending.first_name },
+        }).catch(() => []);
+        return ok(res, { verified: true }, "Account created successfully");
+      }
       const [[record]] = await connection.query(
         `SELECT * FROM user_otps WHERE destination = ? AND purpose = ? AND used_at IS NULL AND expires_at > CURRENT_TIMESTAMP ORDER BY id DESC LIMIT 1 FOR UPDATE`,
         [destination, purpose],
@@ -626,11 +701,6 @@ router.post(
       if (purpose === "verify_email" && record.user_id)
         await connection.query(
           "UPDATE users SET email_verified_at = CURRENT_TIMESTAMP, status = 'active' WHERE id = ?",
-          [record.user_id],
-        );
-      if (purpose === "verify_phone" && record.user_id)
-        await connection.query(
-          "UPDATE users SET phone_verified_at = CURRENT_TIMESTAMP, status = 'active' WHERE id = ?",
           [record.user_id],
         );
       let loginUser = null;
