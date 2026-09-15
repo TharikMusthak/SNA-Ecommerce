@@ -250,7 +250,7 @@ const AuthModal = ({ onClose }) => {
         }
         await verifyPhoneRegistration({ phone: formData.phone, otp: formData.otp });
       }
-      onClose();
+      navigate(isLogin ? "/" : "/auth/login");
     } catch (err) {
       setError(
         err?.response?.data?.message ||
@@ -280,7 +280,7 @@ const AuthModal = ({ onClose }) => {
       "
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) {
-          onClose();
+          navigate("/");
         }
       }}
     >
