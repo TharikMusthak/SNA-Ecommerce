@@ -274,7 +274,7 @@ router.get(
       const placeholders = orderIds.map(() => "?").join(",");
       const [items] = await pool.query(
         `SELECT oi.id,oi.order_id,oi.product_id,oi.product_name,oi.sku,oi.unit_price,oi.quantity,oi.total_amount,
-                p.slug AS product_slug,COALESCE(oi.product_image,p.main_image) AS product_image
+                p.slug AS product_slug,COALESCE(p.main_image,oi.product_image) AS product_image
            FROM order_items oi LEFT JOIN products p ON p.id=oi.product_id
           WHERE oi.order_id IN (${placeholders}) ORDER BY oi.id`,
         orderIds,
