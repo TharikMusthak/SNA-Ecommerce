@@ -567,6 +567,13 @@ router.post(
       (purpose === "login"
         ? user.status === "active"
         : true);
+    if (purpose === "login" && !eligible) {
+      return fail(
+        res,
+        404,
+        "No active account was found for this mobile number. Please register first or complete account verification.",
+      );
+    }
     let providerResponse = null;
     if (eligible) {
       await pool.query(
