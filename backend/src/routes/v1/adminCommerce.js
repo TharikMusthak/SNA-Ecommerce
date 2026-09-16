@@ -78,11 +78,7 @@ router.get(
           `SELECT COUNT(*) AS count,MAX(created_at) AS newest_at
              FROM orders o
             WHERE o.created_at >= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 24 HOUR)
-              AND o.status NOT IN ('cancelled','failed','refunded','returned')
-              AND (o.payment_status='paid' OR EXISTS (
-                SELECT 1 FROM payments p
-                 WHERE p.order_id=o.id AND p.provider='cod'
-              ))`,
+              AND o.status NOT IN ('cancelled','failed','refunded','returned')`,
         ),
         pool.query(
           `SELECT COUNT(*) AS count

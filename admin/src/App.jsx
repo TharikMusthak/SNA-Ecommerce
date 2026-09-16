@@ -264,8 +264,17 @@ function Cms({ admin, onLogout }) {
 
   useEffect(() => {
     void loadHeaderNotifications();
-    const interval = window.setInterval(() => void loadHeaderNotifications(), 60_000);
-    return () => window.clearInterval(interval);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void loadHeaderNotifications();
+    };
+    const interval = window.setInterval(() => void loadHeaderNotifications(), 30_000);
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
   }, [loadHeaderNotifications]);
 
   function openView(nextView) {
