@@ -144,7 +144,7 @@ router.get("/orders/:id/details", manageOrders, async (req, res) => {
   const [[orderRows], [items], [payments], [statusHistory]] = await Promise.all([
     pool.query("SELECT * FROM orders WHERE id=? LIMIT 1", [id]),
     pool.query(
-      `SELECT oi.*,p.main_image AS product_image,p.slug AS product_slug
+      `SELECT oi.*,COALESCE(oi.product_image,p.main_image) AS product_image,p.slug AS product_slug
          FROM order_items oi
          LEFT JOIN products p ON p.id=oi.product_id
         WHERE oi.order_id=?
