@@ -315,10 +315,13 @@ router.get(
         [id],
       ),
       pool.query(
-        `SELECT id,product_name,sku,unit_price,quantity,total_amount
-           FROM order_items
-          WHERE order_id=?
-          ORDER BY id`,
+        `SELECT oi.id,oi.product_id,oi.product_name,oi.sku,oi.unit_price,
+                oi.quantity,oi.total_amount,p.slug AS product_slug,
+                COALESCE(p.main_image,oi.product_image) AS product_image
+           FROM order_items oi
+           LEFT JOIN products p ON p.id=oi.product_id
+          WHERE oi.order_id=?
+          ORDER BY oi.id`,
         [id],
       ),
       getOrderStatusLabels(),

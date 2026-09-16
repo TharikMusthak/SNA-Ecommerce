@@ -274,6 +274,7 @@ function CancelledBanner({ currentStatus }) {
 // ── Product Journey Section ───────────────────────────────────────────────────
 function ProductJourneySection({ item, currentStatus, isCancelled, isDelivered, orderIndex }) {
   const prefersReduced = useReducedMotion();
+  const productPath = item?.product_slug || item?.product_id;
   const journey = resolveJourney(item ?? {});
   const stageIndex = isCancelled
     ? 0
@@ -297,7 +298,7 @@ function ProductJourneySection({ item, currentStatus, isCancelled, isDelivered, 
       {/* Product identity strip */}
       {item && (
         <Link
-          to={`/products/${item.product_slug || item.product_id}`}
+          to={productPath ? `/products/${productPath}` : "/products"}
           className="flex items-center gap-4 border-b border-gray-100 px-6 py-4 transition hover:bg-emerald-50/40"
         >
           <img
