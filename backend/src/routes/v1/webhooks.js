@@ -6,6 +6,7 @@ import { pool } from "../../config/db.js";
 import { env } from "../../config/env.js";
 import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { fail, ok } from "../../utils/apiResponse.js";
+import { safelyNotifyMsg91Order } from "../../services/msg91OrderNotifications.js";
 
 const router = Router();
 
@@ -106,6 +107,7 @@ router.post("/tracking", asyncHandler(async (req, res) => {
   const eventTime = webhookDate(req.body?.updated_time || req.body?.event_time || req.body?.timestamp);
   const providerEventId = createHash("sha256").update(`${awb}|${status}|${description}|${location || ""}|${eventTime || ""}`).digest("hex");
   const connection = await pool.getConnection();
+  let msg91Event = null;
   try {
     await connection.beginTransaction();
     await connection.query(
@@ -129,9 +131,16 @@ router.post("/tracking", asyncHandler(async (req, res) => {
            AND status NOT IN ('cancelled','returned','refunded')`,
         [orderStatus, shipment.order_id, orderStatus],
       );
-      await connection.query("UPDATE orders SET status=? WHERE id=? AND status NOT IN ('cancelled','returned','refunded')", [orderStatus, shipment.order_id]);
+      const [orderUpdate] = await connection.query(
+        "UPDATE orders SET status=? WHERE id=? AND status<>? AND status NOT IN ('cancelled','returned','refunded')",
+        [orderStatus, shipment.order_id, orderStatus],
+      );
+      if (orderUpdate.affectedRows) {
+        msg91Event = { shipped: "order_shipped", delivered: "order_delivered", cancelled: "order_cancelled" }[orderStatus] || null;
+      }
     }
     await connection.commit();
+    if (msg91Event) await safelyNotifyMsg91Order({ event: msg91Event, orderId: shipment.order_id });
     return ok(res, null, "Webhook processed");
   } catch (error) {
     await connection.rollback();

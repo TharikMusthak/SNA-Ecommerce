@@ -7,6 +7,7 @@ import {
   parsePositiveId,
 } from "../security/validation.js";
 import { queueUserEvent } from "../integrations/notifications/notification.service.js";
+import { safelyNotifyMsg91Order } from "../services/msg91OrderNotifications.js";
 
 const router = Router();
 const manageContent = allowRoles("Super Admin", "Product Manager");
@@ -395,6 +396,10 @@ router.put("/orders/:id/stage", manageOrders, async (req, res) => {
     await connection.commit();
     const notificationEvent={confirmed:"order_confirmed",processing:"order_processing",packed:"order_packed",shipped:"order_shipped",out_for_delivery:"out_for_delivery",delivered:"order_delivered",cancelled:"order_cancelled"}[nextStatus];
     if(notificationEvent&&order.user_id)await queueUserEvent({userId:order.user_id,event:notificationEvent,entityType:"order",entityId:id,payload:{orderNumber:order.order_code,status:nextStatus}}).catch(()=>[]);
+    const msg91Event = { shipped: "order_shipped", delivered: "order_delivered", cancelled: "order_cancelled" }[nextStatus];
+    if (msg91Event && order.status !== nextStatus) {
+      await safelyNotifyMsg91Order({ event: msg91Event, orderId: id });
+    }
     res.json({ message: "Order stage updated", status: nextStatus });
   } catch (error) {
     await connection.rollback();

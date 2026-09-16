@@ -4,6 +4,7 @@ import { pool } from "../../config/db.js";
 import { allowRoles, requireAdmin } from "../../middleware/auth.js";
 import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { queueUserEvent } from "../../integrations/notifications/notification.service.js";
+import { safelyNotifyMsg91Order } from "../../services/msg91OrderNotifications.js";
 import { parsePositiveId } from "../../security/validation.js";
 import { fail, ok, paginated } from "../../utils/apiResponse.js";
 import { parsePagination } from "../../utils/pagination.js";
@@ -547,6 +548,12 @@ router.put(
           entityType: "refund",
           entityId: id,
           payload: { amount: record.refunded_amount },
+        });
+      if (next === "completed")
+        await safelyNotifyMsg91Order({
+          event: "refund_completed",
+          orderId: record.order_id,
+          refundAmount: record.refunded_amount,
         });
       return ok(res, { status: next }, "Refund status updated");
     } catch (error) {

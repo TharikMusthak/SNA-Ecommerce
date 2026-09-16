@@ -9,6 +9,7 @@ import { validateShippingQuote } from "../../services/shippingQuotes.js";
 import { reservationExpiryDate } from "../../services/orderExpiry.js";
 import { env } from "../../config/env.js";
 import { queueUserEvent } from "../../integrations/notifications/notification.service.js";
+import { safelyNotifyMsg91Order } from "../../services/msg91OrderNotifications.js";
 import { fail, ok, paginated } from "../../utils/apiResponse.js";
 import { getOrderStatusLabels } from "../../services/orderStatusLabels.js";
 
@@ -391,6 +392,7 @@ router.put(
       );
       await connection.commit();
       await queueUserEvent({ userId:req.user.id,event:"order_cancelled",entityType:"order",entityId:id,payload:{ orderNumber:order.order_code } }).catch(() => []);
+      await safelyNotifyMsg91Order({ event: "order_cancelled", orderId: id });
       return ok(res, null, "Order cancelled successfully");
     } catch (error) {
       await connection.rollback();

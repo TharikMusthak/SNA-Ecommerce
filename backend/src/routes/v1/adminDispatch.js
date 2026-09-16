@@ -7,6 +7,7 @@ import { getShiprocketRates, shiprocketConfigured, shiprocketRequest } from "../
 import { parsePositiveId } from "../../security/validation.js";
 import { fail, ok, paginated } from "../../utils/apiResponse.js";
 import { parsePagination } from "../../utils/pagination.js";
+import { safelyNotifyMsg91Order } from "../../services/msg91OrderNotifications.js";
 
 const router = Router();
 router.use(requireAdmin, allowRoles("Super Admin", "Order Manager"));
@@ -174,6 +175,7 @@ router.post("/shipments/:id/refresh", asyncHandler(async (req, res) => {
     activities,
   );
   const connection = await pool.getConnection();
+  let msg91Event = null;
   try {
     await connection.beginTransaction();
     await connection.query(
@@ -193,10 +195,13 @@ router.post("/shipments/:id/refresh", asyncHandler(async (req, res) => {
            AND status NOT IN ('cancelled','returned','refunded')`,
         [orderStatus, shipment.order_id, orderStatus],
       );
-      await connection.query(
-        "UPDATE orders SET status=? WHERE id=? AND status NOT IN ('cancelled','returned','refunded')",
-        [orderStatus, shipment.order_id],
+      const [orderUpdate] = await connection.query(
+        "UPDATE orders SET status=? WHERE id=? AND status<>? AND status NOT IN ('cancelled','returned','refunded')",
+        [orderStatus, shipment.order_id, orderStatus],
       );
+      if (orderUpdate.affectedRows) {
+        msg91Event = { shipped: "order_shipped", delivered: "order_delivered", cancelled: "order_cancelled" }[orderStatus] || null;
+      }
     }
     await connection.commit();
   } catch (error) {
@@ -205,6 +210,7 @@ router.post("/shipments/:id/refresh", asyncHandler(async (req, res) => {
   } finally {
     connection.release();
   }
+  if (msg91Event) await safelyNotifyMsg91Order({ event: msg91Event, orderId: shipment.order_id });
   return ok(res, tracking, "Tracking refreshed");
 }));
 

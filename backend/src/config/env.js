@@ -194,6 +194,21 @@ export const env = Object.freeze({
     enabled: booleanValue(process.env.MSG91_ENABLED),
     authKey: String(process.env.MSG91_AUTH_KEY || "").trim(),
     templateId: String(process.env.MSG91_OTP_TEMPLATE_ID || "").trim(),
+    orderNotificationsEnabled: booleanValue(
+      process.env.MSG91_ORDER_NOTIFICATIONS_ENABLED,
+    ),
+    orderShippedTemplateId: String(
+      process.env.MSG91_ORDER_SHIPPED_TEMPLATE_ID || "",
+    ).trim(),
+    orderDeliveredTemplateId: String(
+      process.env.MSG91_ORDER_DELIVERED_TEMPLATE_ID || "",
+    ).trim(),
+    orderCancelledTemplateId: String(
+      process.env.MSG91_ORDER_CANCELLED_TEMPLATE_ID || "",
+    ).trim(),
+    refundSuccessTemplateId: String(
+      process.env.MSG91_REFUND_SUCCESS_TEMPLATE_ID || "",
+    ).trim(),
     countryCode: String(process.env.MSG91_COUNTRY_CODE || "91").replace(/\D/g, ""),
     timeoutMs: positiveInteger(process.env.MSG91_REQUEST_TIMEOUT_MS, 10_000),
   }),
