@@ -127,6 +127,10 @@ function Cms({ admin, onLogout }) {
   const [confirmation, setConfirmation] = useState(null);
   const [confirming, setConfirming] = useState(false);
   const [inventoryDialog, setInventoryDialog] = useState(null);
+  const [headerNotifications, setHeaderNotifications] = useState({
+    total: 0,
+    notifications: [],
+  });
   const noticeTimer = useRef(null);
 
   const showNotice = useCallback((message, type = "success") => {
@@ -249,12 +253,31 @@ function Cms({ admin, onLogout }) {
     void loadViewData(view);
   }, [loadViewData, view]);
 
+  const loadHeaderNotifications = useCallback(async () => {
+    try {
+      const response = await api("/v1/admin/header-notifications");
+      setHeaderNotifications(response.data || response);
+    } catch (error) {
+      console.error("Unable to load CRM notifications:", error.message);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadHeaderNotifications();
+    const interval = window.setInterval(() => void loadHeaderNotifications(), 60_000);
+    return () => window.clearInterval(interval);
+  }, [loadHeaderNotifications]);
+
   function openView(nextView) {
     if (!menus.includes(nextView)) return;
     if (view !== nextView) {
       window.history.pushState(null, "", viewToHash(nextView));
     }
     setView(nextView);
+  }
+
+  function openNotification(notification) {
+    if (notification?.target) openView(notification.target);
   }
 
   function openEditor(type, item = null) {
@@ -416,6 +439,9 @@ function Cms({ admin, onLogout }) {
         };
         openEditor(types[view]);
       }}
+      notifications={headerNotifications.notifications || []}
+      notificationCount={Number(headerNotifications.total || 0)}
+      onNotificationSelect={openNotification}
     >
       {notice && (
         <div

@@ -65,10 +65,14 @@ export default function AdminLayout({
   onViewChange,
   onLogout,
   onAdd,
+  notifications = [],
+  notificationCount = 0,
+  onNotificationSelect,
   children,
 }) {
   const menus = getMenusForRole(admin?.role);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem("sna_sidebar_collapsed") === "true",
@@ -108,6 +112,7 @@ export default function AdminLayout({
       if (event.key !== "Escape") return;
       setMobileOpen(false);
       setShowAccountMenu(false);
+      setShowNotifications(false);
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -116,6 +121,11 @@ export default function AdminLayout({
   function selectView(menu) {
     setMobileOpen(false);
     onViewChange(menu);
+  }
+
+  function openNotification(notification) {
+    setShowNotifications(false);
+    onNotificationSelect?.(notification);
   }
 
   return (
@@ -227,6 +237,47 @@ export default function AdminLayout({
             </div>
           </div>
           <div className="header-actions">
+            <div className="notification-menu">
+              <button
+                className="notification-bell"
+                type="button"
+                onClick={() => setShowNotifications((current) => !current)}
+                aria-label={`Notifications${notificationCount ? `, ${notificationCount} pending` : ""}`}
+                aria-expanded={showNotifications}
+                aria-haspopup="menu"
+              >
+                <Bell size={19} />
+                {notificationCount > 0 && (
+                  <span className="notification-count">{notificationCount > 99 ? "99+" : notificationCount}</span>
+                )}
+              </button>
+              {showNotifications && (
+                <div className="notification-dropdown" role="menu">
+                  <header>
+                    <div><b>Notifications</b><small>Operational alerts</small></div>
+                    {notificationCount > 0 && <span>{notificationCount}</span>}
+                  </header>
+                  {notifications.length ? (
+                    <div className="notification-list">
+                      {notifications.map((notification) => (
+                        <button
+                          type="button"
+                          key={notification.id}
+                          className={`notification-item notification-item--${notification.kind}`}
+                          onClick={() => openNotification(notification)}
+                          role="menuitem"
+                        >
+                          <span className="notification-item-count">{notification.count}</span>
+                          <span><b>{notification.title}</b><small>{notification.description}</small></span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="notification-empty">No new operational alerts.</p>
+                  )}
+                </div>
+              )}
+            </div>
             <button
               className="theme-toggle"
               type="button"

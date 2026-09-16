@@ -28,6 +28,100 @@ const orderRoles = allowRoles("Super Admin", "Order Manager");
 router.use(requireAdmin);
 
 router.get(
+  "/header-notifications",
+  asyncHandler(async (req, res) => {
+    const role = req.admin.role;
+    const canManageProducts = ["Super Admin", "Product Manager"].includes(role);
+    const canManageOrders = ["Super Admin", "Order Manager"].includes(role);
+    const notifications = [];
+
+    if (canManageProducts) {
+      const [[reviews], [lowStock]] = await Promise.all([
+        pool.query(
+          `SELECT COUNT(*) AS count,MAX(created_at) AS newest_at
+             FROM reviews
+            WHERE created_at >= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 24 HOUR)`,
+        ),
+        pool.query(
+          `SELECT COUNT(*) AS count
+             FROM products
+            WHERE status='Active' AND deleted_at IS NULL
+              AND stock <= low_stock_threshold`,
+        ),
+      ]);
+      if (Number(reviews.count)) {
+        notifications.push({
+          id: "new-reviews",
+          kind: "review",
+          count: Number(reviews.count),
+          title: "New reviews",
+          description: `${reviews.count} review${Number(reviews.count) === 1 ? "" : "s"} submitted in the last 24 hours`,
+          target: "Reviews",
+          created_at: reviews.newest_at,
+        });
+      }
+      if (Number(lowStock.count)) {
+        notifications.push({
+          id: "low-stock",
+          kind: "stock",
+          count: Number(lowStock.count),
+          title: "Low stock",
+          description: `${lowStock.count} product${Number(lowStock.count) === 1 ? " is" : "s are"} at or below the alert level`,
+          target: "Inventory",
+        });
+      }
+    }
+
+    if (canManageOrders) {
+      const [[orders], [pickup]] = await Promise.all([
+        pool.query(
+          `SELECT COUNT(*) AS count,MAX(created_at) AS newest_at
+             FROM orders o
+            WHERE o.created_at >= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 24 HOUR)
+              AND o.status NOT IN ('cancelled','failed','refunded','returned')
+              AND (o.payment_status='paid' OR EXISTS (
+                SELECT 1 FROM payments p
+                 WHERE p.order_id=o.id AND p.provider='cod'
+              ))`,
+        ),
+        pool.query(
+          `SELECT COUNT(*) AS count
+             FROM shipments
+            WHERE status='shipment_created'
+              AND awb_code IS NOT NULL AND awb_code <> ''`,
+        ),
+      ]);
+      if (Number(orders.count)) {
+        notifications.push({
+          id: "new-orders",
+          kind: "order",
+          count: Number(orders.count),
+          title: "New orders",
+          description: `${orders.count} order${Number(orders.count) === 1 ? "" : "s"} received in the last 24 hours`,
+          target: "Orders",
+          created_at: orders.newest_at,
+        });
+      }
+      if (Number(pickup.count)) {
+        notifications.push({
+          id: "pickup-required",
+          kind: "pickup",
+          count: Number(pickup.count),
+          title: "Pickup required",
+          description: `${pickup.count} shipment${Number(pickup.count) === 1 ? " is" : "s are"} ready to schedule for pickup`,
+          target: "Dispatch",
+        });
+      }
+    }
+
+    return ok(res, {
+      total: notifications.reduce((total, item) => total + item.count, 0),
+      notifications,
+    });
+  }),
+);
+
+router.get(
   "/order-status-labels",
   orderRoles,
   asyncHandler(async (_req, res) => {
