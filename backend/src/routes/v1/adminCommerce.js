@@ -77,8 +77,7 @@ router.get(
         pool.query(
           `SELECT COUNT(*) AS count,MAX(created_at) AS newest_at
              FROM orders o
-            WHERE o.created_at >= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 24 HOUR)
-              AND o.status NOT IN ('cancelled','failed','refunded','returned')`,
+            WHERE o.status IN ('pending','confirmed')`,
         ),
         pool.query(
           `SELECT COUNT(*) AS count
@@ -92,8 +91,8 @@ router.get(
           id: "new-orders",
           kind: "order",
           count: Number(orders.count),
-          title: "New orders",
-          description: `${orders.count} order${Number(orders.count) === 1 ? "" : "s"} received in the last 24 hours`,
+          title: "New orders awaiting action",
+          description: `${orders.count} order${Number(orders.count) === 1 ? " is" : "s are"} waiting to be processed`,
           target: "Orders",
           created_at: orders.newest_at,
         });
