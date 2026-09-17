@@ -396,7 +396,7 @@ router.put("/orders/:id/stage", manageOrders, async (req, res) => {
     await connection.commit();
     const notificationEvent={confirmed:"order_confirmed",processing:"order_processing",packed:"order_packed",shipped:"order_shipped",out_for_delivery:"out_for_delivery",delivered:"order_delivered",cancelled:"order_cancelled"}[nextStatus];
     if(notificationEvent&&order.user_id)await queueUserEvent({userId:order.user_id,event:notificationEvent,entityType:"order",entityId:id,payload:{orderNumber:order.order_code,status:nextStatus}}).catch(()=>[]);
-    const msg91Event = { shipped: "order_shipped", delivered: "order_delivered", cancelled: "order_cancelled" }[nextStatus];
+    const msg91Event = { confirmed: "order_confirmed", shipped: "order_shipped", delivered: "order_delivered", cancelled: "order_cancelled" }[nextStatus];
     if (msg91Event && order.status !== nextStatus) {
       await safelyNotifyMsg91Order({ event: msg91Event, orderId: id });
     }
