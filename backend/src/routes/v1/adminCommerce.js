@@ -30,6 +30,9 @@ router.use(requireAdmin);
 router.get(
   "/header-notifications",
   asyncHandler(async (req, res) => {
+    // Notifications are user-specific, time-sensitive data. Do not allow a
+    // browser or CDN to reuse a previous empty response.
+    res.set("Cache-Control", "private, no-store");
     // Header alerts are operational reminders. Every authenticated CRM admin
     // should see them, including legacy accounts whose role is simply "Admin".
     const canManageProducts = true;
