@@ -80,6 +80,7 @@ const configs = {
       "pending",
       "approved",
       "processing",
+      "processed",
       "completed",
       "failed",
       "cancelled",

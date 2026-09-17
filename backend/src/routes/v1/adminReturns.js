@@ -364,6 +364,7 @@ router.post(
         "pending",
         "approved",
         "processing",
+        "processed",
         "completed",
       ].includes(req.body.status)
         ? req.body.status
@@ -475,7 +476,7 @@ router.get(
       UNION ALL
       SELECT CONCAT('automatic-',pt.id) AS id,pt.provider_event_id AS refund_reference,
              NULL AS return_code,o.order_code,'razorpay_automatic' AS refund_method,
-             pt.amount_minor / 100 AS refunded_amount,'completed' AS status,pt.created_at,
+             pt.amount_minor / 100 AS refunded_amount,'processed' AS status,pt.created_at,
              'automatic_cancellation' AS source
         FROM payment_transactions pt
         JOIN payments pay ON pay.id=pt.payment_id
@@ -504,7 +505,7 @@ router.get(
       const [[record]] = await pool.query(
         `SELECT CONCAT('automatic-',pt.id) AS id,pt.provider_event_id AS refund_reference,
                 NULL AS return_code,o.order_code,'razorpay_automatic' AS refund_method,
-                pt.amount_minor / 100 AS refunded_amount,'completed' AS status,pt.created_at,
+                pt.amount_minor / 100 AS refunded_amount,'processed' AS status,pt.created_at,
                 'automatic_cancellation' AS source,u.email
            FROM payment_transactions pt
            JOIN payments pay ON pay.id=pt.payment_id
