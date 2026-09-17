@@ -2046,6 +2046,12 @@ body select:not([multiple]) option {
   .dashboard-welcome h2 { font-size: 28px; }
   .dashboard-card { padding: 16px; }
   .commerce-toolbar { align-items: stretch; flex-direction: column; }
+  /* Desktop flex bases become heights once the toolbar stacks vertically. */
+  .commerce-toolbar > input:first-child,
+  .commerce-toolbar .date-filter-input {
+    flex: 0 0 auto;
+    min-height: 42px;
+  }
   .commerce-toolbar input,
   .commerce-toolbar select,
   .commerce-toolbar .custom-select,
