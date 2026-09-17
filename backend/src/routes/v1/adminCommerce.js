@@ -31,16 +31,15 @@ router.get(
   "/header-notifications",
   asyncHandler(async (req, res) => {
     const role = req.admin.role;
-    const canManageProducts = ["Super Admin", "Product Manager"].includes(role);
-    const canManageOrders = ["Super Admin", "Order Manager"].includes(role);
+    const canManageProducts = ["Super Admin", "Product Manager", "Order Manager"].includes(role);
+    const canManageOrders = ["Super Admin", "Product Manager", "Order Manager"].includes(role);
     const notifications = [];
 
     if (canManageProducts) {
       const [[reviews], [lowStock]] = await Promise.all([
         pool.query(
           `SELECT COUNT(*) AS count,MAX(created_at) AS newest_at
-             FROM reviews
-            WHERE status IN ('pending','approved')`,
+             FROM reviews`,
         ),
         pool.query(
           `SELECT COUNT(*) AS count
