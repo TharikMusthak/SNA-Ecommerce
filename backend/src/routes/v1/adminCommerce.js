@@ -40,7 +40,7 @@ router.get(
         pool.query(
           `SELECT COUNT(*) AS count,MAX(created_at) AS newest_at
              FROM reviews
-            WHERE created_at >= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 24 HOUR)`,
+            WHERE status IN ('pending','approved')`,
         ),
         pool.query(
           `SELECT COUNT(*) AS count
@@ -55,7 +55,7 @@ router.get(
           kind: "review",
           count: Number(reviews.count),
           title: "New reviews",
-          description: `${reviews.count} review${Number(reviews.count) === 1 ? "" : "s"} submitted in the last 24 hours`,
+          description: `${reviews.count} review${Number(reviews.count) === 1 ? " has" : "s have"} been received`,
           target: "Reviews",
           created_at: reviews.newest_at,
         });
