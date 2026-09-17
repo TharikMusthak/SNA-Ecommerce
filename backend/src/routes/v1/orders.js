@@ -311,7 +311,10 @@ router.get(
     if (!id) return fail(res, 400, "Invalid order ID");
     const [[order]] = await pool.query(
       `SELECT id,order_code,status,payment_status,amount,currency,
-              shipping_address_json,created_at,updated_at
+              shipping_address_json,created_at,updated_at,
+              (SELECT provider FROM payments payment_method
+                 WHERE payment_method.order_id=orders.id
+                 ORDER BY payment_method.id DESC LIMIT 1) AS payment_method
          FROM orders
         WHERE id=? AND user_id=?
         LIMIT 1`,
@@ -343,6 +346,7 @@ router.get(
       order_number: order.order_code,
       current_status: order.status,
       payment_status: order.payment_status,
+      payment_method: order.payment_method,
       created_at: order.created_at,
       updated_at: order.updated_at,
       items,
