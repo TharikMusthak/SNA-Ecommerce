@@ -12,6 +12,6 @@ export const createOrder = (payload, idempotencyKey) =>
 export const createRazorpayCheckout = (paymentId) =>
   api.post(`${ENDPOINTS.payments}/create-order`, { payment_id: paymentId });
 export const cancelOrder = (orderId, reason) =>
-  api.post(`${ENDPOINTS.orders}/${orderId}/cancel`, { reason });
+  api.put(`${ENDPOINTS.orders}/${orderId}/cancel`, { reason });
 export const reorder = (orderId) =>
   api.post(`${ENDPOINTS.orders}/${orderId}/reorder`);
