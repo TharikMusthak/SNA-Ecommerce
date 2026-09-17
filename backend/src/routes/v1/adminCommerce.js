@@ -46,10 +46,10 @@ router.get(
              FROM reviews`,
         ),
         pool.query(
-          `SELECT COUNT(*) AS count
+            `SELECT COUNT(*) AS count
              FROM products
             WHERE status='Active' AND deleted_at IS NULL
-              AND stock <= low_stock_threshold`,
+              AND stock <= COALESCE(low_stock_threshold, 0)`,
         ),
       ]);
       if (Number(reviews.count)) {
