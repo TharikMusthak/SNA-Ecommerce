@@ -2049,6 +2049,8 @@ body select:not([multiple]) option {
   /* Desktop flex bases become heights once the toolbar stacks vertically. */
   .commerce-toolbar > input:first-child,
   .commerce-toolbar .date-filter-input {
+    width: 100%;
+    min-width: 0;
     flex: 0 0 auto;
     min-height: 42px;
   }
