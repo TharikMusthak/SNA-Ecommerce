@@ -12,6 +12,7 @@ import { queueUserEvent } from "../../integrations/notifications/notification.se
 import { safelyNotifyMsg91Order } from "../../services/msg91OrderNotifications.js";
 import { fail, ok, paginated } from "../../utils/apiResponse.js";
 import { getOrderStatusLabels } from "../../services/orderStatusLabels.js";
+import { createRazorpayRefund } from "../../integrations/payments/razorpay.js";
 
 const router = Router();
 router.use(requireCustomer);
@@ -372,9 +373,25 @@ router.put(
         await connection.rollback();
         return fail(res, 404, "Order not found");
       }
-      if (!["pending", "confirmed"].includes(order.status)) {
+      if (["shipped", "out_for_delivery", "delivered", "cancelled", "returned", "refunded", "failed"].includes(order.status)) {
         await connection.rollback();
-        return fail(res, 409, "This order can no longer be cancelled");
+        return fail(res, 409, "This order can no longer be cancelled after shipment");
+      }
+      const [[payment]] = await connection.query(
+        "SELECT * FROM payments WHERE order_id=? ORDER BY id DESC LIMIT 1 FOR UPDATE",
+        [id],
+      );
+      let refund = null;
+      if (payment?.provider === "razorpay" && payment.status === "paid") {
+        if (!payment.provider_payment_id) {
+          await connection.rollback();
+          return fail(res, 409, "The online payment cannot be refunded because its payment reference is missing");
+        }
+        refund = await createRazorpayRefund({
+          paymentId: payment.provider_payment_id,
+          amountMinor: Number(payment.amount_minor),
+          receipt: `cancel-${order.order_code}`.slice(0, 40),
+        });
       }
       const [items] = await connection.query(
         "SELECT product_id,variant_id,quantity FROM order_items WHERE order_id=?",
@@ -393,21 +410,29 @@ router.put(
           );
       }
       await connection.query(
-        "UPDATE orders SET status='cancelled' WHERE id=?",
-        [id],
+        "UPDATE orders SET status='cancelled',payment_status=IF(?,'refunded',payment_status) WHERE id=?",
+        [Boolean(refund), id],
       );
+      if (refund) {
+        await connection.query("UPDATE payments SET status='refunded' WHERE id=?", [payment.id]);
+        await connection.query(
+          "INSERT INTO payment_transactions(payment_id,provider_event_id,event_type,amount_minor) VALUES (?,?, 'refund.created',?)",
+          [payment.id, refund.id, payment.amount_minor],
+        );
+      }
       await connection.query(
         `INSERT INTO order_status_history(order_id,status,note,actor_type,actor_id) VALUES (?,'cancelled',?,'customer',?)`,
         [
           id,
-          String(req.body.reason || "Cancelled by customer").slice(0, 500),
+          `${String(req.body.reason || "Cancelled by customer").slice(0, 420)}${refund ? `; Razorpay refund ${refund.id} initiated` : ""}`,
           req.user.id,
         ],
       );
       await connection.commit();
       await queueUserEvent({ userId:req.user.id,event:"order_cancelled",entityType:"order",entityId:id,payload:{ orderNumber:order.order_code } }).catch(() => []);
       await safelyNotifyMsg91Order({ event: "order_cancelled", orderId: id });
-      return ok(res, null, "Order cancelled successfully");
+      if (refund) await safelyNotifyMsg91Order({ event: "refund_completed", orderId: id, refundAmount: Number(order.amount) });
+      return ok(res, { refunded: Boolean(refund), refund_id: refund?.id || null }, refund ? "Order cancelled and refund initiated" : "Order cancelled successfully");
     } catch (error) {
       await connection.rollback();
       throw error;

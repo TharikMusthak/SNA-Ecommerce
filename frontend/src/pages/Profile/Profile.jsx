@@ -17,7 +17,7 @@ import Spinner from "@components/ui/Spinner/Spinner";
 import AddressModal from "@components/modals/AddressModal";
 import { QUERY_KEYS } from "@config/constants";
 import { useAuth } from "@context/AuthProvider";
-import { listOrders } from "@services/order.service";
+import { cancelCustomerOrder, listOrders } from "@services/order.service";
 import formatCurrency from "@utils/formatCurrency";
 import { assetUrl } from "@utils/helpers";
 import fallbackImage from "@assets/images/product1.png";
@@ -81,6 +81,14 @@ const Profile = () => {
   const orders = useQuery({
     queryKey: [...QUERY_KEYS.orders, orderScope],
     queryFn: () => listOrders({ page: 1, limit: 10, scope: orderScope }),
+  });
+  const cancelOrderMutation = useMutation({
+    mutationFn: ({ id, reason }) => cancelCustomerOrder(id, reason),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.orders });
+      toast.success(result?.refunded ? "Order cancelled. Your refund has been initiated." : "Order cancelled successfully");
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, "Order could not be cancelled")),
   });
 
 
@@ -393,7 +401,16 @@ const Profile = () => {
                 ) : (
                   <div className="space-y-3">
                     {visibleOrders.map((order) => (
-                      <CustomerOrderCard key={order.id} order={order} />
+                      <CustomerOrderCard
+                        key={order.id}
+                        order={order}
+                        isCancelling={cancelOrderMutation.isPending}
+                        onCancel={() => {
+                          if (window.confirm("Cancel this order? Paid online orders will be refunded automatically.")) {
+                            cancelOrderMutation.mutate({ id: order.id, reason: "Cancelled by customer" });
+                          }
+                        }}
+                      />
                     ))}
                   </div>
                 )}
@@ -526,7 +543,7 @@ const Profile = () => {
 
 };
 
-function CustomerOrderCard({ order }) {
+function CustomerOrderCard({ order, onCancel, isCancelling }) {
   const address = parseAddress(order.shipping_address_json);
   const isCod = String(order.payment_method).toLowerCase() === "cod";
   const deliveryDate = formatDeliveryDate(
@@ -538,6 +555,7 @@ function CustomerOrderCard({ order }) {
       order.expected_delivery_at ||
       order.delivery_date_time,
   );
+  const canCancel = !["shipped", "out_for_delivery", "delivered", "cancelled", "returned", "refunded", "failed"].includes(String(order.status || "").toLowerCase());
   return (
     <article className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
       <header className="flex flex-col gap-3 border-b border-gray-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -557,7 +575,17 @@ function CustomerOrderCard({ order }) {
           return productPath ? <Link key={item.id} to={`/products/${productPath}`} className="flex items-center gap-3 rounded-xl border border-gray-100 p-3 transition hover:border-emerald-300 hover:bg-emerald-50/30">{content}</Link> : <div key={item.id} className="flex items-center gap-3 rounded-xl border border-gray-100 p-3">{content}</div>;
         })}
       </div>
-      <footer className="flex justify-end border-t border-gray-100 px-5 py-4">
+      <footer className="flex flex-wrap justify-end gap-3 border-t border-gray-100 px-5 py-4">
+        {canCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={isCancelling}
+            className="inline-flex items-center justify-center rounded-xl border border-red-200 px-5 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isCancelling ? "Cancelling…" : "Cancel order"}
+          </button>
+        )}
         <Link
           to={`/orders/${order.id}/tracking`}
           className="inline-flex items-center justify-center rounded-xl bg-[#079447] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#057a3a]"
