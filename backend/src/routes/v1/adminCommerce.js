@@ -30,9 +30,10 @@ router.use(requireAdmin);
 router.get(
   "/header-notifications",
   asyncHandler(async (req, res) => {
-    const role = req.admin.role;
-    const canManageProducts = ["Super Admin", "Product Manager", "Order Manager"].includes(role);
-    const canManageOrders = ["Super Admin", "Product Manager", "Order Manager"].includes(role);
+    // Header alerts are operational reminders. Every authenticated CRM admin
+    // should see them, including legacy accounts whose role is simply "Admin".
+    const canManageProducts = true;
+    const canManageOrders = true;
     const notifications = [];
 
     if (canManageProducts) {
