@@ -379,7 +379,7 @@ export default function CommerceList({ type, onNotice }) {
           Process
         </button>,
       );
-    if (type === "Refund Records" && row.status !== "completed")
+    if (type === "Refund Records" && row.source !== "automatic_cancellation" && row.status !== "completed")
       buttons.push(
         <button
           className="action-btn"

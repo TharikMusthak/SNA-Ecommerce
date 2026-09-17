@@ -448,7 +448,7 @@ router.get(
       params = [];
     if (p.search) {
       where.push(
-        "(rr.refund_reference LIKE ? OR r.return_code LIKE ? OR o.order_code LIKE ?)",
+        "(refunds.refund_reference LIKE ? OR refunds.return_code LIKE ? OR refunds.order_code LIKE ?)",
       );
       params.push(...Array(3).fill(`%${p.search}%`));
     }
@@ -462,17 +462,33 @@ router.get(
         "cancelled",
       ].includes(req.query.status)
     ) {
-      where.push("rr.status=?");
+      where.push("refunds.status=?");
       params.push(req.query.status);
     }
     const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
+    const refundEntries = `(
+      SELECT CAST(rr.id AS CHAR) AS id,rr.refund_reference,r.return_code,o.order_code,
+             rr.refund_method,rr.refunded_amount,rr.status,rr.created_at,'return' AS source
+        FROM refund_records rr
+        JOIN returns r ON r.id=rr.return_id
+        JOIN orders o ON o.id=rr.order_id
+      UNION ALL
+      SELECT CONCAT('automatic-',pt.id) AS id,pt.provider_event_id AS refund_reference,
+             NULL AS return_code,o.order_code,'razorpay_automatic' AS refund_method,
+             pt.amount_minor / 100 AS refunded_amount,'completed' AS status,pt.created_at,
+             'automatic_cancellation' AS source
+        FROM payment_transactions pt
+        JOIN payments pay ON pay.id=pt.payment_id
+        JOIN orders o ON o.id=pay.order_id
+       WHERE pt.event_type='refund.created'
+    ) refunds`;
     const [[count], [rows]] = await Promise.all([
       pool.query(
-        `SELECT COUNT(*) total FROM refund_records rr JOIN returns r ON r.id=rr.return_id JOIN orders o ON o.id=rr.order_id ${clause}`,
+        `SELECT COUNT(*) total FROM ${refundEntries} ${clause}`,
         params,
       ),
       pool.query(
-        `SELECT rr.*,r.return_code,o.order_code FROM refund_records rr JOIN returns r ON r.id=rr.return_id JOIN orders o ON o.id=rr.order_id ${clause} ORDER BY rr.${p.sort} ${p.order} LIMIT ? OFFSET ?`,
+        `SELECT * FROM ${refundEntries} ${clause} ORDER BY refunds.${p.sort} ${p.order} LIMIT ? OFFSET ?`,
         [...params, p.limit, p.offset],
       ),
     ]);
@@ -483,6 +499,22 @@ router.get(
 router.get(
   "/refunds/:id",
   asyncHandler(async (req, res) => {
+    const automaticMatch = /^automatic-(\d+)$/.exec(String(req.params.id));
+    if (automaticMatch) {
+      const [[record]] = await pool.query(
+        `SELECT CONCAT('automatic-',pt.id) AS id,pt.provider_event_id AS refund_reference,
+                NULL AS return_code,o.order_code,'razorpay_automatic' AS refund_method,
+                pt.amount_minor / 100 AS refunded_amount,'completed' AS status,pt.created_at,
+                'automatic_cancellation' AS source,u.email
+           FROM payment_transactions pt
+           JOIN payments pay ON pay.id=pt.payment_id
+           JOIN orders o ON o.id=pay.order_id
+           LEFT JOIN users u ON u.id=o.user_id
+          WHERE pt.id=? AND pt.event_type='refund.created'`,
+        [automaticMatch[1]],
+      );
+      return record ? ok(res, record) : fail(res, 404, "Refund record not found");
+    }
     const id = parsePositiveId(req.params.id);
     if (!id) return fail(res, 400, "Invalid refund ID");
     const [[record]] = await pool.query(
