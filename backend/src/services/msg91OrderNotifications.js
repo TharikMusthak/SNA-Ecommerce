@@ -8,7 +8,7 @@ export async function notifyMsg91OrderEvent({
   database = defaultPool,
 }) {
   const [[order]] = await database.query(
-    `SELECT o.order_code,o.customer,o.phone,u.first_name,u.last_name,u.phone AS user_phone,
+    `SELECT o.order_code,o.customer,o.phone,o.amount,u.first_name,u.last_name,u.phone AS user_phone,
             s.courier_name,s.awb_code
        FROM orders o
        LEFT JOIN users u ON u.id=o.user_id
@@ -21,7 +21,12 @@ export async function notifyMsg91OrderEvent({
   const name = [order.first_name, order.last_name].filter(Boolean).join(" ") || order.customer || "Customer";
   const common = { name, order_number: order.order_code };
   let variables;
-  if (event === "order_shipped") {
+  if (event === "order_confirmed") {
+    variables = {
+      ...common,
+      amount: Number(order.amount || 0).toFixed(2),
+    };
+  } else if (event === "order_shipped") {
     if (!order.awb_code) return { skipped: true, reason: "AWB_MISSING" };
     variables = {
       ...common,

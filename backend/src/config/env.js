@@ -197,6 +197,9 @@ export const env = Object.freeze({
     orderNotificationsEnabled: booleanValue(
       process.env.MSG91_ORDER_NOTIFICATIONS_ENABLED,
     ),
+    orderConfirmationTemplateId: String(
+      process.env.MSG91_ORDER_CONFIRMATION_TEMPLATE_ID || "",
+    ).trim(),
     orderShippedTemplateId: String(
       process.env.MSG91_ORDER_SHIPPED_TEMPLATE_ID || "",
     ).trim(),
