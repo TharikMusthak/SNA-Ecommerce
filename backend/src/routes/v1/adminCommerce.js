@@ -76,8 +76,7 @@ router.get(
       const [[orders], [pickup]] = await Promise.all([
         pool.query(
           `SELECT COUNT(*) AS count,MAX(created_at) AS newest_at
-             FROM orders o
-            WHERE o.status IN ('pending','confirmed')`,
+             FROM orders`,
         ),
         pool.query(
           `SELECT COUNT(*) AS count
@@ -91,8 +90,8 @@ router.get(
           id: "new-orders",
           kind: "order",
           count: Number(orders.count),
-          title: "New orders awaiting action",
-          description: `${orders.count} order${Number(orders.count) === 1 ? " is" : "s are"} waiting to be processed`,
+          title: "New orders",
+          description: `${orders.count} order${Number(orders.count) === 1 ? " has" : "s have"} been received`,
           target: "Orders",
           created_at: orders.newest_at,
         });
