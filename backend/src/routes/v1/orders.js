@@ -107,6 +107,7 @@ router.post(
       });
       const finalSummary = shippingQuote.summary;
       const code = orderCode();
+      const orderStatus = paymentMethod === "cod" ? "confirmed" : "pending";
       const displayProduct =
         cart.items.length === 1
           ? cart.items[0].name
@@ -123,7 +124,7 @@ router.post(
           finalSummary.total,
           req.user.id,
           address.id,
-          "pending",
+          orderStatus,
           "pending",
           cart.summary.subtotal,
           cart.summary.tax,
@@ -200,14 +201,24 @@ router.post(
           [cart.coupon_id, req.user.id, result.insertId, cart.summary.discount],
         );
       await connection.query(
-        `INSERT INTO order_status_history(order_id,status,note,actor_type,actor_id) VALUES (?,'pending','Order created','customer',?)`,
-        [result.insertId, req.user.id],
+        "INSERT INTO order_status_history(order_id,status,note,actor_type,actor_id) VALUES (?,?,?,?,?)",
+        [
+          result.insertId,
+          orderStatus,
+          paymentMethod === "cod" ? "COD order confirmed" : "Order created; awaiting payment",
+          "customer",
+          req.user.id,
+        ],
       );
       await connection.query("DELETE FROM cart_items WHERE cart_id=?", [
         cart.id,
       ]);
       await connection.commit();
-      await queueUserEvent({ userId:req.user.id,event:"order_created",entityType:"order",entityId:result.insertId,payload:{ orderNumber:code,total:finalSummary.total,paymentMethod } }).catch(() => []);
+      const orderEvent = paymentMethod === "cod" ? "order_confirmed" : "order_created";
+      await queueUserEvent({ userId:req.user.id,event:orderEvent,entityType:"order",entityId:result.insertId,payload:{ orderNumber:code,total:finalSummary.total,paymentMethod } }).catch(() => []);
+      if (paymentMethod === "cod") {
+        await safelyNotifyMsg91Order({ event: "order_confirmed", orderId: result.insertId });
+      }
       return ok(
         res,
         {
