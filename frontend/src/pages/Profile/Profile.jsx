@@ -62,6 +62,7 @@ const Profile = () => {
   const [password, setPassword] = useState(emptyPassword);
   const [showProfileForm, setShowProfileForm] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [orderToCancel, setOrderToCancel] = useState(null);
   const [profileErrors, setProfileErrors] = useState({});
   const [addressErrors, setAddressErrors] = useState({});
   const [passwordErrors, setPasswordErrors] = useState({});
@@ -86,6 +87,7 @@ const Profile = () => {
     mutationFn: ({ id, reason }) => cancelCustomerOrder(id, reason),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.orders });
+      setOrderToCancel(null);
       toast.success(result?.refunded ? "Order cancelled. Your refund has been initiated." : "Order cancelled successfully");
     },
     onError: (error) => toast.error(apiErrorMessage(error, "Order could not be cancelled")),
@@ -405,11 +407,7 @@ const Profile = () => {
                         key={order.id}
                         order={order}
                         isCancelling={cancelOrderMutation.isPending}
-                        onCancel={() => {
-                          if (window.confirm("Cancel this order? Paid online orders will be refunded automatically.")) {
-                            cancelOrderMutation.mutate({ id: order.id, reason: "Cancelled by customer" });
-                          }
-                        }}
+                        onCancel={() => setOrderToCancel(order)}
                       />
                     ))}
                   </div>
@@ -507,6 +505,37 @@ const Profile = () => {
               <button type="submit" disabled={saveProfile.isPending} className="rounded-xl bg-[#079447] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">Save</button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {orderToCancel && (
+        <Modal title="Cancel order" onClose={() => !cancelOrderMutation.isPending && setOrderToCancel(null)}>
+          <div className="mt-5 rounded-2xl border border-red-100 bg-red-50 p-4 text-sm leading-6 text-gray-700">
+            <p className="font-semibold text-gray-900">Cancel order #{orderToCancel.order_code}?</p>
+            <p className="mt-1">
+              {String(orderToCancel.payment_method).toLowerCase() === "cod"
+                ? "This Cash on Delivery order will be cancelled. No payment has been collected."
+                : "This paid online order will be cancelled and the refund will be initiated automatically to the original payment method."}
+            </p>
+          </div>
+          <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={() => setOrderToCancel(null)}
+              disabled={cancelOrderMutation.isPending}
+              className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+            >
+              Keep order
+            </button>
+            <button
+              type="button"
+              onClick={() => cancelOrderMutation.mutate({ id: orderToCancel.id, reason: "Cancelled by customer" })}
+              disabled={cancelOrderMutation.isPending}
+              className="rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
+            >
+              {cancelOrderMutation.isPending ? "Cancelling…" : "Yes, cancel order"}
+            </button>
+          </div>
         </Modal>
       )}
 
