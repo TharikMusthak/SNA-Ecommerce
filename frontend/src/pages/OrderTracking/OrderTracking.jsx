@@ -183,26 +183,12 @@ export default function OrderTracking() {
 
             {isCancelled && <CancelledBanner currentStatus={currentStatus} />}
 
-            {items ? (
-              items.map((item, index) => (
-                <ProductJourneySection
-                  key={item.id ?? index}
-                  item={item}
-                  currentStatus={currentStatus}
-                  isCancelled={isCancelled}
-                  isDelivered={isDelivered}
-                  orderIndex={index}
-                />
-              ))
-            ) : (
-              <ProductJourneySection
-                item={null}
-                currentStatus={currentStatus}
-                isCancelled={isCancelled}
-                isDelivered={isDelivered}
-                orderIndex={0}
-              />
-            )}
+            <ProductJourneySection
+              items={items || []}
+              currentStatus={currentStatus}
+              isCancelled={isCancelled}
+              isDelivered={isDelivered}
+            />
 
             {showDelivery && shipment && <DeliveryCard shipment={shipment} />}
           </div>
@@ -298,9 +284,8 @@ function CancelledBanner({ currentStatus }) {
 }
 
 // ── Product Journey Section ────────────────────────────────────────────────────
-function ProductJourneySection({ item, currentStatus, isCancelled, isDelivered, orderIndex }) {
+function ProductJourneySection({ items, currentStatus, isCancelled, isDelivered }) {
   const prefersReduced = useReducedMotion();
-  const productPath = item?.product_slug || item?.product_id;
 
   // Determine active stage index
   const stageIndex = isDelivered
@@ -328,32 +313,26 @@ function ProductJourneySection({ item, currentStatus, isCancelled, isDelivered, 
     <section className="overflow-hidden rounded-[1.75rem] border border-gray-100 bg-white shadow-sm">
 
       {/* Product strip */}
-      {item && (
-        <Link
-          to={productPath ? `/products/${productPath}` : "/products"}
-          className="flex items-center gap-4 border-b border-gray-100 px-6 py-4 transition hover:bg-emerald-50/40"
-        >
-          <img
-            src={assetUrl(item.product_image, fallbackImage)}
-            alt={item.product_name || "Product"}
-            className="h-14 w-14 shrink-0 rounded-xl bg-[#f5f7f1] object-contain p-1"
-          />
-          <div className="min-w-0">
-            <p className="truncate font-semibold text-gray-900">
-              {item.product_name || "SNA Sundaram Product"}
-            </p>
-            <p className="mt-0.5 text-sm text-gray-500">
-              Qty {item.quantity || 1}
-              {item.variant_name ? ` · ${item.variant_name}` : ""}
-              {item.unit_price ? ` · ${formatCurrency(item.unit_price)} each` : ""}
-            </p>
-          </div>
-          {item.total_amount && (
-            <span className="ml-auto shrink-0 text-sm font-bold text-gray-900">
-              {formatCurrency(item.total_amount)}
-            </span>
-          )}
-        </Link>
+      {items.length > 0 && (
+        <div className="divide-y divide-gray-100 border-b border-gray-100">
+          {items.map((item, index) => {
+            const productPath = item.product_slug || item.product_id;
+            return (
+              <Link
+                key={item.id ?? index}
+                to={productPath ? `/products/${productPath}` : "/products"}
+                className="flex items-center gap-4 px-6 py-4 transition hover:bg-emerald-50/40"
+              >
+                <img src={assetUrl(item.product_image, fallbackImage)} alt={item.product_name || "Product"} className="h-14 w-14 shrink-0 rounded-xl bg-[#f5f7f1] object-contain p-1" />
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-gray-900">{item.product_name || "SNA Sundaram Product"}</p>
+                  <p className="mt-0.5 text-sm text-gray-500">Qty {item.quantity || 1}{item.variant_name ? ` · ${item.variant_name}` : ""}{item.unit_price ? ` · ${formatCurrency(item.unit_price)} each` : ""}</p>
+                </div>
+                {item.total_amount && <span className="ml-auto shrink-0 text-sm font-bold text-gray-900">{formatCurrency(item.total_amount)}</span>}
+              </Link>
+            );
+          })}
+        </div>
       )}
 
       <div className="p-6 sm:p-8">
@@ -361,7 +340,7 @@ function ProductJourneySection({ item, currentStatus, isCancelled, isDelivered, 
         {/* Section header */}
         <div className="mb-6">
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#079447]">
-            Order Tracking {orderIndex > 0 ? `· ${(item?.product_name || "").split(" ").slice(0, 2).join(" ")}` : ""}
+            Order Tracking
           </p>
           <h2 className="mt-1.5 text-lg font-semibold text-gray-900">Track your delivery</h2>
           <p className="mt-1 text-sm text-gray-500">Follow your order from our facility to your doorstep.</p>
