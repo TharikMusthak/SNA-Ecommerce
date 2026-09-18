@@ -255,6 +255,55 @@ export function isCancelledStatus(currentStatus = "") {
 }
 
 /**
+ * Returns true once the shipment has been handed to Shiprocket for pickup or
+ * is already in transit / delivered.
+ *
+ * When this returns true the product preparation journey should show all stages
+ * as complete and the Shiprocket delivery tracker should appear.
+ */
+export function isShipmentStarted(currentStatus = "") {
+  const status = normaliseStatus(currentStatus);
+  const shipmentStatuses = new Set([
+    "pickup_pending",
+    "pickup_queued",
+    "pickup_scheduled",
+    "pickup_error",
+    "shipment_created",
+    "awb_assigned",
+    "label_created",
+    "picked_up",
+    "in_transit",
+    "transit",
+    "shipped",
+    "out_for_delivery",
+    "ofd",
+    "delivery_failed",
+    "delivery_exception",
+    "ndr_raised",
+    "ndr_actionable",
+    "misrouted",
+    "delivered",
+    // RTO / return — preparation is also done at this point
+    "rto_initiated",
+    "rto_in_transit",
+    "rto_out_for_delivery",
+    "rto_delivered",
+    "rto_shipment_created",
+    "return_initiated",
+    "return_pickup_pending",
+    "return_pickup_queued",
+    "return_pickup_scheduled",
+    "return_in_transit",
+    "return_delivered",
+    "returned",
+    "lost",
+    "damaged",
+    "shipment_lost",
+  ]);
+  return shipmentStatuses.has(status);
+}
+
+/**
  * Returns true when delivery-related information (courier name, AWB, tracking URL)
  * should be surfaced prominently in the UI.
  */

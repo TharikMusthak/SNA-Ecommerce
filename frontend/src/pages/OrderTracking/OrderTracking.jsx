@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   Check,
+  X,
   ExternalLink,
   MapPin,
   PackageCheck,
@@ -10,14 +11,9 @@ import {
   CreditCard,
   AlertTriangle,
   RefreshCcw,
-  XCircle,
 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
-import {
-  motion,
-  AnimatePresence,
-  useReducedMotion,
-} from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 
 import { apiErrorMessage } from "@api/axios";
 import Spinner from "@components/ui/Spinner/Spinner";
@@ -25,38 +21,101 @@ import { fetchOrderTracking } from "@services/order.service";
 import formatCurrency from "@utils/formatCurrency";
 import { assetUrl } from "@utils/helpers";
 import {
-  resolveJourney,
-  resolveStageIndex,
-  isTerminalStatus,
   isCancelledStatus,
   isDeliveryVisible,
   humanStatus,
 } from "@utils/resolveJourney";
 import fallbackImage from "@assets/images/product1.png";
 
-// ── Constants ────────────────────────────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────────────────────
 const TERMINAL_STATUSES = new Set([
-  "delivered",
-  "cancelled",
-  "returned",
-  "refunded",
-  "rto_delivered",
-  "rto_initiated",
-  "rto_in_transit",
-  "rto_out_for_delivery",
-  "rto_shipment_created",
-  "return_initiated",
-  "return_pickup_pending",
-  "return_pickup_queued",
-  "return_pickup_scheduled",
-  "return_in_transit",
-  "return_delivered",
-  "lost",
-  "damaged",
-  "shipment_lost",
+  "delivered", "cancelled", "returned", "refunded",
+  "rto_delivered", "rto_initiated", "rto_in_transit",
+  "rto_out_for_delivery", "rto_shipment_created",
+  "return_initiated", "return_pickup_pending", "return_pickup_queued",
+  "return_pickup_scheduled", "return_in_transit", "return_delivered",
+  "lost", "damaged", "shipment_lost",
 ]);
 
-// ── Main Component ────────────────────────────────────────────────────────────
+// ── Delivery stages ────────────────────────────────────────────────────────────
+const DELIVERY_STAGES = [
+  {
+    id: "order_placed",
+    title: "Order Placed",
+    description: "We have received your order and it is being reviewed.",
+    emoji: "🛍️",
+  },
+  {
+    id: "confirmed",
+    title: "Order Confirmed",
+    description: "Your order has been confirmed and is ready to be processed.",
+    emoji: "✅",
+  },
+  {
+    id: "preparing",
+    title: "Preparing",
+    description: "Your order is being prepared and processed at our facility.",
+    emoji: "🏷️",
+  },
+  {
+    id: "packing",
+    title: "Packing",
+    description: "Your items are being carefully packed and made ready for dispatch.",
+    emoji: "📦",
+  },
+  {
+    id: "picked_up",
+    title: "Order Picked Up",
+    description: "The courier has collected your order from our facility.",
+    emoji: "🏭",
+  },
+  {
+    id: "shipping",
+    title: "Shipping",
+    description: "Your order is on the way and in transit to your location.",
+    emoji: "🚚",
+  },
+  {
+    id: "out_for_delivery",
+    title: "Out for Delivery",
+    description: "Your order is out for delivery. The courier will arrive at your address soon.",
+    emoji: "🛵",
+  },
+  {
+    id: "delivered",
+    title: "Delivered",
+    description: "Your order has been successfully delivered. Enjoy!",
+    emoji: "🎉",
+  },
+];
+
+/**
+ * Maps a Shiprocket / internal status to a DELIVERY_STAGES index (0–7).
+ */
+function resolveDeliveryStageIndex(status) {
+  const s = String(status).toLowerCase().trim().replace(/\s+/g, "_");
+
+  if (s === "delivered") return 7;
+
+  if (["out_for_delivery", "ofd", "delivery_failed", "delivery_exception",
+       "ndr_raised", "ndr_actionable"].includes(s)) return 6;
+
+  if (["in_transit", "transit", "shipped", "misrouted"].includes(s)) return 5;
+
+  if (["pickup_pending", "pickup_queued", "pickup_scheduled", "pickup_error",
+       "shipment_created", "awb_assigned", "label_created", "picked_up"].includes(s)) return 4;
+
+  if (["packing", "packed", "ready_to_ship"].includes(s)) return 3;
+
+  // Admin "Processing" → Preparing
+  if (["processing", "fulfilling"].includes(s)) return 2;
+
+  if (s === "confirmed") return 1;
+
+  return 0; // pending / new / created / anything else
+}
+
+// ── Main Component ─────────────────────────────────────────────────────────────
 export default function OrderTracking() {
   const { orderId } = useParams();
   const { data, isLoading, isError, error, refetch } = useQuery({
@@ -109,7 +168,6 @@ export default function OrderTracking() {
     <main className="min-h-screen bg-[#f7faf7] px-4 py-8 sm:px-6 sm:py-12">
       <div className="mx-auto max-w-5xl">
 
-        {/* Back */}
         <Link
           to="/profile"
           className="inline-flex items-center gap-2 text-sm font-semibold text-[#079447] transition hover:opacity-70"
@@ -118,21 +176,13 @@ export default function OrderTracking() {
           Back to my orders
         </Link>
 
-        {/* ── Order Header ─────────────────────────────────────────────────── */}
         <OrderHeader data={data} currentStatus={currentStatus} />
 
-        {/* ── Main Grid ───────────────────────────────────────────────────── */}
         <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_360px]">
-
-          {/* Left — Journey section */}
           <div className="min-w-0 space-y-5">
 
-            {/* Cancelled / returned state */}
-            {isCancelled && (
-              <CancelledBanner currentStatus={currentStatus} />
-            )}
+            {isCancelled && <CancelledBanner currentStatus={currentStatus} />}
 
-            {/* Product journey sections — one per ordered item */}
             {items ? (
               items.map((item, index) => (
                 <ProductJourneySection
@@ -145,7 +195,6 @@ export default function OrderTracking() {
                 />
               ))
             ) : (
-              /* No items data — show generic journey */
               <ProductJourneySection
                 item={null}
                 currentStatus={currentStatus}
@@ -155,13 +204,9 @@ export default function OrderTracking() {
               />
             )}
 
-            {/* Delivery info — appears once the order ships */}
-            {showDelivery && shipment && (
-              <DeliveryCard shipment={shipment} />
-            )}
+            {showDelivery && shipment && <DeliveryCard shipment={shipment} />}
           </div>
 
-          {/* Right — Order information */}
           <div className="space-y-4">
             <OrderInfoCard
               data={data}
@@ -176,7 +221,7 @@ export default function OrderTracking() {
   );
 }
 
-// ── Order Header ─────────────────────────────────────────────────────────────
+// ── Order Header ───────────────────────────────────────────────────────────────
 function OrderHeader({ data, currentStatus }) {
   const label = humanStatus(currentStatus);
   const isDelivered = currentStatus === "delivered";
@@ -209,7 +254,6 @@ function OrderHeader({ data, currentStatus }) {
         </span>
       </div>
 
-      {/* Item count strip */}
       {Array.isArray(data.items) && data.items.length > 0 && (
         <div className="flex items-center gap-2 border-t border-emerald-50 bg-white px-6 py-3 sm:px-8">
           <Package size={15} className="text-[#079447]" />
@@ -224,7 +268,7 @@ function OrderHeader({ data, currentStatus }) {
   );
 }
 
-// ── Cancelled / RTO / NDR / Lost Banner ─────────────────────────────────────
+// ── Cancelled / RTO / NDR Banner ───────────────────────────────────────────────
 function CancelledBanner({ currentStatus }) {
   const label = humanStatus(currentStatus);
 
@@ -234,59 +278,47 @@ function CancelledBanner({ currentStatus }) {
     if (currentStatus === "returned" || currentStatus === "return_delivered") return "This order has been returned. If you have any questions, please contact us.";
     if (currentStatus.startsWith("rto")) return "This shipment is being returned to origin by the courier. We will update you shortly.";
     if (currentStatus.startsWith("return")) return "A return has been initiated for this order.";
-    if (currentStatus === "lost" || currentStatus === "shipment_lost" || currentStatus === "damaged") return "The courier has reported an issue with this shipment. Please contact us so we can resolve this for you.";
-    if (currentStatus === "ndr_raised" || currentStatus === "ndr_actionable") return "A delivery attempt was made but was unsuccessful. Please ensure someone is available to receive the package at the delivery address.";
-    if (currentStatus === "delivery_failed" || currentStatus === "delivery_exception") return "A delivery attempt was made but was unsuccessful. The courier will try again.";
+    if (["lost", "shipment_lost", "damaged"].includes(currentStatus)) return "The courier has reported an issue with this shipment. Please contact us so we can resolve this for you.";
+    if (["ndr_raised", "ndr_actionable"].includes(currentStatus)) return "A delivery attempt was made but was unsuccessful. Please ensure someone is available to receive the package.";
+    if (["delivery_failed", "delivery_exception"].includes(currentStatus)) return "A delivery attempt was made but was unsuccessful. The courier will try again.";
     return "This order is no longer active.";
   };
 
   const isWarning = ["ndr_raised", "ndr_actionable", "delivery_failed", "delivery_exception", "misrouted"].includes(currentStatus);
-  const isLost = ["lost", "damaged", "shipment_lost"].includes(currentStatus);
 
   return (
-    <section
-      className={`flex items-start gap-4 rounded-[1.25rem] border p-5 ${
-        isWarning
-          ? "border-amber-100 bg-amber-50"
-          : isLost
-          ? "border-red-100 bg-red-50"
-          : "border-red-100 bg-red-50"
-      }`}
-    >
-      <AlertTriangle
-        size={22}
-        className={`mt-0.5 shrink-0 ${
-          isWarning ? "text-amber-500" : "text-red-500"
-        }`}
-      />
+    <section className={`flex items-start gap-4 rounded-[1.25rem] border p-5 ${isWarning ? "border-amber-100 bg-amber-50" : "border-red-100 bg-red-50"}`}>
+      <AlertTriangle size={22} className={`mt-0.5 shrink-0 ${isWarning ? "text-amber-500" : "text-red-500"}`} />
       <div>
-        <p className={`font-semibold ${ isWarning ? "text-amber-800" : "text-red-800" }`}>
-          {label}
-        </p>
-        <p className={`mt-1 text-sm ${ isWarning ? "text-amber-700" : "text-red-600" }`}>
-          {getMessage()}
-        </p>
+        <p className={`font-semibold ${isWarning ? "text-amber-800" : "text-red-800"}`}>{label}</p>
+        <p className={`mt-1 text-sm ${isWarning ? "text-amber-700" : "text-red-600"}`}>{getMessage()}</p>
       </div>
     </section>
   );
 }
 
-// ── Product Journey Section ───────────────────────────────────────────────────
+// ── Product Journey Section ────────────────────────────────────────────────────
 function ProductJourneySection({ item, currentStatus, isCancelled, isDelivered, orderIndex }) {
   const prefersReduced = useReducedMotion();
   const productPath = item?.product_slug || item?.product_id;
-  const journey = resolveJourney(item ?? {});
-  const stageIndex = isCancelled
-    ? 0
-    : resolveStageIndex(currentStatus, journey.stages.length);
-  const activeStage = journey.stages[stageIndex];
+
+  // Determine active stage index
+  const stageIndex = isDelivered
+    ? DELIVERY_STAGES.length          // all complete
+    : isCancelled
+    ? 1                               // order placed is ✅, cancelled node appears after it
+    : resolveDeliveryStageIndex(currentStatus);
+
   const allComplete = isDelivered;
+  // For cancelled: stages before stageIndex are ✅, stageIndex onward are dimmed
+  const cancelledAfterIdx = isCancelled ? 0 : -1; // show cancelled node after index 0
+
+  const activeStage = (isCancelled || isDelivered) ? null : DELIVERY_STAGES[stageIndex];
 
   const containerVariants = {
     hidden: {},
     visible: { transition: { staggerChildren: prefersReduced ? 0 : 0.07 } },
   };
-
   const stageVariants = {
     hidden: { opacity: 0, y: prefersReduced ? 0 : 10 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" } },
@@ -295,7 +327,7 @@ function ProductJourneySection({ item, currentStatus, isCancelled, isDelivered, 
   return (
     <section className="overflow-hidden rounded-[1.75rem] border border-gray-100 bg-white shadow-sm">
 
-      {/* Product identity strip */}
+      {/* Product strip */}
       {item && (
         <Link
           to={productPath ? `/products/${productPath}` : "/products"}
@@ -325,15 +357,14 @@ function ProductJourneySection({ item, currentStatus, isCancelled, isDelivered, 
       )}
 
       <div className="p-6 sm:p-8">
-        {/* Journey header */}
+
+        {/* Section header */}
         <div className="mb-6">
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#079447]">
-            Product Journey {orderIndex > 0 ? `· ${(item?.product_name || "").split(" ").slice(0, 2).join(" ")}` : ""}
+            Order Tracking {orderIndex > 0 ? `· ${(item?.product_name || "").split(" ").slice(0, 2).join(" ")}` : ""}
           </p>
-          <h2 className="mt-1.5 text-lg font-semibold text-gray-900">
-            {journey.title}
-          </h2>
-          <p className="mt-1 text-sm text-gray-500">{journey.subtitle}</p>
+          <h2 className="mt-1.5 text-lg font-semibold text-gray-900">Track your delivery</h2>
+          <p className="mt-1 text-sm text-gray-500">Follow your order from our facility to your doorstep.</p>
         </div>
 
         {/* Active stage hero card */}
@@ -341,104 +372,112 @@ function ProductJourneySection({ item, currentStatus, isCancelled, isDelivered, 
           <ActiveStageCard
             stage={activeStage}
             stageIndex={stageIndex}
-            totalStages={journey.stages.length}
-            allComplete={allComplete}
+            totalStages={DELIVERY_STAGES.length}
           />
         )}
 
-        {/* Vertical timeline */}
+        {/* Unified timeline */}
         <motion.ol
           className="mt-8 space-y-0"
           variants={containerVariants}
           initial="hidden"
           animate="visible"
         >
-          {journey.stages.map((stage, idx) => {
+          {DELIVERY_STAGES.map((stage, idx) => {
             const isComplete = allComplete || idx < stageIndex;
-            const isCurrent = !allComplete && idx === stageIndex;
-            const isFuture = !allComplete && idx > stageIndex;
+            const isCurrent = !isCancelled && !allComplete && idx === stageIndex;
+            const isFuture = !allComplete && (isCancelled ? idx > cancelledAfterIdx : idx > stageIndex);
+            // Show the cancelled node right after idx === cancelledAfterIdx
+            const showCancelledAfterThis = isCancelled && idx === cancelledAfterIdx;
 
             return (
-              <motion.li
-                key={stage.id}
-                variants={stageVariants}
-                className="relative flex gap-4"
-              >
-                {/* Connector line */}
-                {idx < journey.stages.length - 1 && (
-                  <span
-                    className={`absolute left-[13px] top-7 h-[calc(100%-0.5rem)] w-0.5 transition-colors duration-500 ${
-                      isComplete ? "bg-[#079447]" : "bg-gray-200"
-                    }`}
-                  />
-                )}
+              <motion.li key={stage.id} variants={stageVariants} className="relative">
 
-                {/* Stage dot */}
-                <div className="relative z-10 mt-1.5 shrink-0">
-                  {isComplete ? (
-                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#079447] shadow-sm">
-                      <Check size={14} strokeWidth={3} className="text-white" />
-                    </span>
-                  ) : isCurrent ? (
-                    <PulsingDot />
-                  ) : (
-                    <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-gray-200 bg-white">
-                      <span className="h-2 w-2 rounded-full bg-gray-300" />
-                    </span>
-                  )}
-                </div>
-
-                {/* Stage content */}
-                <div
-                  className={`min-w-0 flex-1 pb-7 ${
-                    isFuture ? "opacity-35" : ""
-                  }`}
-                >
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-base leading-none">{stage.emoji}</span>
-                    <p
-                      className={`text-sm font-semibold ${
-                        isCurrent
-                          ? "text-[#079447]"
-                          : isComplete
-                          ? "text-gray-900"
-                          : "text-gray-500"
+                {/* ── Normal stage row ── */}
+                <div className="relative flex gap-4">
+                  {/* Connector line */}
+                  {idx < DELIVERY_STAGES.length - 1 && (
+                    <span
+                      className={`absolute left-[13px] top-7 h-[calc(100%-0.5rem)] w-0.5 transition-colors duration-500 ${
+                        isComplete && !showCancelledAfterThis ? "bg-[#079447]" : "bg-gray-200"
                       }`}
-                    >
-                      {stage.title}
-                    </p>
-                    {isCurrent && (
-                      <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#079447]">
-                        Current
+                    />
+                  )}
+
+                  {/* Dot */}
+                  <div className="relative z-10 mt-1.5 shrink-0">
+                    {isComplete ? (
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#079447] shadow-sm">
+                        <Check size={14} strokeWidth={3} className="text-white" />
+                      </span>
+                    ) : isCurrent ? (
+                      <PulsingDot />
+                    ) : (
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-gray-200 bg-white">
+                        <span className="h-2 w-2 rounded-full bg-gray-300" />
                       </span>
                     )}
-                    {allComplete && (
-                      <span className="text-xs text-gray-400">Complete</span>
-                    )}
                   </div>
-                  <p className="mt-1.5 text-[13px] leading-5.5 text-gray-500">
-                    {stage.description}
-                  </p>
+
+                  {/* Content */}
+                  <div className={`min-w-0 flex-1 pb-7 ${isFuture ? "opacity-35" : ""}`}>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-base leading-none">{stage.emoji}</span>
+                      <p className={`text-sm font-semibold ${isCurrent ? "text-[#079447]" : isComplete ? "text-gray-900" : "text-gray-500"}`}>
+                        {stage.title}
+                      </p>
+                      {isCurrent && (
+                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#079447]">
+                          Current
+                        </span>
+                      )}
+                      {allComplete && (
+                        <span className="text-xs text-gray-400">Complete</span>
+                      )}
+                    </div>
+                    <p className="mt-1.5 text-[13px] leading-relaxed text-gray-500">
+                      {stage.description}
+                    </p>
+                  </div>
                 </div>
+
+                {/* ── Cancelled node — injected after the last completed stage ── */}
+                {showCancelledAfterThis && (
+                  <div className="relative flex gap-4">
+                    {/* Thin grey stub connecting down from completed dot */}
+                    <span className="absolute left-[13px] -top-4 h-5 w-0.5 bg-gray-200" />
+                    {/* Red X dot */}
+                    <div className="relative z-10 mt-1.5 shrink-0">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-red-500 shadow-sm ring-4 ring-red-100">
+                        <X size={13} strokeWidth={3} className="text-white" />
+                      </span>
+                    </div>
+                    <div className="min-w-0 flex-1 pb-7">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-base leading-none">🚫</span>
+                        <p className="text-sm font-semibold text-red-600">Order Cancelled</p>
+                      </div>
+                      <p className="mt-1.5 text-[13px] leading-relaxed text-gray-500">
+                        Your order was cancelled. The remaining steps will not proceed.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </motion.li>
             );
           })}
         </motion.ol>
 
-        {/* All done message */}
-        {allComplete && (
-          <DeliveredMessage />
-        )}
+        {/* Delivered celebration */}
+        {allComplete && <DeliveredMessage />}
       </div>
     </section>
   );
 }
 
-// ── Active Stage Hero Card ───────────────────────────────────────────────────
-function ActiveStageCard({ stage, stageIndex, totalStages, allComplete }) {
+// ── Active Stage Hero Card ─────────────────────────────────────────────────────
+function ActiveStageCard({ stage, stageIndex, totalStages }) {
   const prefersReduced = useReducedMotion();
-  if (allComplete) return null;
-
   return (
     <motion.div
       initial={{ opacity: 0, y: prefersReduced ? 0 : 12 }}
@@ -446,26 +485,16 @@ function ActiveStageCard({ stage, stageIndex, totalStages, allComplete }) {
       transition={{ duration: 0.45, ease: "easeOut" }}
       className="relative overflow-hidden rounded-2xl border border-emerald-100 bg-gradient-to-br from-[#f0faf4] to-[#e8f7ee] p-5"
     >
-      {/* Subtle decorative circle */}
       <div className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-emerald-100/40" />
-
       <div className="relative">
         <div className="flex items-start gap-3">
           <span className="text-2xl leading-none">{stage.emoji}</span>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#079447]">
-              Currently
-            </p>
-            <h3 className="mt-1 text-base font-bold text-gray-900">
-              {stage.title}
-            </h3>
-            <p className="mt-1.5 text-sm leading-relaxed text-gray-600">
-              {stage.description}
-            </p>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#079447]">Currently</p>
+            <h3 className="mt-1 text-base font-bold text-gray-900">{stage.title}</h3>
+            <p className="mt-1.5 text-sm leading-relaxed text-gray-600">{stage.description}</p>
           </div>
         </div>
-
-        {/* Progress bar */}
         <div className="mt-4">
           <div className="mb-1.5 flex items-center justify-between">
             <span className="text-xs font-medium text-gray-500">
@@ -489,7 +518,7 @@ function ActiveStageCard({ stage, stageIndex, totalStages, allComplete }) {
   );
 }
 
-// ── Pulsing Current Stage Dot ────────────────────────────────────────────────
+// ── Pulsing Dot ────────────────────────────────────────────────────────────────
 function PulsingDot() {
   const prefersReduced = useReducedMotion();
   return (
@@ -508,7 +537,7 @@ function PulsingDot() {
   );
 }
 
-// ── Delivered Message ────────────────────────────────────────────────────────
+// ── Delivered Message ──────────────────────────────────────────────────────────
 function DeliveredMessage() {
   return (
     <motion.div
@@ -528,7 +557,7 @@ function DeliveredMessage() {
   );
 }
 
-// ── Delivery Card (courier info) ─────────────────────────────────────────────
+// ── Delivery Card (courier info) ───────────────────────────────────────────────
 function DeliveryCard({ shipment }) {
   return (
     <section className="overflow-hidden rounded-[1.75rem] border border-gray-100 bg-white p-6 shadow-sm sm:p-8">
@@ -566,7 +595,7 @@ function DeliveryCard({ shipment }) {
   );
 }
 
-// ── Order Info Card (right column) ───────────────────────────────────────────
+// ── Order Info Card (right column) ────────────────────────────────────────────
 function OrderInfoCard({ data, address, shipment, showDelivery }) {
   const isCod = String(
     data.payment_method || data.payment?.provider || ""
@@ -574,73 +603,37 @@ function OrderInfoCard({ data, address, shipment, showDelivery }) {
 
   return (
     <div className="space-y-4">
-
-      {/* Summary */}
       <InfoCard title="Order summary" icon={<PackageCheck size={17} />}>
         <InfoRow
           label="Items"
-          value={String(
-            (data.items || []).reduce((s, i) => s + Number(i.quantity || 0), 0)
-          )}
+          value={String((data.items || []).reduce((s, i) => s + Number(i.quantity || 0), 0))}
         />
-        <InfoRow
-          label="Payment"
-          value={isCod ? "Cash on Delivery" : "Paid Online"}
-        />
-        <InfoRow
-          label="Payment status"
-          value={humanStatus(data.payment_status)}
-        />
+        <InfoRow label="Payment" value={isCod ? "Cash on Delivery" : "Paid Online"} />
+        <InfoRow label="Payment status" value={humanStatus(data.payment_status)} />
         {data.summary?.subtotal != null && data.summary.subtotal !== data.summary?.total && (
           <InfoRow label="Subtotal" value={formatCurrency(data.summary.subtotal)} />
         )}
-        <InfoRow
-          label="Total"
-          value={formatCurrency(data.summary?.total ?? 0)}
-          strong
-        />
+        <InfoRow label="Total" value={formatCurrency(data.summary?.total ?? 0)} strong />
         {data.created_at && (
           <InfoRow label="Ordered" value={formatDate(data.created_at, false)} />
         )}
       </InfoCard>
 
-      {/* Delivery address */}
       <InfoCard title="Delivery address" icon={<MapPin size={17} />}>
-        <p className="text-sm font-semibold text-gray-800">
-          {address.full_name || "Customer"}
-        </p>
+        <p className="text-sm font-semibold text-gray-800">{address.full_name || "Customer"}</p>
         <p className="mt-1.5 text-sm leading-6 text-gray-600">
-          {[
-            address.address_line_1,
-            address.address_line_2,
-            address.city,
-            address.state,
-            address.postal_code,
-          ]
-            .filter(Boolean)
-            .join(", ") || "Address unavailable"}
+          {[address.address_line_1, address.address_line_2, address.city, address.state, address.postal_code]
+            .filter(Boolean).join(", ") || "Address unavailable"}
         </p>
-        {address.phone && (
-          <p className="mt-1 text-sm text-gray-500">{address.phone}</p>
-        )}
+        {address.phone && <p className="mt-1 text-sm text-gray-500">{address.phone}</p>}
       </InfoCard>
 
-      {/* Courier — compact version in sidebar when not shown in main */}
       {!showDelivery && shipment && (
         <InfoCard title="Shipment" icon={<Truck size={17} />}>
-          <InfoRow
-            label="Courier"
-            value={shipment.courier_name || "Pending assignment"}
-          />
-          {shipment.awb_code && (
-            <InfoRow label="AWB" value={shipment.awb_code} />
-          )}
+          <InfoRow label="Courier" value={shipment.courier_name || "Pending assignment"} />
+          {shipment.awb_code && <InfoRow label="AWB" value={shipment.awb_code} />}
           {shipment.estimated_delivery_at && (
-            <InfoRow
-              label="Estimated delivery"
-              value={formatDate(shipment.estimated_delivery_at, false)}
-              strong
-            />
+            <InfoRow label="Estimated delivery" value={formatDate(shipment.estimated_delivery_at, false)} strong />
           )}
           {shipment.tracking_url && (
             <a
@@ -655,18 +648,15 @@ function OrderInfoCard({ data, address, shipment, showDelivery }) {
         </InfoCard>
       )}
 
-      {/* Payment indicator */}
       <InfoCard title="Payment" icon={<CreditCard size={17} />}>
         <div className="flex items-center gap-2">
-          <span
-            className={`inline-block h-2 w-2 rounded-full ${
-              data.payment_status === "paid" || data.payment_status === "completed"
-                ? "bg-emerald-500"
-                : data.payment_status === "failed"
-                ? "bg-red-500"
-                : "bg-amber-400"
-            }`}
-          />
+          <span className={`inline-block h-2 w-2 rounded-full ${
+            data.payment_status === "paid" || data.payment_status === "completed"
+              ? "bg-emerald-500"
+              : data.payment_status === "failed"
+              ? "bg-red-500"
+              : "bg-amber-400"
+          }`} />
           <span className="text-sm font-medium text-gray-700">
             {humanStatus(data.payment_status || "pending")}
           </span>
@@ -681,7 +671,7 @@ function OrderInfoCard({ data, address, shipment, showDelivery }) {
   );
 }
 
-// ── Shared Sub-components ────────────────────────────────────────────────────
+// ── Shared sub-components ──────────────────────────────────────────────────────
 function InfoCard({ title, icon, children }) {
   return (
     <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
@@ -698,18 +688,14 @@ function InfoRow({ label, value, strong = false }) {
   return (
     <div className="flex items-start justify-between gap-4 text-sm">
       <span className="text-gray-500 shrink-0">{label}</span>
-      <span
-        className={`text-right ${
-          strong ? "font-bold text-gray-900" : "font-medium text-gray-700"
-        }`}
-      >
+      <span className={`text-right ${strong ? "font-bold text-gray-900" : "font-medium text-gray-700"}`}>
         {value}
       </span>
     </div>
   );
 }
 
-// ── Utilities ────────────────────────────────────────────────────────────────
+// ── Utilities ──────────────────────────────────────────────────────────────────
 function formatDate(value, includeTime = true) {
   if (!value) return "—";
   const date = new Date(value);
