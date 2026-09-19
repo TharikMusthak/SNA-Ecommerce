@@ -248,7 +248,7 @@ router.get(
     if (!user) return fail(res, 404, "Customer not found");
     const [[addresses], [orders], [returns], [tickets]] = await Promise.all([
       pool.query(
-        "SELECT id,full_name,phone,address_line_1,address_line_2,city,state,country,postal_code,address_type,is_default,pincode_serviceable,cod_available,pincode_verified_at FROM user_addresses WHERE user_id=? ORDER BY is_default DESC,id DESC",
+        "SELECT id,full_name,phone,address_line_1,address_line_2,city,state,country,postal_code,address_type,is_default FROM user_addresses WHERE user_id=? ORDER BY is_default DESC,id DESC",
         [id],
       ),
       pool.query(
