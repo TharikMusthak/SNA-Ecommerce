@@ -60,12 +60,11 @@ export default function InventoryDialog({ item, mode, onClose, onSubmit }) {
           </label>
         )}
         <label>
-          Reason / reference
+          Reason / reference (optional)
           <textarea
             name="reason"
             maxLength="500"
             placeholder={restocking ? "Example: Supplier delivery GRN-1042" : "Why is this adjustment needed?"}
-            required
           />
         </label>
         <footer className="modal-actions-footer">
