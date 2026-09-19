@@ -17,14 +17,7 @@ export default function Products({ rows = [], onEdit, onDelete, onToggleFeatured
       (!term || [row.name, row.description, row.category].some((value) => String(value || "").toLowerCase().includes(term))) &&
       (!status || row.status === status) &&
       (!category || row.category === category),
-    ).sort((first, second) => {
-      const firstPosition = Number(first.display_order || 0);
-      const secondPosition = Number(second.display_order || 0);
-      if (firstPosition > 0 && secondPosition > 0) return firstPosition - secondPosition;
-      if (firstPosition > 0) return -1;
-      if (secondPosition > 0) return 1;
-      return Number(second.id) - Number(first.id);
-    });
+    );
   }, [category, rows, search, status]);
 
   return (
@@ -33,12 +26,11 @@ export default function Products({ rows = [], onEdit, onDelete, onToggleFeatured
       <ModuleToolbar search={search} onSearchChange={setSearch} searchLabel="Search products" status={status} statuses={["Active", "Draft"]} onStatusChange={setStatus} onReset={() => { setSearch(""); setStatus(""); setCategory(""); }}>
         <CustomSelect aria-label="Category filter" value={category} onChange={(event) => setCategory(event.target.value)}><option value="">All categories</option>{categories.map((item) => <option key={item}>{item}</option>)}</CustomSelect>
       </ModuleToolbar>
-      <DataTable label="Products" headers={["Image", "Product", "Position", "SKU", "Category", "Price", "Stock", "Rating", "Featured", "Status", "Updated", "Actions"]} emptyMessage={rows.length ? "No products match these filters." : "No products found."} minWidth={1340}>
+      <DataTable label="Products" headers={["Image", "Product", "SKU", "Category", "Price", "Stock", "Rating", "Featured", "Status", "Updated", "Actions"]} emptyMessage={rows.length ? "No products match these filters." : "No products found."} minWidth={1260}>
         {filteredRows.map((product) => (
           <tr key={product.id}>
             <td><TableImage src={product.main_image ? assetUrl(product.main_image) : ""} alt={product.name} /></td>
             <td><b>{product.name}</b><small>{product.description}</small></td>
-            <td>{Number(product.display_order) || "—"}</td>
             <td>{product.sku || "—"}</td>
             <td>{product.category}</td>
             <td>{currency(product.sale_price ?? product.price)}{product.sale_price !== null && product.sale_price !== undefined && <small>Regular: {currency(product.price)}</small>}</td>
