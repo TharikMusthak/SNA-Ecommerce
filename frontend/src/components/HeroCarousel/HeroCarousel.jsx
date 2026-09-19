@@ -390,7 +390,7 @@ const HeroCarousel = () => {
                     </Link>
 
                     {/* WHATSAPP */}
-                    <a
+                    {/* <a
                       href={item.whatsappUrl}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -405,7 +405,7 @@ const HeroCarousel = () => {
                       "
                     >
                       {item.whatsappText}
-                    </a>
+                    </a> */}
                   </div>
                 </div>
               </div>

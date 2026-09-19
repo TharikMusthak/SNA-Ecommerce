@@ -63,6 +63,7 @@ const Profile = () => {
   const [showProfileForm, setShowProfileForm] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [orderToCancel, setOrderToCancel] = useState(null);
+  const [addressToDelete, setAddressToDelete] = useState(null);
   const [profileErrors, setProfileErrors] = useState({});
   const [addressErrors, setAddressErrors] = useState({});
   const [passwordErrors, setPasswordErrors] = useState({});
@@ -342,7 +343,7 @@ const Profile = () => {
                                 MAKE DEFAULT
                               </button>
                             )}
-                            <button type="button" onClick={() => removeAddress.mutate(item.id)} disabled={removeAddress.isPending} className="text-red-500 hover:underline disabled:opacity-50">
+                            <button type="button" onClick={() => setAddressToDelete(item)} disabled={removeAddress.isPending} className="text-red-500 hover:underline disabled:opacity-50">
                               DELETE
                             </button>
                           </div>
@@ -505,6 +506,37 @@ const Profile = () => {
               <button type="submit" disabled={saveProfile.isPending} className="rounded-xl bg-[#079447] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">Save</button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {addressToDelete && (
+        <Modal title="Delete address" onClose={() => !removeAddress.isPending && setAddressToDelete(null)}>
+          <div className="mt-5 rounded-2xl border border-red-100 bg-red-50 p-4 text-sm leading-6 text-gray-700">
+            <p className="font-semibold text-gray-900">Delete this address?</p>
+            <p className="mt-1">
+              <span className="font-medium text-gray-800">{addressToDelete.full_name}</span> &mdash;&nbsp;
+              {addressToDelete.address_line_1}{addressToDelete.address_line_2 ? `, ${addressToDelete.address_line_2}` : ""}, {addressToDelete.city}, {addressToDelete.state} &ndash; {addressToDelete.postal_code}
+            </p>
+            <p className="mt-1 text-gray-500">This action cannot be undone.</p>
+          </div>
+          <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={() => setAddressToDelete(null)}
+              disabled={removeAddress.isPending}
+              className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+            >
+              Keep address
+            </button>
+            <button
+              type="button"
+              onClick={() => removeAddress.mutate(addressToDelete.id, { onSuccess: () => setAddressToDelete(null) })}
+              disabled={removeAddress.isPending}
+              className="rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
+            >
+              {removeAddress.isPending ? "Deleting…" : "Yes, delete address"}
+            </button>
+          </div>
         </Modal>
       )}
 

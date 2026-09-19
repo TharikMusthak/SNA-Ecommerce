@@ -225,29 +225,29 @@ const ContactUs = () => {
         </div>
 
         {/* MAIN CONTACT SECTION */}
-        <div className="mt-6 grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
+        <div className="mt-6 grid items-stretch gap-6 lg:grid-cols-[0.8fr_1.2fr]">
           {/* LEFT INFORMATION */}
-          <div className="rounded-[32px] bg-white p-6 shadow-[0_16px_40px_rgba(0,0,0,0.05)] sm:p-8 lg:p-10">
+          <div className="flex flex-col rounded-[32px] bg-white p-6 shadow-[0_16px_40px_rgba(0,0,0,0.05)] sm:p-8 lg:p-10">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#edf8f1] text-[#079447]">
               <MessageCircle size={21} />
             </div>
 
-            <p className="mt-7 text-[12px] font-semibold uppercase tracking-[0.24em] text-[#079447]">
+            <p className="mt-5 text-[12px] font-semibold uppercase tracking-[0.24em] text-[#079447]">
               Start a conversation
             </p>
 
-            <h2 className="mt-3 text-[clamp(28px,3vw,42px)] font-medium leading-[1.1] tracking-[-0.03em] text-[#2d2d2d]">
+            <h2 className="mt-2.5 text-[clamp(28px,3vw,42px)] font-medium leading-[1.1] tracking-[-0.03em] text-[#2d2d2d]">
               We&apos;re listening.
             </h2>
 
-            <p className="mt-5 text-[15px] leading-[1.85] text-[#555]">
+            <p className="mt-3 text-[15px] leading-[1.85] text-[#555]">
               Whether you&apos;re curious about an ingredient, need help with
               an order, or simply want to share your experience, every message
               matters to us.
             </p>
 
             {/* RESPONSE TIME */}
-            <div className="mt-8 rounded-[24px] bg-[#f6faf7] p-5">
+            <div className="mt-5 rounded-[24px] bg-[#f6faf7] p-5">
               <div className="flex items-start gap-4">
                 <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-[#079447] shadow-sm">
                   <Clock3 size={18} />
@@ -269,7 +269,7 @@ const ContactUs = () => {
             {/* WHATSAPP */}
             <a
               href="https://wa.me/918438660669"
-              className="mt-4 flex items-center justify-between rounded-[24px] bg-[#079447] px-5 py-4 text-white transition-all duration-300 hover:bg-[#06753a]"
+              className="mt-3 flex items-center justify-between rounded-[24px] bg-[#079447] px-5 py-4 text-white transition-all duration-300 hover:bg-[#06753a]"
             >
               <div className="flex items-center gap-3">
                 <MessageCircle size={20} />
@@ -289,32 +289,26 @@ const ContactUs = () => {
             </a>
 
             {/* LOCATION */}
-            <div
-              id="location"
-              className="mt-8 border-t border-gray-100 pt-7"
-            >
+            <div id="location" className="mt-5 border-t border-gray-100 pt-5">
               <div className="flex gap-3">
-                <MapPin
-                  size={19}
-                  className="mt-0.5 shrink-0 text-[#079447]"
-                />
+                <MapPin size={19} className="mt-0.5 shrink-0 text-[#079447]" />
 
                 <div>
                   <p className="text-[13px] font-semibold text-[#303630]">
                     Where we&apos;re from
                   </p>
 
-                  <p className="mt-1 text-[14px] leading-[1.7] text-[#737373]">
+                  <p className="mt-0.5 text-[14px] leading-[1.7] text-[#737373]">
                     Tisaiyanvilai, Tirunelveli
                   </p>
 
-                  <p className="mt-1 text-[12px] text-gray-400">
+                  <p className="text-[12px] text-gray-400">
                     Made with care for everyday homes.
                   </p>
                 </div>
               </div>
 
-              <div className="mt-5 overflow-hidden rounded-2xl border border-emerald-100 bg-[#f6faf7] shadow-sm">
+              <div className="mt-4 overflow-hidden rounded-2xl border border-emerald-100 bg-[#f6faf7] shadow-sm">
                 <iframe
                   title="SNA Sundaram location in Tisaiyanvilai, Tirunelveli"
                   src="https://www.google.com/maps?q=Tisaiyanvilai%2C%20Tirunelveli&output=embed"
@@ -327,27 +321,24 @@ const ContactUs = () => {
           </div>
 
           {/* CONTACT FORM */}
-          <div className="rounded-[32px] border border-white/70 bg-white p-6 shadow-[0_16px_40px_rgba(0,0,0,0.05)] sm:p-8 lg:p-10">
+          <div className="flex flex-col rounded-[32px] border border-white/70 bg-white p-6 shadow-[0_16px_40px_rgba(0,0,0,0.05)] sm:p-8 lg:p-10">
             {!submitted ? (
-              <>
-                <div>
-                  <p className="text-[12px] font-semibold uppercase tracking-[0.24em] text-[#079447]">
-                    Send us a message
-                  </p>
+              <div className="flex flex-1 flex-col">
+                <p className="text-[12px] font-semibold uppercase tracking-[0.24em] text-[#079447]">
+                  Send us a message
+                </p>
 
-                  <h2 className="mt-3 text-[clamp(28px,3vw,42px)] font-medium leading-[1.1] tracking-[-0.03em] text-[#2d2d2d]">
-                    How can we help?
-                  </h2>
+                <h2 className="mt-2.5 text-[clamp(28px,3vw,42px)] font-medium leading-[1.1] tracking-[-0.03em] text-[#2d2d2d]">
+                  How can we help?
+                </h2>
 
-                  <p className="mt-4 text-[14px] leading-[1.8] text-[#707070]">
-                    Fill in the details below and our team will get back to
-                    you.
-                  </p>
-                </div>
+                <p className="mt-2 text-[14px] leading-[1.8] text-[#707070]">
+                  Fill in the details below and our team will get back to you.
+                </p>
 
                 <form
                   onSubmit={handleSubmit}
-                  className="mt-6 space-y-2.5"
+                  className="mt-5 flex flex-1 flex-col gap-0"
                 >
                   {/* NAME + EMAIL */}
                   <div className="grid gap-2.5 sm:grid-cols-2">
@@ -368,13 +359,8 @@ const ContactUs = () => {
                             : "border-gray-200 bg-[#f9faf9] text-[#333] focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
                         } px-3.5 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400`}
                       />
-                      <p className="mt-0.5 flex min-h-[14px] items-center gap-1 text-[11px] font-medium leading-4 text-red-600">
-                        {errors.name && (
-                          <>
-                            <AlertCircle size={12} className="shrink-0 text-red-600" />
-                            <span>{errors.name}</span>
-                          </>
-                        )}
+                      <p className="flex h-4 items-center gap-1 text-[11px] font-medium leading-none text-red-600">
+                        {errors.name && (<><AlertCircle size={12} className="shrink-0 text-red-600" /><span>{errors.name}</span></>)}
                       </p>
                     </div>
 
@@ -396,19 +382,14 @@ const ContactUs = () => {
                             : "border-gray-200 bg-[#f9faf9] text-[#333] focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
                         } px-3.5 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400`}
                       />
-                      <p className="mt-0.5 flex min-h-[14px] items-center gap-1 text-[11px] font-medium leading-4 text-red-600">
-                        {errors.email && (
-                          <>
-                            <AlertCircle size={12} className="shrink-0 text-red-600" />
-                            <span>{errors.email}</span>
-                          </>
-                        )}
+                      <p className="flex h-4 items-center gap-1 text-[11px] font-medium leading-none text-red-600">
+                        {errors.email && (<><AlertCircle size={12} className="shrink-0 text-red-600" /><span>{errors.email}</span></>)}
                       </p>
                     </div>
                   </div>
 
                   {/* PHONE + SUBJECT */}
-                  <div className="grid gap-2.5 sm:grid-cols-2">
+                  <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2">
                     <div>
                       <input
                         id="phone"
@@ -426,13 +407,8 @@ const ContactUs = () => {
                             : "border-gray-200 bg-[#f9faf9] text-[#333] focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
                         } px-3.5 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400`}
                       />
-                      <p className="mt-0.5 flex min-h-[14px] items-center gap-1 text-[11px] font-medium leading-4 text-red-600">
-                        {errors.phone && (
-                          <>
-                            <AlertCircle size={12} className="shrink-0 text-red-600" />
-                            <span>{errors.phone}</span>
-                          </>
-                        )}
+                      <p className="flex h-4 items-center gap-1 text-[11px] font-medium leading-none text-red-600">
+                        {errors.phone && (<><AlertCircle size={12} className="shrink-0 text-red-600" /><span>{errors.phone}</span></>)}
                       </p>
                     </div>
 
@@ -457,19 +433,14 @@ const ContactUs = () => {
                         <option value="feedback">Feedback</option>
                         <option value="other">Other</option>
                       </select>
-                      <p className="mt-0.5 flex min-h-[14px] items-center gap-1 text-[11px] font-medium leading-4 text-red-600">
-                        {errors.subject && (
-                          <>
-                            <AlertCircle size={12} className="shrink-0 text-red-600" />
-                            <span>{errors.subject}</span>
-                          </>
-                        )}
+                      <p className="flex h-4 items-center gap-1 text-[11px] font-medium leading-none text-red-600">
+                        {errors.subject && (<><AlertCircle size={12} className="shrink-0 text-red-600" /><span>{errors.subject}</span></>)}
                       </p>
                     </div>
                   </div>
 
-                  {/* MESSAGE */}
-                  <div>
+                  {/* MESSAGE — grows to fill remaining space */}
+                  <div className="mt-2.5 flex flex-1 flex-col">
                     <textarea
                       id="message"
                       name="message"
@@ -478,40 +449,31 @@ const ContactUs = () => {
                       onBlur={handleBlur}
                       placeholder="Tell us how we can help..."
                       maxLength={1000}
-                      rows={5}
                       aria-invalid={Boolean(errors.message)}
-                      className={`w-full resize-none rounded-xl border ${
+                      className={`flex-1 w-full resize-none rounded-xl border ${
                         errors.message
                           ? "border-red-400 bg-red-50/20 text-[#333] focus:border-red-500 focus:bg-white focus:ring-4 focus:ring-red-500/10"
                           : "border-gray-200 bg-[#f9faf9] text-[#333] focus:border-[#079447] focus:bg-white focus:ring-4 focus:ring-[#079447]/10"
-                      } px-3.5 py-2.5 text-sm leading-6 outline-none transition-all placeholder:text-gray-400`}
+                      } px-3.5 py-2.5 text-sm leading-6 outline-none transition-all placeholder:text-gray-400 min-h-[120px]`}
                     />
-                    <p className="mt-0.5 flex min-h-[14px] items-center gap-1 text-[11px] font-medium leading-4 text-red-600">
-                      {errors.message && (
-                        <>
-                          <AlertCircle size={12} className="shrink-0 text-red-600" />
-                          <span>{errors.message}</span>
-                        </>
-                      )}
+                    <p className="flex h-4 items-center gap-1 text-[11px] font-medium leading-none text-red-600">
+                      {errors.message && (<><AlertCircle size={12} className="shrink-0 text-red-600" /><span>{errors.message}</span></>)}
                     </p>
                   </div>
 
                   {/* SUBMIT */}
                   <button
                     type="submit"
-                    className="group flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-[#079447] px-5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(7,148,71,0.18)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#06753a] hover:shadow-[0_12px_25px_rgba(7,148,71,0.25)]"
+                    className="group mt-2 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-[#079447] px-5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(7,148,71,0.18)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#06753a] hover:shadow-[0_12px_25px_rgba(7,148,71,0.25)]"
                   >
                     Send Message
-                    <ArrowRight
-                      size={18}
-                      className="transition-transform duration-300 group-hover:translate-x-1"
-                    />
+                    <ArrowRight size={18} className="transition-transform duration-300 group-hover:translate-x-1" />
                   </button>
                 </form>
-              </>
+              </div>
             ) : (
               /* SUCCESS STATE */
-              <div className="flex min-h-[500px] flex-col items-center justify-center text-center">
+              <div className="flex flex-1 flex-col items-center justify-center text-center">
                 <div className="grid h-16 w-16 place-items-center rounded-full bg-[#edf8f1] text-[#079447]">
                   <CheckCircle2 size={30} />
                 </div>
@@ -525,8 +487,7 @@ const ContactUs = () => {
                 </h2>
 
                 <p className="mt-4 max-w-[460px] text-[14px] leading-[1.8] text-[#707070]">
-                  Your message has been received. Our team will get back to
-                  you as soon as possible.
+                  Your message has been received. Our team will get back to you as soon as possible.
                 </p>
 
                 <button
