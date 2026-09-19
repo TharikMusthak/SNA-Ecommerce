@@ -40,6 +40,7 @@ export default function ProductFields({ form, setForm, item, field, onNotice, ca
         <legend><span>2</span><b>Pricing & inventory</b><small>Sell price, available stock and alert level</small></legend>
         <div className="row">{field("price", "Regular price", "number", { min: "0", step: "0.01" })}{field("sale_price", "Selling price", "number", { min: "0", step: "0.01", required: false })}</div>
         <div className="row">{field("stock", "Opening stock", "number", { min: "0", step: "1" })}{field("low_stock_threshold", "Low-stock warning level", "number", { min: "0", step: "1", required: false })}</div>
+        <label>Shop display position<input type="number" min="0" step="1" value={form.display_order ?? 0} onChange={(event) => setForm({ ...form, display_order: event.target.value === "" ? "" : Number(event.target.value) })} /><small>Use 1 for the first product, 2 for the second, and so on. Leave 0 for the normal order.</small></label>
         <label className="toggle-row">
           <input
             type="checkbox"
@@ -72,7 +73,7 @@ export default function ProductFields({ form, setForm, item, field, onNotice, ca
         <ImagePreviewField name="gallery" label={item ? "Add gallery images" : "Product gallery images"} multiple />
       </fieldset>
 
-      {["name", "sku", "category", "category_id", "price", "sale_price", "stock", "low_stock_threshold", "published_at", "weight_grams", "package_length_cm", "package_width_cm", "package_height_cm"].map((name) => <input key={name} type="hidden" name={name} value={form[name] ?? ""} />)}
+      {["name", "sku", "category", "category_id", "price", "sale_price", "stock", "low_stock_threshold", "display_order", "published_at", "weight_grams", "package_length_cm", "package_width_cm", "package_height_cm"].map((name) => <input key={name} type="hidden" name={name} value={form[name] ?? ""} />)}
       <input type="hidden" name="status" value={form.status || "Active"} />
       <input type="hidden" name="is_featured" value={isFeatured ? "true" : "false"} />
     </>

@@ -78,6 +78,7 @@ CREATE TABLE products (
   price DECIMAL(10,2) NOT NULL,
   stock INT UNSIGNED NOT NULL DEFAULT 0,
   low_stock_threshold INT UNSIGNED NOT NULL DEFAULT 5,
+  display_order INT UNSIGNED NOT NULL DEFAULT 0,
   status ENUM('Active','Draft') NOT NULL DEFAULT 'Active',
   description TEXT,
   main_image VARCHAR(255) DEFAULT NULL,

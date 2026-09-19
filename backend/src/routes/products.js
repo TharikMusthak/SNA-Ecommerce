@@ -79,8 +79,8 @@ router.use(requireAdmin, allowRoles("Super Admin", "Product Manager"));
 router.get("/", async (req, res) => {
   const pagination = parsePagination(
     req.query,
-    ["id", "name", "price", "stock", "status", "created_at"],
-    "id",
+    ["id", "name", "price", "stock", "status", "display_order", "created_at"],
+    "display_order",
   );
   const search = cleanText(req.query.search, 120);
   const status = cleanText(req.query.status, 20);
@@ -218,9 +218,9 @@ router.post("/", productUploadWithVideo, verifyProductMedia, async (req, res) =>
       `INSERT INTO products
           (name, option_label, category, category_id, price, stock, low_stock_threshold,
            status, short_description, description, sale_price, video_url,
-           is_featured, published_at, main_image, future_image, slug, sku,
+           is_featured, display_order, published_at, main_image, future_image, slug, sku,
            weight_grams, package_length_cm, package_width_cm, package_height_cm)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         input.value.name,
         input.value.optionLabel,
@@ -237,6 +237,7 @@ router.post("/", productUploadWithVideo, verifyProductMedia, async (req, res) =>
           ? imageUrl(req.files.video[0])
           : storedProductPath(blobVideo),
         input.value.isFeatured,
+        input.value.displayOrder,
         input.value.publishedAt,
         mainImage,
         req.files?.future_image?.[0] ? imageUrl(req.files.future_image[0]) : null,
@@ -383,7 +384,7 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
       `UPDATE products
          SET name = ?, option_label = ?, category = ?, category_id = ?, price = ?, stock = ?,
              low_stock_threshold = ?, status = ?, short_description = ?,
-             description = ?, sale_price = ?, video_url = ?, is_featured = ?,
+             description = ?, sale_price = ?, video_url = ?, is_featured = ?, display_order = ?,
              published_at = ?, main_image = ?, future_image = ?, slug = ?, sku = ?,
              weight_grams = ?, package_length_cm = ?, package_width_cm = ?, package_height_cm = ?
          WHERE id = ?`,
@@ -401,6 +402,7 @@ router.put("/:id", productUploadWithVideo, verifyProductMedia, async (req, res) 
         input.value.salePrice,
         video,
         input.value.isFeatured,
+        input.value.displayOrder,
         input.value.publishedAt,
         mainImage,
         futureImage,
@@ -889,6 +891,7 @@ function parseProduct(body) {
     )
       ? 1
       : 0,
+    displayOrder: Number(String(body.display_order ?? "").trim() || 0),
     publishedAt: parsePublishedAt(body.published_at),
     weightGrams: optionalPositiveNumber(body.weight_grams),
     packageLength: optionalPositiveNumber(body.package_length_cm),
@@ -916,6 +919,9 @@ function parseProduct(body) {
   }
   if (body.published_at && !value.publishedAt) {
     return { error: "Invalid future publish date" };
+  }
+  if (!Number.isInteger(value.displayOrder) || value.displayOrder < 0) {
+    return { error: "Shop display position must be a whole number" };
   }
   if (!Number.isInteger(value.stock) || value.stock < 0) {
     return { error: "Stock must be a positive whole number" };
