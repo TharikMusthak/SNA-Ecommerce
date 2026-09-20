@@ -1,4 +1,5 @@
 import { useState } from "react";
+import api, { apiErrorMessage } from "@api/axios";
 import {
   Mail,
   Phone,
@@ -54,6 +55,8 @@ const ContactUs = () => {
   });
 
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
 
@@ -104,7 +107,7 @@ const ContactUs = () => {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const fieldsToValidate = ["name", "email", "subject", "message"];
     if (formData.phone) fieldsToValidate.push("phone");
@@ -126,14 +129,23 @@ const ContactUs = () => {
     }
 
     setErrors({});
-    setSubmitted(true);
-    setFormData({
-      name: "",
-      email: "",
-      phone: "",
-      subject: "",
-      message: "",
-    });
+    setSubmitError("");
+    setSubmitting(true);
+    try {
+      await api.post("/contact", formData);
+      setSubmitted(true);
+      setFormData({
+        name: "",
+        email: "",
+        phone: "",
+        subject: "",
+        message: "",
+      });
+    } catch (error) {
+      setSubmitError(apiErrorMessage(error, "Your message could not be sent. Please try again."));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -464,11 +476,13 @@ const ContactUs = () => {
                   {/* SUBMIT */}
                   <button
                     type="submit"
+                    disabled={submitting}
                     className="group mt-2 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-[#079447] px-5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(7,148,71,0.18)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#06753a] hover:shadow-[0_12px_25px_rgba(7,148,71,0.25)]"
                   >
-                    Send Message
+                    {submitting ? "Sending…" : "Send Message"}
                     <ArrowRight size={18} className="transition-transform duration-300 group-hover:translate-x-1" />
                   </button>
+                  {submitError && <p className="mt-3 text-center text-sm font-medium text-red-600">{submitError}</p>}
                 </form>
               </div>
             ) : (

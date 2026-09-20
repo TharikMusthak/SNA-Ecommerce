@@ -487,9 +487,9 @@ router.get(
       params = [];
     if (p.search) {
       where.push(
-        "(t.ticket_code LIKE ? OR t.subject LIKE ? OR u.email LIKE ?)",
+        "(t.ticket_code LIKE ? OR t.subject LIKE ? OR u.email LIKE ? OR t.contact_name LIKE ? OR t.contact_email LIKE ? OR t.contact_phone LIKE ?)",
       );
-      params.push(...Array(3).fill(`%${p.search}%`));
+      params.push(...Array(6).fill(`%${p.search}%`));
     }
     if (
       [
@@ -510,11 +510,11 @@ router.get(
     const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
     const [[count], [rows]] = await Promise.all([
       pool.query(
-        `SELECT COUNT(*) total FROM support_tickets t JOIN users u ON u.id=t.user_id ${clause}`,
+        `SELECT COUNT(*) total FROM support_tickets t LEFT JOIN users u ON u.id=t.user_id ${clause}`,
         params,
       ),
       pool.query(
-        `SELECT t.id,t.ticket_code,t.user_id,t.subject,t.category,t.status,t.priority,t.assigned_admin_id,t.created_at,t.updated_at,u.email,CONCAT(u.first_name,' ',u.last_name) customer FROM support_tickets t JOIN users u ON u.id=t.user_id ${clause} ORDER BY t.${p.sort} ${p.order} LIMIT ? OFFSET ?`,
+        `SELECT t.id,t.ticket_code,t.user_id,t.subject,t.category,t.status,t.priority,t.assigned_admin_id,t.created_at,t.updated_at,COALESCE(u.email,t.contact_email) email,COALESCE(NULLIF(CONCAT(u.first_name,' ',u.last_name),' '),t.contact_name) customer,COALESCE(u.phone,t.contact_phone) phone FROM support_tickets t LEFT JOIN users u ON u.id=t.user_id ${clause} ORDER BY t.${p.sort} ${p.order} LIMIT ? OFFSET ?`,
         [...params, p.limit, p.offset],
       ),
     ]);
@@ -528,7 +528,7 @@ router.get(
     const id = parsePositiveId(req.params.id);
     if (!id) return fail(res, 400, "Invalid ticket ID");
     const [[ticket]] = await pool.query(
-      "SELECT t.*,u.email,u.phone,CONCAT(u.first_name,' ',u.last_name) customer FROM support_tickets t JOIN users u ON u.id=t.user_id WHERE t.id=?",
+      "SELECT t.*,COALESCE(u.email,t.contact_email) email,COALESCE(u.phone,t.contact_phone) phone,COALESCE(NULLIF(CONCAT(u.first_name,' ',u.last_name),' '),t.contact_name) customer FROM support_tickets t LEFT JOIN users u ON u.id=t.user_id WHERE t.id=?",
       [id],
     );
     if (!ticket) return fail(res, 404, "Ticket not found");
@@ -622,7 +622,8 @@ router.post(
         [req.admin.id, String(id)],
       );
       await connection.commit();
-      await queueUserEvent({ userId:ticket.user_id,event:"ticket_replied",entityType:"ticket",entityId:id,payload:{ ticketCode:ticket.ticket_code } }).catch(() => []);
+      if (ticket.user_id)
+        await queueUserEvent({ userId:ticket.user_id,event:"ticket_replied",entityType:"ticket",entityId:id,payload:{ ticketCode:ticket.ticket_code } }).catch(() => []);
       return ok(res, { id: result.insertId }, "Reply sent", 201);
     } catch (error) {
       await connection.rollback();
