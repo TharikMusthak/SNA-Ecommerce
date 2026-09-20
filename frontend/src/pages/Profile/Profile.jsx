@@ -617,6 +617,7 @@ function CustomerOrderCard({ order, onCancel, isCancelling }) {
       order.delivery_date_time,
   );
   const canCancel = !["shipped", "out_for_delivery", "delivered", "cancelled", "returned", "refunded", "failed"].includes(String(order.status || "").toLowerCase());
+  const refundInProgress = String(order.status || "").toLowerCase() === "cancelled" && !isCod;
   return (
     <article className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
       <header className="flex flex-col gap-3 border-b border-gray-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -629,6 +630,12 @@ function CustomerOrderCard({ order, onCancel, isCancelling }) {
         <div><span className="block text-[11px] font-bold uppercase text-gray-400">Delivered to</span><b className="mt-1 block text-gray-800">{[address.city,address.state,address.postal_code].filter(Boolean).join(", ") || "Not recorded"}</b></div>
         <div><span className="block text-[11px] font-bold uppercase text-gray-400">Total</span><b className="mt-1 block text-gray-900">{formatCurrency(order.amount)}</b><small className="capitalize text-gray-500">{isCod ? `COD · ${order.payment_status}` : order.payment_status}</small></div>
       </div>
+      {refundInProgress && (
+        <div className="mx-5 mt-4 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+          <b>Refund initiated</b>
+          <p className="mt-1">Your refund will be credited to the original payment method within 5–7 working days.</p>
+        </div>
+      )}
       <div className="grid gap-3 p-5 sm:grid-cols-2">
         {(order.items || []).map((item) => {
           const productPath = item.product_slug || item.product_id;

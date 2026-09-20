@@ -181,7 +181,7 @@ export default function OrderTracking() {
         <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_360px]">
           <div className="min-w-0 space-y-5">
 
-            {isCancelled && <CancelledBanner currentStatus={currentStatus} />}
+            {isCancelled && <CancelledBanner currentStatus={currentStatus} paymentMethod={data.payment_method || data.payment?.provider} />}
 
             <ProductJourneySection
               items={items || []}
@@ -255,8 +255,9 @@ function OrderHeader({ data, currentStatus }) {
 }
 
 // ── Cancelled / RTO / NDR Banner ───────────────────────────────────────────────
-function CancelledBanner({ currentStatus }) {
+function CancelledBanner({ currentStatus, paymentMethod }) {
   const label = humanStatus(currentStatus);
+  const onlineCancellation = currentStatus === "cancelled" && String(paymentMethod || "").toLowerCase() !== "cod";
 
   const getMessage = () => {
     if (currentStatus === "cancelled") return "This order has been cancelled. If you have any questions, please contact us.";
@@ -278,6 +279,7 @@ function CancelledBanner({ currentStatus }) {
       <div>
         <p className={`font-semibold ${isWarning ? "text-amber-800" : "text-red-800"}`}>{label}</p>
         <p className={`mt-1 text-sm ${isWarning ? "text-amber-700" : "text-red-600"}`}>{getMessage()}</p>
+        {onlineCancellation && <p className="mt-2 text-sm font-semibold text-red-700">Your refund will be credited to the original payment method within 5–7 working days.</p>}
       </div>
     </section>
   );
