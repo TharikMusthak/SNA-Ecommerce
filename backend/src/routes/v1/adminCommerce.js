@@ -853,7 +853,7 @@ router.get(
         "id",
       ),
       where = [
-        "(o.payment_status='paid' OR EXISTS (SELECT 1 FROM payments valid_payment WHERE valid_payment.order_id=o.id AND valid_payment.provider='cod'))",
+        "(o.payment_status IN ('paid','refunded') OR EXISTS (SELECT 1 FROM payments valid_payment WHERE valid_payment.order_id=o.id AND valid_payment.provider='cod'))",
       ],
       params = [];
     if (p.search) {

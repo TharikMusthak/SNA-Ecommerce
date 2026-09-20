@@ -259,6 +259,16 @@ function formatOrder({
     ...payment,
     amount: Number(payment.amount_minor) / 100,
   }));
+  // A payment can be retried, so the oldest row is not necessarily the payment
+  // that settled the order. Prefer a completed online payment for display; this
+  // keeps a refunded Razorpay order from being labelled as COD.
+  const displayPayment = [...normalizedPayments]
+    .reverse()
+    .find(
+      (payment) =>
+        payment.provider === "razorpay" &&
+        ["paid", "authorized", "refunded"].includes(payment.status),
+    ) || normalizedPayments.at(-1) || null;
 
   return {
     ...order,
@@ -278,7 +288,7 @@ function formatOrder({
     history: statusHistory,
     status_history: statusHistory,
     payments: normalizedPayments,
-    payment: normalizedPayments[0] || null,
+    payment: displayPayment,
     coupon,
     shipment,
     returns,

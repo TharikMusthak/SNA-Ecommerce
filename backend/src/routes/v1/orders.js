@@ -60,7 +60,10 @@ router.post(
       );
       if (previous) {
         const [[payment]] = await connection.query(
-          "SELECT id,provider FROM payments WHERE order_id=? LIMIT 1",
+          `SELECT id,provider FROM payments
+            WHERE order_id=?
+            ORDER BY (provider='razorpay' AND status IN ('paid','authorized','refunded')) DESC,id DESC
+            LIMIT 1`,
           [previous.id],
         );
         await connection.rollback();
@@ -266,7 +269,7 @@ router.get(
       limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
     const where = [
       "o.user_id=?",
-      "(o.payment_status='paid' OR EXISTS (SELECT 1 FROM payments valid_payment WHERE valid_payment.order_id=o.id AND valid_payment.provider='cod'))",
+      "(o.payment_status IN ('paid','refunded') OR EXISTS (SELECT 1 FROM payments valid_payment WHERE valid_payment.order_id=o.id AND valid_payment.provider='cod'))",
     ];
     const params = [req.user.id];
     if (req.query.scope === "current") where.push("o.status NOT IN ('delivered','cancelled','returned','refunded','failed')");
@@ -276,7 +279,7 @@ router.get(
       pool.query(`SELECT COUNT(*) AS total FROM orders o ${clause}`, params),
       pool.query(
         `SELECT o.id,o.order_code,o.amount,o.status,o.payment_status,o.currency,o.shipping_address_json,o.created_at,
-                (SELECT provider FROM payments payment_method WHERE payment_method.order_id=o.id ORDER BY payment_method.id DESC LIMIT 1) AS payment_method
+                (SELECT provider FROM payments payment_method WHERE payment_method.order_id=o.id ORDER BY (payment_method.provider='razorpay' AND payment_method.status IN ('paid','authorized','refunded')) DESC,payment_method.id DESC LIMIT 1) AS payment_method
            FROM orders o ${clause} ORDER BY o.created_at DESC,o.id DESC LIMIT ? OFFSET ?`,
         [...params, limit, (page - 1) * limit],
       ),
@@ -314,7 +317,7 @@ router.get(
               shipping_address_json,created_at,updated_at,
               (SELECT provider FROM payments payment_method
                  WHERE payment_method.order_id=orders.id
-                 ORDER BY payment_method.id DESC LIMIT 1) AS payment_method
+                 ORDER BY (payment_method.provider='razorpay' AND payment_method.status IN ('paid','authorized','refunded')) DESC,payment_method.id DESC LIMIT 1) AS payment_method
          FROM orders
         WHERE id=? AND user_id=?
         LIMIT 1`,
@@ -382,7 +385,9 @@ router.put(
         return fail(res, 409, "This order can no longer be cancelled after shipment");
       }
       const [[payment]] = await connection.query(
-        "SELECT * FROM payments WHERE order_id=? ORDER BY id DESC LIMIT 1 FOR UPDATE",
+        `SELECT * FROM payments WHERE order_id=?
+          ORDER BY (provider='razorpay' AND status='paid') DESC,id DESC
+          LIMIT 1 FOR UPDATE`,
         [id],
       );
       let refund = null;

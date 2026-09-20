@@ -347,7 +347,7 @@ function OrderCard({ order, saving, onStatusChange, onView }) {
     total: Number(order.amount || 0),
     currency: order.currency || "INR",
   };
-  const paymentProvider = order.payment?.provider || order.payments?.[0]?.provider || order.payment_provider || "";
+  const paymentProvider = order.payment?.provider || order.payments?.at(-1)?.provider || order.payment_provider || "";
   const isCod = paymentProvider === "cod";
 
   return (
@@ -429,7 +429,7 @@ function OrderCard({ order, saving, onStatusChange, onView }) {
 function OrderDialog({ order, saving, onCollectCod, onClose }) {
   const address = order.shipping_address || safeJson(order.shipping_address_json);
   const summary = order.summary || {};
-  const payment = order.payment || order.payments?.[0] || null;
+  const payment = order.payment || order.payments?.at(-1) || null;
   const paymentProvider = payment?.provider || order.payment_provider || "";
   const canCollectCod =
     order.payment_status !== "paid" &&
@@ -549,8 +549,8 @@ function filterLegacyOrders(orders, query) {
   const to = query.to ? new Date(`${query.to}T23:59:59.999`) : null;
 
   return orders.filter((order) => {
-    const provider = order.payment?.provider || order.payments?.[0]?.provider || order.payment_provider || "";
-    if (["razorpay", "stripe"].includes(provider) && order.payment_status !== "paid") return false;
+    const provider = order.payment?.provider || order.payments?.at(-1)?.provider || order.payment_provider || "";
+    if (["razorpay", "stripe"].includes(provider) && !["paid", "refunded"].includes(order.payment_status)) return false;
     if (query.scope === "current" && ["delivered", "cancelled", "returned", "refunded", "failed"].includes(order.status)) return false;
     if (query.scope === "unpaid" && ["paid", "refunded"].includes(order.payment_status)) return false;
     if (query.status && order.status !== query.status) return false;
