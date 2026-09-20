@@ -200,7 +200,7 @@ router.post("/shipments/:id/refresh", asyncHandler(async (req, res) => {
         [orderStatus, shipment.order_id, orderStatus],
       );
       if (orderUpdate.affectedRows) {
-        msg91Event = { shipped: "order_shipped", delivered: "order_delivered", cancelled: "order_cancelled" }[orderStatus] || null;
+        msg91Event = { shipped: "order_shipped", out_for_delivery: "order_out_for_delivery", delivered: "order_delivered", cancelled: "order_cancelled" }[orderStatus] || null;
       }
     }
     await connection.commit();

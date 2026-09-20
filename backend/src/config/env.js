@@ -203,6 +203,9 @@ export const env = Object.freeze({
     orderShippedTemplateId: String(
       process.env.MSG91_ORDER_SHIPPED_TEMPLATE_ID || "",
     ).trim(),
+    orderOutForDeliveryTemplateId: String(
+      process.env.MSG91_ORDER_OUT_FOR_DELIVERY_TEMPLATE_ID || "",
+    ).trim(),
     orderDeliveredTemplateId: String(
       process.env.MSG91_ORDER_DELIVERED_TEMPLATE_ID || "",
     ).trim(),

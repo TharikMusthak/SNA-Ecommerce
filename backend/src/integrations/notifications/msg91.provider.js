@@ -66,6 +66,7 @@ export async function sendMsg91Otp({ mobile, otp }) {
 const orderTemplateIds = Object.freeze({
   order_confirmed: () => env.msg91.orderConfirmationTemplateId,
   order_shipped: () => env.msg91.orderShippedTemplateId,
+  order_out_for_delivery: () => env.msg91.orderOutForDeliveryTemplateId,
   order_delivered: () => env.msg91.orderDeliveredTemplateId,
   order_cancelled: () => env.msg91.orderCancelledTemplateId,
   refund_completed: () => env.msg91.refundSuccessTemplateId,
