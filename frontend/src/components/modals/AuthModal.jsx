@@ -247,9 +247,26 @@ const AuthModal = ({ onClose }) => {
       if (onClose) onClose();
       else navigate("/");
     } catch (err) {
+      const response = err?.response?.data;
+      if (response?.code === "PENDING_PHONE_VERIFICATION" && response?.data?.phone) {
+        setMode("register");
+        setRegistrationOtpSent(true);
+        setFormData((current) => ({
+          ...current,
+          phone: response.data.phone,
+          otp: "",
+          password: "",
+        }));
+        setTouched({ otp: true });
+        setFieldErrors({});
+        setError("Your registration is waiting for mobile verification. Click Resend OTP, then enter the OTP to activate your account.");
+        return;
+      }
       setError(
-        err?.response?.data?.message ||
-          err?.response?.data?.error ||
+        err?.response?.status === 429
+          ? "Too many attempts. Please wait a few minutes before trying again."
+          : response?.message ||
+          response?.error ||
           err?.message ||
           `Unable to ${isLogin ? "login" : "register"}. Please try again.`
       );

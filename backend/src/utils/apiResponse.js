@@ -26,7 +26,10 @@ export function paginated(res, data, { page, limit, total }) {
 
 export function fail(res, status, message, errors) {
   const body = { success: false, message };
-  if (errors?.code && Object.keys(errors).length === 1) body.code = errors.code;
+  if (errors?.code) {
+    body.code = errors.code;
+    if (errors.data) body.data = errors.data;
+  }
   else if (errors) body.errors = errors;
   return res.status(status).json(body);
 }

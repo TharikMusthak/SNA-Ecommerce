@@ -176,6 +176,21 @@ router.post(
       ? await bcrypt.compare(req.body.password, user.password_hash)
       : false;
     if (!user || !passwordValid) {
+      const [[pending]] = await pool.query(
+        `SELECT phone,password_hash FROM pending_customer_registrations
+         WHERE email = ? OR phone = ? LIMIT 1`,
+        [login, login],
+      );
+      if (pending && await bcrypt.compare(req.body.password, pending.password_hash))
+        return fail(
+          res,
+          403,
+          "Your registration is not complete. Verify your mobile number to activate your account.",
+          {
+            code: "PENDING_PHONE_VERIFICATION",
+            data: { phone: pending.phone },
+          },
+        );
       if (user)
         await pool.query(
           `UPDATE users SET failed_login_attempts = failed_login_attempts + 1, locked_until = IF(failed_login_attempts + 1 >= 5, DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 15 MINUTE), locked_until) WHERE id = ?`,
