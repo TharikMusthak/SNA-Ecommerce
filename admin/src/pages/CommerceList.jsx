@@ -401,22 +401,6 @@ export default function CommerceList({ type, onNotice }) {
       buttons.push(
         <button
           className="action-btn"
-          key="reply"
-          onClick={() =>
-            setModal({
-              kind: "form",
-              formType: "reply",
-              title: "Reply to ticket",
-              path: `/v1/admin/tickets/${row.id}/messages`,
-            })
-          }
-        >
-          Reply
-        </button>,
-      );
-      buttons.push(
-        <button
-          className="action-btn"
           key="update"
           onClick={() =>
             setModal({
