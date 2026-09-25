@@ -11,6 +11,12 @@ import {
 
 const SORT_OPTIONS = [
   {
+    value: "default",
+    label: "Product Order",
+    description: "Catalogue product order",
+    icon: Sparkles,
+  },
+  {
     value: "newest",
     label: "Newest Arrivals",
     description: "Show latest products first",
@@ -36,7 +42,7 @@ const SORT_OPTIONS = [
   },
 ];
 
-const ProductSortDropdown = ({ value = "newest", onChange }) => {
+const ProductSortDropdown = ({ value = "default", onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 

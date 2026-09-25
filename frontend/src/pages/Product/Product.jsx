@@ -171,7 +171,7 @@ const ProductList = () => {
   const params = useMemo(
     () => ({
       q: searchParams.get("q") || undefined,
-      sort: searchParams.get("sort") || "newest",
+      sort: searchParams.get("sort") || undefined,
       page: Number(searchParams.get("page") || 1),
       limit: 12,
       available: "true",
@@ -181,9 +181,13 @@ const ProductList = () => {
  
   const { data, isLoading, isError } = useProducts(params);
  
-   const setSort = (sort) => {
+  const setSort = (sort) => {
     const next = new URLSearchParams(searchParams);
-    next.set("sort", sort);
+    if (sort && sort !== "default") {
+      next.set("sort", sort);
+    } else {
+      next.delete("sort");
+    }
     next.set("page", "1");
     setSearchParams(next);
   };
@@ -221,7 +225,7 @@ const ProductList = () => {
             {data?.pagination?.total ?? 0} products available
           </p>
         </div>
-               <ProductSortDropdown value={params.sort} onChange={setSort} />
+               <ProductSortDropdown value={params.sort || "default"} onChange={setSort} />
       </div>
       {isLoading && (
         <div className="flex justify-center py-24">

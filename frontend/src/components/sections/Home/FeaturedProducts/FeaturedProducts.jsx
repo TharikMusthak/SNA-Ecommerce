@@ -317,7 +317,7 @@ const [searchParams, setSearchParams] = useSearchParams();
   const params = useMemo(
     () => ({
       q: searchParams.get("q") || undefined,
-      sort: searchParams.get("sort") || "manual",
+      sort: searchParams.get("sort") || undefined,
       page: Number(searchParams.get("page") || 1),
       limit: 12,
       available: "true",
