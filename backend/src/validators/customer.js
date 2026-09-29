@@ -18,7 +18,15 @@ export const registerSchema = z
   .object({
     first_name: z.string().trim().min(1).max(100),
     last_name: z.string().trim().min(1).max(100),
-    email: z.string().trim().toLowerCase().email().max(190),
+    email: z
+      .string()
+      .trim()
+      .max(190)
+      .transform((value) => value.toLowerCase() || null)
+      .refine(
+        (value) => value === null || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
+        "Enter a valid email address",
+      ),
     phone: indianPhone,
     password: strongPassword,
     password_confirmation: z.string(),

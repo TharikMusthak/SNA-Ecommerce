@@ -80,8 +80,7 @@ const AuthModal = ({ onClose }) => {
         if (!value || !value.trim()) return "Please enter your last name.";
         return "";
       case "email":
-        if (!value || !value.trim()) return "Please enter your email.";
-        if (!emailRegex.test(value.trim())) return "Please enter a valid email address.";
+        if (value && value.trim() && !emailRegex.test(value.trim())) return "Please enter a valid email address.";
         return "";
       case "phone":
         if (!value || !value.trim()) return "Please enter your phone number.";
@@ -195,7 +194,7 @@ const AuthModal = ({ onClose }) => {
         : otpSent ? ["phone", "otp"] : ["phone"]
       : registrationOtpSent
         ? ["otp"]
-        : ["first_name", "last_name", "email", "phone", "password", "password_confirmation", "accept_terms"];
+        : ["first_name", "last_name", "phone", "password", "password_confirmation", "accept_terms"];
 
     const newFieldErrors = {};
     const newTouched = {};
@@ -789,7 +788,7 @@ const AuthModal = ({ onClose }) => {
                 )}
 
                 {/* =================================================
-                    EMAIL
+                    EMAIL (OPTIONAL)
                 ================================================= */}
                 {!registrationOtpSent && <div>
                   <input
@@ -799,7 +798,7 @@ const AuthModal = ({ onClose }) => {
                     value={isLogin ? formData.phone : formData.email}
                     onChange={handleChange}
                     onBlur={handleBlur}
-                    placeholder={isLogin ? (loginMethod === "otp" ? "Enter your mobile number" : "Email or mobile number") : "Enter your email"}
+                    placeholder={isLogin ? (loginMethod === "otp" ? "Enter your mobile number" : "Email or mobile number") : "Enter your email (optional)"}
                     maxLength={isLogin && loginMethod === "otp" ? 13 : isLogin ? 190 : 100}
                     autoComplete={isLogin ? (loginMethod === "otp" ? "tel" : "username") : "email"}
                     inputMode={isLogin && loginMethod === "otp" ? "tel" : undefined}
