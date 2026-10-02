@@ -26,8 +26,9 @@ export async function queueNotification({ channel, event, userId = null, recipie
 }
 
 export async function queueUserEvent(input, pool = defaultPool) {
+  // Customer order updates are sent through MSG91 SMS. Do not create or send
+  // WhatsApp deliveries when WhatsApp is not part of the store's workflow.
   const results = await Promise.allSettled([
-    queueNotification({ channel: "whatsapp", ...input }, pool),
     queueNotification({ channel: "email", ...input }, pool),
   ]);
   return results.map((result) => result.status === "fulfilled" ? result.value : { status: "failed", code: result.reason?.code || "QUEUE_FAILED" });

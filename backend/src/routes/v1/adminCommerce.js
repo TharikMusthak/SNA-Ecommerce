@@ -989,7 +989,10 @@ router.get(
         ["id", "channel", "event", "status", "attempt_count", "created_at"],
         "id",
       ),
-      where = [],
+      // OTP and legacy WhatsApp rows are technical delivery logs, not CRM
+      // operational notifications. The list is reserved for customer email
+      // and MSG91 SMS delivery records.
+      where = ["event <> 'otp_requested'", "channel <> 'whatsapp'"],
       params = [];
     if (p.search) {
       where.push("(recipient LIKE ? OR event LIKE ? OR entity_id LIKE ?)");
@@ -1010,7 +1013,7 @@ router.get(
       where.push("status=?");
       params.push(req.query.status);
     }
-    const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
+    const clause = `WHERE ${where.join(" AND ")}`;
     const [[count], [rows]] = await Promise.all([
       pool.query(
         `SELECT COUNT(*) total FROM notification_deliveries ${clause}`,

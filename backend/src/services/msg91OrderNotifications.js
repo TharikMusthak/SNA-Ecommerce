@@ -44,11 +44,45 @@ export async function notifyMsg91OrderEvent({
   } else {
     variables = common;
   }
-  return sendMsg91OrderSms({
-    event,
-    mobile: order.user_phone || order.phone,
-    variables,
-  });
+  const recipient = order.user_phone || order.phone;
+  try {
+    const result = await sendMsg91OrderSms({ event, mobile: recipient, variables });
+    const status = result?.skipped ? "skipped" : "sent";
+    await database.query(
+      `INSERT INTO notification_deliveries
+         (user_id,channel,event,recipient,template_name,entity_type,entity_id,status,attempt_count,last_error_code,sent_at)
+       VALUES (?,?,?,?,?,'order',?,?,1,?,IF(?='sent',CURRENT_TIMESTAMP,NULL))`,
+      [
+        null,
+        "sms",
+        event,
+        String(recipient || ""),
+        "MSG91",
+        String(orderId),
+        status,
+        result?.reason || null,
+        status,
+      ],
+    );
+    return result;
+  } catch (error) {
+    // Keep a failed SMS visible to the CRM without making the order update fail.
+    await database.query(
+      `INSERT INTO notification_deliveries
+         (user_id,channel,event,recipient,template_name,entity_type,entity_id,status,attempt_count,last_error_code)
+       VALUES (?,?,?,?,?,'order',?,'failed',1,?)`,
+      [
+        null,
+        "sms",
+        event,
+        String(recipient || ""),
+        "MSG91",
+        String(orderId),
+        String(error.code || "MSG91_SEND_FAILED").slice(0, 120),
+      ],
+    ).catch(() => {});
+    throw error;
+  }
 }
 
 export function safelyNotifyMsg91Order(input) {
