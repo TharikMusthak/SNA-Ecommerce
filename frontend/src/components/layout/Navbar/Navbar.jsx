@@ -506,13 +506,13 @@ const Navbar = () => {
           {/* Slide-in App Drawer Panel */}
           <div
             className={`
-              absolute top-0 bottom-0 left-0 w-[85vw] max-w-[340px] bg-white shadow-2xl
-              flex flex-col overflow-y-auto transition-transform duration-300 ease-out
+              absolute left-0 top-0 h-[100dvh] max-h-[100dvh] w-[85vw] max-w-[340px] bg-white shadow-2xl
+              flex flex-col overflow-hidden transition-transform duration-300 ease-out
               ${mobileMenuOpen ? "translate-x-0" : "-translate-x-full"}
             `}
           >
             {/* Drawer Brand Header */}
-            <div className="flex items-center justify-between border-b border-gray-100 p-5 bg-gradient-to-r from-emerald-50/60 via-white to-white">
+            <div className="shrink-0 flex items-center justify-between border-b border-gray-100 p-5 bg-gradient-to-r from-emerald-50/60 via-white to-white">
               <Link to="/" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
                 <img src={Logo} alt="SNA Sundaram" className="h-9 w-auto" />
               </Link>
@@ -527,7 +527,7 @@ const Navbar = () => {
             </div>
 
             {/* App Profile Status Header */}
-            <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/60">
+            <div className="shrink-0 px-5 py-4 border-b border-gray-100 bg-gray-50/60">
               <Link
                 to={isAuthenticated ? "/profile" : "/auth/login"}
                 onClick={() => setMobileMenuOpen(false)}
@@ -547,7 +547,7 @@ const Navbar = () => {
             </div>
 
             {/* Drawer App Navigation List */}
-            <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+            <nav className="min-h-0 flex-1 touch-pan-y overscroll-contain overflow-y-auto px-3 py-4 space-y-1 [-webkit-overflow-scrolling:touch]">
               {mobileNavItems.map(({ to, label, icon: Icon, badge }) => (
                 <NavLink
                   key={to}
@@ -585,7 +585,7 @@ const Navbar = () => {
             </nav>
 
             {/* Drawer Footer */}
-            <div className="p-4 border-t border-gray-100 bg-gray-50/50 space-y-3">
+            <div className="shrink-0 p-4 border-t border-gray-100 bg-gray-50/50 space-y-3">
               {isAuthenticated && (
                 <button
                   type="button"
