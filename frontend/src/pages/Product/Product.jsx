@@ -31,7 +31,7 @@ import {
   useUpdateReview,
 } from "@hooks/useReviews";
 import formatCurrency from "@utils/formatCurrency";
-import { assetUrl, effectivePrice, formatAmazonReviewDate, getRelativeTime } from "@utils/helpers";
+import { assetUrl, effectivePrice, formatAmazonReviewDate, getRelativeTime, getSortableName } from "@utils/helpers";
 
 export function extractReviewMedia(review) {
   if (!review) return [];
@@ -180,6 +180,33 @@ const ProductList = () => {
   );
  
   const { data, isLoading, isError } = useProducts(params);
+
+  const sortedItems = useMemo(() => {
+    if (!data?.items) return [];
+    const items = [...data.items];
+
+    if (params.sort === "name" || params.sort === "name_asc") {
+      items.sort((a, b) =>
+        getSortableName(a).localeCompare(getSortableName(b), "en", {
+          sensitivity: "base",
+          numeric: true,
+        }),
+      );
+    } else if (params.sort === "name_desc") {
+      items.sort((a, b) =>
+        getSortableName(b).localeCompare(getSortableName(a), "en", {
+          sensitivity: "base",
+          numeric: true,
+        }),
+      );
+    } else if (params.sort === "price_asc") {
+      items.sort((a, b) => effectivePrice(a) - effectivePrice(b));
+    } else if (params.sort === "price_desc") {
+      items.sort((a, b) => effectivePrice(b) - effectivePrice(a));
+    }
+
+    return items;
+  }, [data?.items, params.sort]);
  
   const setSort = (sort) => {
     const next = new URLSearchParams(searchParams);
@@ -237,13 +264,13 @@ const ProductList = () => {
           Products could not be loaded. Please try again.
         </p>
       )}
-      {!isLoading && !isError && !data?.items?.length && (
+      {!isLoading && !isError && !sortedItems.length && (
         <p className="py-20 text-center text-gray-500">
           No products match this search.
         </p>
       )}
       <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {data?.items?.map((product) => (
+        {sortedItems.map((product) => (
           <ProductCard key={product.id} product={product} />
         ))}
       </div>

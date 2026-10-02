@@ -17,6 +17,19 @@ export function effectivePrice(product) {
   return getPricingDisplay(product).currentPrice;
 }
 
+export function getSortableName(product) {
+  if (!product || !product.name) return "";
+  const name = String(product.name).trim();
+  if (name.includes("/")) {
+    const parts = name.split("/");
+    const englishPart = parts[parts.length - 1].trim();
+    if (englishPart && /[a-zA-Z]/.test(englishPart)) {
+      return englishPart;
+    }
+  }
+  return name;
+}
+
 export function getRelativeTime(dateValue) {
   if (!dateValue) return "Recently";
   const date = new Date(dateValue);
