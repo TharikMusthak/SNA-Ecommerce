@@ -1908,10 +1908,23 @@ body select:not([multiple]) option {
     position: fixed;
     width: min(300px, 88vw);
     height: 100dvh;
+    max-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     transform: translateX(-105%);
     box-shadow: var(--shadow-lg);
   }
   .shell aside.sidebar--open { transform: translateX(0); }
+  .shell > aside nav {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+  }
   .sidebar-scrim {
     position: fixed;
     inset: 0;
@@ -1933,7 +1946,7 @@ body select:not([multiple]) option {
   .shell--collapsed .account-dropdown span { display: initial; }
   .shell--collapsed .account-profile { justify-content: flex-start; padding: 10px; }
   .shell--collapsed .account-dropdown { left: 0; right: 0; bottom: calc(100% + 8px); width: auto; }
-  .account { display: block; }
+  .account { display: block; flex: 0 0 auto; }
   .shell main { width: 100%; height: auto; min-height: 100vh; overflow: visible; }
   .app-header { position: sticky; min-height: 72px; padding: 11px 16px; }
   .mobile-menu-button { display: grid; }
