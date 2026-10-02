@@ -205,12 +205,17 @@ function DashboardList({ title, eyebrow, rows = [], empty, render, onViewAll }) 
 function RevenueChart({ rows }) {
   if (!rows.length) return <div className="compact-empty"><IndianRupee size={24} /><span>No eligible revenue in this period.</span></div>;
   const max = Math.max(...rows.map((row) => Number(row.value)), 1);
+  // Keep the chart readable for long ranges. The bars still represent every
+  // day, but only evenly spaced dates are labelled.
+  const labelEvery = Math.max(1, Math.ceil(rows.length / 7));
   return (
     <div className="revenue-chart" role="img" aria-label="Revenue trend chart">
-      {rows.map((row) => (
+      {rows.map((row, index) => (
         <div className="chart-column" key={row.date} title={`${row.date}: ${currency(row.value)}`}>
           <span style={{ height: `${Math.max((Number(row.value) / max) * 100, 4)}%` }} />
-          <small>{new Date(`${row.date}T00:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</small>
+          <small className={index % labelEvery === 0 || index === rows.length - 1 ? "" : "chart-label--hidden"}>
+            {new Date(`${row.date}T00:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+          </small>
         </div>
       ))}
     </div>
