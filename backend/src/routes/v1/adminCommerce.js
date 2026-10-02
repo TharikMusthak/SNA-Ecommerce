@@ -1025,6 +1025,24 @@ router.get(
   }),
 );
 router.get(
+  "/notifications/:id",
+  allowRoles("Super Admin"),
+  asyncHandler(async (req, res) => {
+    const id = parsePositiveId(req.params.id);
+    if (!id) return fail(res, 400, "Invalid notification ID");
+    const [[notification]] = await pool.query(
+      `SELECT id,user_id,channel,event,recipient,template_name,entity_type,entity_id,
+              provider_message_id,status,attempt_count,next_attempt_at,last_error_code,
+              sent_at,delivered_at,read_at,created_at,updated_at
+         FROM notification_deliveries
+        WHERE id=?`,
+      [id],
+    );
+    if (!notification) return fail(res, 404, "Notification not found");
+    return ok(res, notification);
+  }),
+);
+router.get(
   "/audit-logs",
   allowRoles("Super Admin"),
   asyncHandler(async (req, res) => {
