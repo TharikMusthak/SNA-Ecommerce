@@ -43,7 +43,8 @@ router.get(
       const [[reviews], [lowStock]] = await Promise.all([
         pool.query(
           `SELECT COUNT(*) AS count,MAX(created_at) AS newest_at
-             FROM reviews`,
+             FROM reviews
+            WHERE status='pending'`,
         ),
         pool.query(
             `SELECT COUNT(*) AS count
@@ -76,16 +77,27 @@ router.get(
     }
 
     if (canManageOrders) {
-      const [[orders], [pickup]] = await Promise.all([
+      const [[orders], [pickup], [tickets], [returns]] = await Promise.all([
         pool.query(
           `SELECT COUNT(*) AS count,MAX(created_at) AS newest_at
-             FROM orders`,
+             FROM orders
+            WHERE status='confirmed'`,
         ),
         pool.query(
           `SELECT COUNT(*) AS count
              FROM shipments
             WHERE status='shipment_created'
               AND awb_code IS NOT NULL AND awb_code <> ''`,
+        ),
+        pool.query(
+          `SELECT COUNT(*) AS count,MAX(created_at) AS newest_at
+             FROM support_tickets
+            WHERE status='open'`,
+        ),
+        pool.query(
+          `SELECT COUNT(*) AS count,MAX(created_at) AS newest_at
+             FROM returns
+            WHERE status='requested'`,
         ),
       ]);
       if (Number(orders.count)) {
@@ -107,6 +119,28 @@ router.get(
           title: "Pickup required",
           description: `${pickup.count} shipment${Number(pickup.count) === 1 ? " is" : "s are"} ready to schedule for pickup`,
           target: "Dispatch",
+        });
+      }
+      if (Number(tickets.count)) {
+        notifications.push({
+          id: "open-support-tickets",
+          kind: "ticket",
+          count: Number(tickets.count),
+          title: "New support tickets",
+          description: `${tickets.count} customer message${Number(tickets.count) === 1 ? " needs" : "s need"} a response`,
+          target: "Support Tickets",
+          created_at: tickets.newest_at,
+        });
+      }
+      if (Number(returns.count)) {
+        notifications.push({
+          id: "return-requests",
+          kind: "return",
+          count: Number(returns.count),
+          title: "Return requests",
+          description: `${returns.count} return request${Number(returns.count) === 1 ? " needs" : "s need"} review`,
+          target: "Returns",
+          created_at: returns.newest_at,
         });
       }
     }
