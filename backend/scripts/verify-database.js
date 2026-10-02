@@ -66,6 +66,7 @@ try {
     "006_legacy_category_compatibility",
     "007_admin_auth_compatibility",
     "008_customer_identity_integrity",
+    "019_contact_form_tickets",
   ]) {
     if (!migrationNames.has(version))
       throw new Error(`Migration not applied: ${version}`);

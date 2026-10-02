@@ -27,6 +27,19 @@ const productRoles = allowRoles("Super Admin", "Product Manager");
 const orderRoles = allowRoles("Super Admin", "Order Manager");
 router.use(requireAdmin);
 
+async function supportTicketColumns() {
+  const [rows] = await pool.query(
+    "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='support_tickets'",
+  );
+  const names = new Set(rows.map((row) => row.COLUMN_NAME));
+  return {
+    contactName: names.has("contact_name"),
+    contactEmail: names.has("contact_email"),
+    contactPhone: names.has("contact_phone"),
+    priority: names.has("priority"),
+  };
+}
+
 router.get(
   "/header-notifications",
   asyncHandler(async (req, res) => {
@@ -512,6 +525,7 @@ router.get(
   "/tickets",
   orderRoles,
   asyncHandler(async (req, res) => {
+    const columns = await supportTicketColumns();
     const p = parsePagination(
         req.query,
         ["id", "ticket_code", "status", "priority", "created_at", "updated_at"],
@@ -520,10 +534,12 @@ router.get(
       where = [],
       params = [];
     if (p.search) {
-      where.push(
-        "(t.ticket_code LIKE ? OR t.subject LIKE ? OR u.email LIKE ? OR t.contact_name LIKE ? OR t.contact_email LIKE ? OR t.contact_phone LIKE ?)",
-      );
-      params.push(...Array(6).fill(`%${p.search}%`));
+      const searchFields = ["t.ticket_code", "t.subject", "u.email"];
+      if (columns.contactName) searchFields.push("t.contact_name");
+      if (columns.contactEmail) searchFields.push("t.contact_email");
+      if (columns.contactPhone) searchFields.push("t.contact_phone");
+      where.push(`(${searchFields.map((field) => `${field} LIKE ?`).join(" OR ")})`);
+      params.push(...Array(searchFields.length).fill(`%${p.search}%`));
     }
     if (
       [
@@ -538,6 +554,7 @@ router.get(
       params.push(req.query.status);
     }
     if (["low", "normal", "high", "urgent"].includes(req.query.priority)) {
+      if (!columns.priority) return fail(res, 422, "Ticket priority is unavailable until database migration 004 is applied");
       where.push("t.priority=?");
       params.push(req.query.priority);
     }
@@ -548,7 +565,7 @@ router.get(
         params,
       ),
       pool.query(
-        `SELECT t.id,t.ticket_code,t.user_id,t.subject,t.category,t.status,t.priority,t.assigned_admin_id,t.created_at,t.updated_at,COALESCE(u.email,t.contact_email) email,COALESCE(NULLIF(CONCAT(u.first_name,' ',u.last_name),' '),t.contact_name) customer,COALESCE(u.phone,t.contact_phone) phone FROM support_tickets t LEFT JOIN users u ON u.id=t.user_id ${clause} ORDER BY t.${p.sort} ${p.order} LIMIT ? OFFSET ?`,
+        `SELECT t.id,t.ticket_code,t.user_id,t.subject,t.category,t.status,${columns.priority ? "t.priority" : "'normal'"} priority,t.assigned_admin_id,t.created_at,t.updated_at,COALESCE(u.email,${columns.contactEmail ? "t.contact_email" : "NULL"}) email,COALESCE(NULLIF(CONCAT(u.first_name,' ',u.last_name),' '),${columns.contactName ? "t.contact_name" : "NULL"}) customer,COALESCE(u.phone,${columns.contactPhone ? "t.contact_phone" : "NULL"}) phone FROM support_tickets t LEFT JOIN users u ON u.id=t.user_id ${clause} ORDER BY t.${p.sort} ${p.order} LIMIT ? OFFSET ?`,
         [...params, p.limit, p.offset],
       ),
     ]);
@@ -561,8 +578,9 @@ router.get(
   asyncHandler(async (req, res) => {
     const id = parsePositiveId(req.params.id);
     if (!id) return fail(res, 400, "Invalid ticket ID");
+    const columns = await supportTicketColumns();
     const [[ticket]] = await pool.query(
-      "SELECT t.*,COALESCE(u.email,t.contact_email) email,COALESCE(u.phone,t.contact_phone) phone,COALESCE(NULLIF(CONCAT(u.first_name,' ',u.last_name),' '),t.contact_name) customer FROM support_tickets t LEFT JOIN users u ON u.id=t.user_id WHERE t.id=?",
+      `SELECT t.*,COALESCE(u.email,${columns.contactEmail ? "t.contact_email" : "NULL"}) email,COALESCE(u.phone,${columns.contactPhone ? "t.contact_phone" : "NULL"}) phone,COALESCE(NULLIF(CONCAT(u.first_name,' ',u.last_name),' '),${columns.contactName ? "t.contact_name" : "NULL"}) customer FROM support_tickets t LEFT JOIN users u ON u.id=t.user_id WHERE t.id=?`,
       [id],
     );
     if (!ticket) return fail(res, 404, "Ticket not found");
