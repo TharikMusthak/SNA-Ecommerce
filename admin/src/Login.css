@@ -1,0 +1,774 @@
+.sna-login-page,
+.sna-login-page * {
+  box-sizing: border-box;
+}
+
+.sna-login-page {
+  --login-primary: #19b253;
+  --login-primary-dark: #0f7a39;
+  --login-deep: #0a2d20;
+  --login-text: #183729;
+  --login-muted: #718078;
+  --login-border: #d8e6dd;
+  width: 100%;
+  height: 100vh;
+  min-height: 680px;
+  display: grid;
+  grid-template-columns: minmax(420px, 1fr) minmax(520px, 1fr);
+  overflow: hidden;
+  background: #f7fbf8;
+  color: var(--login-text);
+  font-family: Inter, Poppins, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+}
+
+/* Left welcome panel. These rules also override the dashboard's global aside. */
+.sna-login-page > .sna-welcome-panel {
+  position: relative;
+  inset: auto;
+  z-index: 1;
+  width: 100%;
+  height: 100vh;
+  min-height: 680px;
+  padding: 0;
+  display: block;
+  overflow: hidden;
+  color: #fff;
+  background:
+    radial-gradient(circle at 88% 8%, rgba(89, 224, 139, 0.2), transparent 28%),
+    linear-gradient(145deg, #17623d 0%, #0f4b30 48%, #08271a 100%);
+}
+
+.sna-pattern {
+  position: absolute;
+  inset: 0;
+  opacity: 0.08;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0,
+    transparent 8px,
+    rgba(255, 255, 255, 0.55) 9px
+  );
+}
+
+.sna-floating-leaves {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.sna-leaf {
+  --leaf-x: 24px;
+  --leaf-rotate: 18deg;
+  position: absolute;
+  bottom: -14%;
+  left: var(--leaf-left);
+  width: var(--leaf-size);
+  height: calc(var(--leaf-size) * 0.58);
+  border-radius: 90% 12% 90% 12%;
+  opacity: var(--leaf-opacity);
+  background: var(--leaf-color);
+  box-shadow: inset -3px -2px 5px rgba(7, 77, 37, 0.12);
+  transform-origin: 50% 100%;
+  animation: sna-leaf-float var(--leaf-duration) linear var(--leaf-delay)
+    infinite;
+}
+
+.sna-leaf::after {
+  position: absolute;
+  top: 50%;
+  left: 12%;
+  width: 76%;
+  height: 1px;
+  content: "";
+  background: rgba(255, 255, 255, 0.36);
+  transform: rotate(-18deg);
+  transform-origin: left center;
+}
+
+.sna-leaf:nth-child(1) {
+  --leaf-left: 6%;
+  --leaf-size: 30px;
+  --leaf-opacity: 0.3;
+  --leaf-color: #b7f36b;
+  --leaf-duration: 24s;
+  --leaf-delay: -8s;
+  --leaf-x: 38px;
+}
+
+.sna-leaf:nth-child(2) {
+  --leaf-left: 17%;
+  --leaf-size: 20px;
+  --leaf-opacity: 0.26;
+  --leaf-color: rgba(255, 255, 255, 0.9);
+  --leaf-duration: 29s;
+  --leaf-delay: -20s;
+  --leaf-x: -28px;
+  --leaf-rotate: -24deg;
+}
+
+.sna-leaf:nth-child(3) {
+  --leaf-left: 30%;
+  --leaf-size: 42px;
+  --leaf-opacity: 0.18;
+  --leaf-color: #72dc70;
+  --leaf-duration: 32s;
+  --leaf-delay: -4s;
+  --leaf-x: 52px;
+}
+
+.sna-leaf:nth-child(4) {
+  --leaf-left: 43%;
+  --leaf-size: 25px;
+  --leaf-opacity: 0.26;
+  --leaf-color: #d0ff91;
+  --leaf-duration: 27s;
+  --leaf-delay: -16s;
+  --leaf-x: -35px;
+  --leaf-rotate: -31deg;
+}
+
+.sna-leaf:nth-child(5) {
+  --leaf-left: 55%;
+  --leaf-size: 34px;
+  --leaf-opacity: 0.2;
+  --leaf-color: rgba(255, 255, 255, 0.84);
+  --leaf-duration: 34s;
+  --leaf-delay: -25s;
+  --leaf-x: 29px;
+}
+
+.sna-leaf:nth-child(6) {
+  --leaf-left: 66%;
+  --leaf-size: 19px;
+  --leaf-opacity: 0.34;
+  --leaf-color: #9aed62;
+  --leaf-duration: 25s;
+  --leaf-delay: -12s;
+  --leaf-x: -42px;
+  --leaf-rotate: -18deg;
+}
+
+.sna-leaf:nth-child(7) {
+  --leaf-left: 76%;
+  --leaf-size: 38px;
+  --leaf-opacity: 0.16;
+  --leaf-color: #e4ffc5;
+  --leaf-duration: 36s;
+  --leaf-delay: -30s;
+  --leaf-x: 34px;
+}
+
+.sna-leaf:nth-child(8) {
+  --leaf-left: 86%;
+  --leaf-size: 24px;
+  --leaf-opacity: 0.28;
+  --leaf-color: #68d66c;
+  --leaf-duration: 28s;
+  --leaf-delay: -6s;
+  --leaf-x: -30px;
+  --leaf-rotate: -27deg;
+}
+
+.sna-leaf:nth-child(9) {
+  --leaf-left: 94%;
+  --leaf-size: 32px;
+  --leaf-opacity: 0.2;
+  --leaf-color: rgba(255, 255, 255, 0.88);
+  --leaf-duration: 31s;
+  --leaf-delay: -22s;
+  --leaf-x: 25px;
+}
+
+@keyframes sna-leaf-float {
+  0% {
+    transform: translate3d(0, 12vh, 0) rotate(-28deg);
+  }
+
+  45% {
+    transform: translate3d(var(--leaf-x), -52vh, 0)
+      rotate(var(--leaf-rotate));
+  }
+
+  100% {
+    transform: translate3d(0, -122vh, 0) rotate(118deg);
+  }
+}
+
+.sna-welcome-content {
+  position: relative;
+  z-index: 2;
+  width: min(100%, 620px);
+  min-height: 100%;
+  margin: 0 auto;
+  padding: clamp(42px, 5.2vw, 74px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.sna-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 3px;
+}
+
+.sna-brand-mark {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 42px;
+  border-radius: 12px;
+  color: #fff;
+  font-family: Georgia, serif;
+  font-size: 23px;
+  font-weight: 800;
+  line-height: 1;
+  background: linear-gradient(135deg, #35cf70, #0f7a39);
+  box-shadow: 0 10px 30px rgba(4, 48, 25, 0.24);
+}
+
+.sna-welcome-copy {
+  width: 100%;
+  margin-top: clamp(42px, 7vh, 72px);
+}
+
+.sna-eyebrow {
+  display: block;
+  margin-bottom: 22px;
+  color: #8ce9ae;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 2.5px;
+}
+
+.sna-welcome-copy h1 {
+  max-width: 540px;
+  margin: 0;
+  color: #fff;
+  font-size: clamp(42px, 4.1vw, 62px);
+  font-weight: 750;
+  line-height: 1.08;
+  letter-spacing: -2px;
+}
+
+.sna-welcome-copy p {
+  max-width: 510px;
+  margin: 24px 0 0;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.sna-features {
+  width: 100%;
+  display: grid;
+  gap: 15px;
+  margin-top: 44px;
+}
+
+.sna-feature {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.sna-feature > span {
+  min-width: 0;
+  line-height: 1.45;
+}
+
+.sna-feature-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 42px;
+  border: 1px solid rgba(100, 226, 146, 0.38);
+  border-radius: 12px;
+  color: #8ce9ae;
+  background: rgba(25, 178, 83, 0.12);
+}
+
+.sna-feature-icon svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sna-welcome-footer {
+  margin: 34px 0 0;
+  padding: 0;
+  color: rgba(255, 255, 255, 0.46);
+  font-size: 13px;
+}
+
+.sna-ring {
+  position: absolute;
+  border: 1px solid rgba(92, 222, 140, 0.2);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.sna-ring::before,
+.sna-ring::after {
+  position: absolute;
+  content: "";
+  border: 1px solid rgba(92, 222, 140, 0.16);
+  border-radius: 50%;
+}
+
+.sna-ring::before {
+  inset: 22px;
+}
+
+.sna-ring::after {
+  inset: 45px;
+}
+
+.sna-ring-one {
+  width: 220px;
+  height: 220px;
+  top: -60px;
+  right: -55px;
+}
+
+.sna-ring-two {
+  width: 170px;
+  height: 170px;
+  right: 35px;
+  bottom: 65px;
+}
+
+.sna-ring-three {
+  width: 100px;
+  height: 100px;
+  left: -38px;
+  top: 50%;
+}
+
+/* Right form panel. These rules also override the dashboard's global main. */
+.sna-login-page > .sna-form-panel {
+  position: relative;
+  grid-column: auto;
+  z-index: 2;
+  width: 100%;
+  height: 100vh;
+  min-width: 0;
+  min-height: 680px;
+  padding: 48px 24px 84px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  scrollbar-gutter: auto;
+  background:
+    radial-gradient(circle at center, rgba(25, 178, 83, 0.1), transparent 46%),
+    #f7fbf8;
+}
+
+.sna-mobile-brand {
+  display: none;
+}
+
+.sna-login-card {
+  position: relative;
+  width: min(100%, 440px);
+  margin: 0;
+  padding: 43px 40px 36px;
+  border: 1px solid rgba(202, 225, 211, 0.9);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 25px 65px rgba(8, 70, 36, 0.14);
+}
+
+.card-corner {
+  position: absolute;
+  width: 23px;
+  height: 23px;
+  pointer-events: none;
+}
+
+.corner-top-left {
+  top: -1px;
+  left: -1px;
+  border-top: 2px solid var(--login-primary);
+  border-left: 2px solid var(--login-primary);
+  border-radius: 6px 0 0;
+}
+
+.corner-top-right {
+  top: -1px;
+  right: -1px;
+  border-top: 2px solid var(--login-primary);
+  border-right: 2px solid var(--login-primary);
+  border-radius: 0 6px 0 0;
+}
+
+.corner-bottom-left {
+  bottom: -1px;
+  left: -1px;
+  border-bottom: 2px solid var(--login-primary);
+  border-left: 2px solid var(--login-primary);
+  border-radius: 0 0 0 6px;
+}
+
+.corner-bottom-right {
+  right: -1px;
+  bottom: -1px;
+  border-right: 2px solid var(--login-primary);
+  border-bottom: 2px solid var(--login-primary);
+  border-radius: 0 0 6px;
+}
+
+.sna-form-header {
+  margin-bottom: 29px;
+}
+
+.sna-form-header h2 {
+  margin: 0 0 7px;
+  color: var(--login-text);
+  font-size: 29px;
+  font-weight: 750;
+  line-height: 1.2;
+  letter-spacing: -0.7px;
+  text-align: left;
+}
+
+.sna-form-header p {
+  margin: 0;
+  color: var(--login-muted);
+  font-size: 14px;
+  line-height: 1.6;
+  text-align: left;
+}
+
+.sna-field {
+  display: block;
+  margin: 0 0 18px;
+  color: inherit;
+  font-size: inherit;
+  font-weight: 400;
+}
+
+.sna-field > span {
+  display: block;
+  margin: 0 0 7px 2px;
+  color: #526b5d;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.sna-input-wrapper {
+  position: relative;
+}
+
+.sna-input-wrapper input {
+  width: 100%;
+  height: 54px;
+  margin: 0;
+  padding: 0 48px 0 45px;
+  border: 1px solid var(--login-border);
+  border-radius: 9px;
+  outline: none;
+  color: var(--login-text);
+  background: #fff;
+  font: inherit;
+  font-size: 14px;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.sna-input-wrapper input::placeholder {
+  color: #9aaba1;
+}
+
+.sna-input-wrapper input:focus {
+  border-color: var(--login-primary);
+  box-shadow: 0 0 0 4px rgba(25, 178, 83, 0.13);
+}
+
+.sna-input-icon {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: 16px;
+  width: 18px;
+  height: 18px;
+  display: block;
+  color: #7f9589;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.sna-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  width: 34px;
+  height: 34px;
+  margin: 0;
+  padding: 7px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  color: #71877a;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.sna-password-toggle:hover {
+  color: var(--login-primary-dark);
+  background: #edf8f1;
+}
+
+.sna-password-toggle svg {
+  width: 19px;
+  height: 19px;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sna-login-options {
+  margin: 2px 0 27px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+}
+
+.sna-remember {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #60766a;
+  font-size: 13px;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.sna-remember input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--login-primary);
+}
+
+.sna-text-button,
+.sna-back-button {
+  width: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: var(--login-primary-dark);
+  background: transparent;
+  box-shadow: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.sna-text-button:hover,
+.sna-back-button:hover {
+  text-decoration: underline;
+}
+
+.sna-submit-button {
+  width: 100%;
+  min-height: 54px;
+  margin: 0;
+  padding: 13px 20px;
+  border: 0;
+  border-radius: 9px;
+  color: #fff;
+  background: linear-gradient(110deg, #29c965, #19b253 52%, #0f873f);
+  box-shadow: 0 12px 25px rgba(25, 178, 83, 0.25);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
+}
+
+.sna-submit-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 30px rgba(25, 178, 83, 0.34);
+}
+
+.sna-submit-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.sna-back-button {
+  width: 100%;
+  margin-top: 20px;
+  text-align: center;
+}
+
+.sna-alert {
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.sna-error {
+  border: 1px solid #f0b9b3;
+  color: #a43a30;
+  background: #fff0ee;
+}
+
+.sna-success {
+  border: 1px solid #a9d7ba;
+  color: #267344;
+  background: #ecf9f1;
+}
+
+.sna-copyright {
+  position: absolute;
+  bottom: 36px;
+  left: 50%;
+  width: max-content;
+  margin: 0;
+  color: #789184;
+  font-size: 12px;
+  transform: translateX(-50%);
+}
+
+.sna-session-loader {
+  width: 100%;
+  height: 100vh;
+  display: grid;
+  place-items: center;
+  background: #f7fbf8;
+}
+
+.sna-session-loader span {
+  color: #60766a;
+  font-size: 14px;
+}
+
+@media (max-width: 1000px) {
+  .sna-login-page {
+    grid-template-columns: minmax(360px, 0.82fr) minmax(470px, 1fr);
+  }
+
+  .sna-welcome-content {
+    padding: 44px;
+  }
+
+  .sna-welcome-copy h1 {
+    font-size: 46px;
+  }
+
+  .sna-leaf:nth-child(n + 7) {
+    display: none;
+  }
+}
+
+@media (max-width: 820px) {
+  .sna-login-page {
+    min-height: 100vh;
+    display: block;
+    overflow-y: auto;
+  }
+
+  .sna-login-page > .sna-welcome-panel {
+    display: none;
+  }
+
+  .sna-login-page > .sna-form-panel {
+    width: 100%;
+    height: auto;
+    min-height: 100vh;
+    padding: 92px 20px 80px;
+    overflow: visible;
+  }
+
+  .sna-mobile-brand {
+    position: absolute;
+    top: 25px;
+    left: 50%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--login-text);
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    transform: translateX(-50%);
+  }
+
+  .sna-mobile-brand .sna-brand-mark {
+    width: 36px;
+    height: 36px;
+    flex-basis: 36px;
+    border-radius: 10px;
+    font-size: 18px;
+  }
+
+  .sna-copyright {
+    bottom: 25px;
+  }
+}
+
+@media (max-width: 480px) {
+  .sna-login-page > .sna-form-panel {
+    align-items: flex-start;
+    padding: 90px 14px 74px;
+  }
+
+  .sna-login-card {
+    padding: 34px 22px 29px;
+  }
+
+  .sna-form-header h2 {
+    font-size: 26px;
+  }
+
+  .sna-login-options {
+    align-items: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sna-leaf {
+    animation: none;
+  }
+}

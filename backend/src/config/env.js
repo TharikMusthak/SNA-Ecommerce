@@ -1,0 +1,337 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import dotenv from "dotenv";
+
+const backendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+dotenv.config();
+dotenv.config({ path: path.join(backendRoot, ".env") });
+
+const nodeEnv = process.env.NODE_ENV || "development";
+const jwtSecret = String(process.env.JWT_SECRET || "").trim();
+const frontendOrigins = String(
+  process.env.FRONTEND_ORIGIN ||
+    process.env.FRONTEND_URL ||
+    "http://localhost:5173",
+)
+  .split(",")
+  .map(normalizeOrigin)
+  .filter(Boolean);
+
+const loopbackHosts = new Set(["localhost", "127.0.0.1", "[::1]"]);
+const defaultPublicMediaUrl =
+  "https://p0xgamfc5xxx22ep.public.blob.vercel-storage.com";
+
+function normalizeOrigin(value) {
+  const candidate = String(value || "").trim();
+  if (!candidate) return "";
+
+  try {
+    return new URL(candidate).origin;
+  } catch {
+    return candidate.replace(/\/$/, "");
+  }
+}
+
+function normalizeBasePath(value) {
+  const candidate = String(value || "").trim();
+  if (!candidate || candidate === "/") return "";
+
+  const normalized = `/${candidate.replace(/^\/+|\/+$/g, "")}`;
+  if (normalized.includes("?") || normalized.includes("#")) {
+    throw new Error(
+      "APP_BASE_PATH must be a URL path without a query or fragment",
+    );
+  }
+
+  return normalized;
+}
+
+function normalizePublicUrl(value, variableName = "PUBLIC_API_URL") {
+  const candidate = String(value || "")
+    .trim()
+    .replace(/\/+$/, "");
+  if (!candidate) return "";
+
+  let url;
+  try {
+    url = new URL(candidate);
+  } catch {
+    throw new Error(`${variableName} must be a valid absolute URL`);
+  }
+
+  if (!["http:", "https:"].includes(url.protocol) || url.search || url.hash) {
+    throw new Error(
+      `${variableName} must be an HTTP(S) URL without a query or fragment`,
+    );
+  }
+
+  return url.toString().replace(/\/$/, "");
+}
+
+if (jwtSecret.length < 64) {
+  throw new Error(
+    "JWT_SECRET must be configured with at least 64 random characters",
+  );
+}
+
+if (frontendOrigins.length === 0) {
+  throw new Error("At least one FRONTEND_URL must be configured");
+}
+
+if (!["development", "test", "production"].includes(nodeEnv)) {
+  throw new Error("NODE_ENV must be development, test, or production");
+}
+
+const databasePort = Number(process.env.DB_PORT || 3306);
+if (
+  !Number.isSafeInteger(databasePort) ||
+  databasePort < 1 ||
+  databasePort > 65535
+) {
+  throw new Error("DB_PORT must be a valid TCP port");
+}
+
+const bcryptRounds = positiveInteger(process.env.BCRYPT_ROUNDS, 12);
+if (bcryptRounds < 10 || bcryptRounds > 15) {
+  throw new Error("BCRYPT_ROUNDS must be between 10 and 15");
+}
+
+const paymentProvider = String(
+  process.env.PAYMENT_PROVIDER || "cod",
+).toLowerCase();
+if (!["cod", "razorpay"].includes(paymentProvider)) {
+  throw new Error("PAYMENT_PROVIDER must be cod or razorpay");
+}
+
+function positiveInteger(value, fallback) {
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function booleanValue(value, fallback = false) {
+  if (value === undefined || value === "") return fallback;
+  return String(value).toLowerCase() === "true";
+}
+
+export const env = Object.freeze({
+  nodeEnv,
+  isProduction: nodeEnv === "production",
+  jwtSecret,
+  jwtIssuer: "sna-cms",
+  jwtAudience: "sna-admin",
+  sessionCookie:
+    nodeEnv === "production" ? "__Host-sna_session" : "sna_session",
+  refreshCookie:
+    nodeEnv === "production" ? "__Host-sna_refresh" : "sna_refresh",
+  accessMinutes: positiveInteger(process.env.ACCESS_TOKEN_MINUTES, 15),
+  refreshDays: positiveInteger(process.env.REFRESH_TOKEN_DAYS, 7),
+  resetMinutes: positiveInteger(process.env.RESET_TOKEN_MINUTES, 30),
+  frontendOrigins,
+  appBasePath: normalizeBasePath(
+    process.env.APP_BASE_PATH || process.env.PASSENGER_BASE_URI,
+  ),
+  publicApiUrl: normalizePublicUrl(process.env.PUBLIC_API_URL),
+  publicMediaUrl: normalizePublicUrl(
+    process.env.PUBLIC_MEDIA_URL ||
+      (process.env.VERCEL === "1" ? defaultPublicMediaUrl : ""),
+    "PUBLIC_MEDIA_URL",
+  ),
+  adminResetUrl:
+    process.env.ADMIN_RESET_URL ||
+    `${frontendOrigins[0]}/sna/admin/reset-password`,
+  customerResetUrl:
+    process.env.CUSTOMER_RESET_URL || `${frontendOrigins[0]}/reset-password`,
+  customerVerifyUrl:
+    process.env.CUSTOMER_VERIFY_URL || `${frontendOrigins[0]}/verify-email`,
+  contactEmail: String(
+    process.env.CONTACT_FORM_RECIPIENT_EMAIL || "snasundaram@gmail.com",
+  )
+    .trim()
+    .toLowerCase(),
+  trustProxy: process.env.TRUST_PROXY || "",
+  smtp: Object.freeze({
+    enabled: booleanValue(process.env.SMTP_ENABLED),
+    host: String(process.env.SMTP_HOST || "").trim(),
+    port: positiveInteger(process.env.SMTP_PORT, 465),
+    secure: booleanValue(process.env.SMTP_SECURE, true),
+    user: String(process.env.SMTP_USER || "").trim(),
+    pass: String(process.env.SMTP_PASSWORD || process.env.SMTP_PASS || ""),
+    fromName: String(process.env.SMTP_FROM_NAME || "SNA").trim(),
+    from: String(
+      process.env.SMTP_FROM_EMAIL || process.env.MAIL_FROM || "",
+    ).trim(),
+    timeoutMs: positiveInteger(process.env.SMTP_REQUEST_TIMEOUT_MS, 10_000),
+  }),
+  customerAccessCookie:
+    nodeEnv === "production" ? "__Host-sna_customer" : "sna_customer",
+  customerRefreshCookie:
+    nodeEnv === "production"
+      ? "__Host-sna_customer_refresh"
+      : "sna_customer_refresh",
+  bcryptRounds,
+  emailVerificationRequired:
+    String(process.env.EMAIL_VERIFICATION_REQUIRED || "false") === "true",
+  paymentProvider,
+  onlinePaymentsEnabled: booleanValue(process.env.ONLINE_PAYMENTS_ENABLED),
+  orderExpiry: Object.freeze({
+    minutes: positiveInteger(process.env.ORDER_RESERVATION_EXPIRY_MINUTES, 30),
+    workerEnabled: booleanValue(process.env.ORDER_EXPIRY_WORKER_ENABLED, true),
+    intervalMinutes: positiveInteger(
+      process.env.ORDER_EXPIRY_WORKER_INTERVAL_MINUTES,
+      5,
+    ),
+  }),
+  apiDocsEnabled: booleanValue(
+    process.env.API_DOCS_ENABLED,
+    nodeEnv !== "production",
+  ),
+  wati: Object.freeze({
+    enabled: booleanValue(process.env.WATI_ENABLED),
+    apiBaseUrl: String(process.env.WATI_API_BASE_URL || "")
+      .trim()
+      .replace(/\/$/, ""),
+    tenantId: String(process.env.WATI_TENANT_ID || "").trim(),
+    accessToken: String(process.env.WATI_ACCESS_TOKEN || ""),
+    webhookSecret: String(process.env.WATI_WEBHOOK_SECRET || ""),
+    defaultCountryCode: String(
+      process.env.WATI_DEFAULT_COUNTRY_CODE || "91",
+    ).replace(/\D/g, ""),
+    timeoutMs: positiveInteger(process.env.WATI_REQUEST_TIMEOUT_MS, 10_000),
+    maxRetries: positiveInteger(process.env.WATI_MAX_RETRIES, 3),
+  }),
+  msg91: Object.freeze({
+    enabled: booleanValue(process.env.MSG91_ENABLED),
+    authKey: String(process.env.MSG91_AUTH_KEY || "").trim(),
+    templateId: String(process.env.MSG91_OTP_TEMPLATE_ID || "").trim(),
+    orderNotificationsEnabled: booleanValue(
+      process.env.MSG91_ORDER_NOTIFICATIONS_ENABLED,
+    ),
+    orderConfirmationTemplateId: String(
+      process.env.MSG91_ORDER_CONFIRMATION_TEMPLATE_ID || "",
+    ).trim(),
+    orderShippedTemplateId: String(
+      process.env.MSG91_ORDER_SHIPPED_TEMPLATE_ID || "",
+    ).trim(),
+    orderOutForDeliveryTemplateId: String(
+      process.env.MSG91_ORDER_OUT_FOR_DELIVERY_TEMPLATE_ID || "",
+    ).trim(),
+    orderDeliveredTemplateId: String(
+      process.env.MSG91_ORDER_DELIVERED_TEMPLATE_ID || "",
+    ).trim(),
+    orderCancelledTemplateId: String(
+      process.env.MSG91_ORDER_CANCELLED_TEMPLATE_ID || "",
+    ).trim(),
+    refundSuccessTemplateId: String(
+      process.env.MSG91_REFUND_SUCCESS_TEMPLATE_ID || "",
+    ).trim(),
+    countryCode: String(process.env.MSG91_COUNTRY_CODE || "91").replace(/\D/g, ""),
+    timeoutMs: positiveInteger(process.env.MSG91_REQUEST_TIMEOUT_MS, 10_000),
+  }),
+  razorpay: Object.freeze({
+    keyId: String(process.env.RAZORPAY_KEY_ID || ""),
+    keySecret: String(process.env.RAZORPAY_KEY_SECRET || ""),
+    webhookSecret: String(process.env.RAZORPAY_WEBHOOK_SECRET || ""),
+  }),
+  shiprocket: Object.freeze({
+    email: String(process.env.SHIPROCKET_EMAIL || "").trim(),
+    password: String(process.env.SHIPROCKET_PASSWORD || ""),
+    token: String(process.env.SHIPROCKET_TOKEN || "").trim(),
+    timeoutMs: positiveInteger(process.env.SHIPROCKET_TIMEOUT_MS, 12_000),
+    webhookToken: String(process.env.SHIPROCKET_WEBHOOK_TOKEN || "").trim(),
+  }),
+  pincodeVerification: Object.freeze({
+    enabled: booleanValue(process.env.PINCODE_VERIFICATION_ENABLED, true),
+    apiUrl: String(process.env.PINCODE_API_URL || "https://api.postalpincode.in/pincode").replace(/\/$/, ""),
+    timeoutMs: positiveInteger(process.env.PINCODE_API_TIMEOUT_MS, 8_000),
+    cacheMinutes: positiveInteger(process.env.PINCODE_CACHE_MINUTES, 1440),
+  }),
+});
+
+if (
+  env.smtp.enabled &&
+  (!env.smtp.host || !env.smtp.user || !env.smtp.pass || !env.smtp.from)
+) {
+  throw new Error(
+    "SMTP_ENABLED requires SMTP_HOST, SMTP_USER, SMTP_PASSWORD, and SMTP_FROM_EMAIL",
+  );
+}
+
+if (env.emailVerificationRequired && !env.smtp.enabled) {
+  throw new Error("EMAIL_VERIFICATION_REQUIRED requires SMTP_ENABLED=true");
+}
+
+if (env.wati.enabled && (!env.wati.apiBaseUrl || !env.wati.accessToken)) {
+  throw new Error(
+    "WATI_ENABLED requires WATI_API_BASE_URL and WATI_ACCESS_TOKEN",
+  );
+}
+
+if (env.msg91.enabled && (!env.msg91.authKey || !env.msg91.templateId)) {
+  throw new Error(
+    "MSG91_ENABLED requires MSG91_AUTH_KEY and MSG91_OTP_TEMPLATE_ID",
+  );
+}
+
+export function isTrustedFrontendOrigin(origin) {
+  const normalized = normalizeOrigin(origin);
+  if (!normalized) return false;
+  if (env.frontendOrigins.includes(normalized)) return true;
+  if (env.isProduction) return false;
+
+  try {
+    const incoming = new URL(normalized);
+    if (!loopbackHosts.has(incoming.hostname)) return false;
+
+    return env.frontendOrigins.some((configuredOrigin) => {
+      const configured = new URL(configuredOrigin);
+      return (
+        loopbackHosts.has(configured.hostname) &&
+        configured.protocol === incoming.protocol &&
+        configured.port === incoming.port
+      );
+    });
+  } catch {
+    return false;
+  }
+}
+
+export function sessionCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: env.isProduction,
+    sameSite: "strict",
+    path: "/",
+    priority: "high",
+    maxAge: env.accessMinutes * 60 * 1000,
+  };
+}
+
+export function clearSessionCookieOptions() {
+  const { maxAge: _maxAge, ...options } = sessionCookieOptions();
+  return options;
+}
+
+export function refreshCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: env.isProduction,
+    sameSite: "strict",
+    path: "/",
+    priority: "high",
+    maxAge: env.refreshDays * 24 * 60 * 60 * 1000,
+  };
+}
+
+export function clearRefreshCookieOptions() {
+  const { maxAge: _maxAge, ...options } = refreshCookieOptions();
+  return options;
+}
+
+export function customerAccessCookieOptions() {
+  return { ...sessionCookieOptions(), path: "/" };
+}
+
+export function customerRefreshCookieOptions() {
+  // __Host- cookies are rejected by browsers unless Path is exactly "/".
+  return { ...refreshCookieOptions(), path: "/" };
+}

@@ -1,0 +1,29 @@
+.users-note {
+  padding: 20px;
+  border-bottom: 1px solid #e7ebe8;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.users-section { display: grid; gap: 16px; }
+.users-note b { font: 600 18px Georgia; }
+.users-note span { font-size: 13px; color: #66786e; line-height: 1.5; }
+.user-cell { display: flex; align-items: center; gap: 10px; }
+.user-cell > span {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #e5eee6;
+  color: #295c42;
+  font-weight: bold;
+}
+.role {
+  background: #f3eee3;
+  color: #856a3f;
+}
+
+@media (max-width: 600px) {
+  .users-note { align-items: flex-start; flex-direction: column; gap: 6px; }
+}

@@ -1,0 +1,209 @@
+/* eslint-disable react-refresh/only-export-components */
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { useQueryClient } from "@tanstack/react-query";
+
+import { EMPTY_CART, QUERY_KEYS } from "@config/constants";
+import {
+  getProfile,
+  loginUser,
+  loginUserWithOtp,
+  logoutUser,
+  requestLoginOtp,
+  requestPhoneVerificationOtp,
+  registerUser,
+  verifyRegistrationOtp,
+} from "@services/auth.service";
+
+const AuthContext = createContext(null);
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  const clearAuthData = useCallback(() => {
+    setUser(null);
+    queryClient.setQueryData(QUERY_KEYS.cart, EMPTY_CART);
+    queryClient.setQueryData(QUERY_KEYS.wishlist, []);
+    queryClient.removeQueries({ queryKey: QUERY_KEYS.cart });
+    queryClient.removeQueries({ queryKey: QUERY_KEYS.wishlist });
+    try {
+      localStorage.removeItem("sna_user_applied_coupon");
+    } catch {
+      // ignore
+    }
+  }, [queryClient]);
+
+  // Get currently authenticated user
+  const refreshUser = useCallback(async () => {
+    try {
+      const currentUser = await getProfile();
+
+      setUser(currentUser);
+
+      return currentUser;
+    } catch {
+      setUser(null);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Login
+  const login = useCallback(async (credentials) => {
+ 
+    const userData = await loginUser(credentials);
+ 
+    setUser(userData);
+
+    return userData;
+  }, []);
+
+  const sendLoginOtp = useCallback(async (phone) => requestLoginOtp(phone), []);
+
+  const sendPhoneVerificationOtp = useCallback(
+    async (phone) => requestPhoneVerificationOtp(phone),
+    [],
+  );
+
+  const loginWithOtp = useCallback(async (credentials) => {
+    const userData = await loginUserWithOtp(credentials);
+    setUser(userData);
+    return userData;
+  }, []);
+
+  // Register
+  const register = useCallback(async (payload) => {
+    const userData = await registerUser(payload);
+    if (!userData?.phone_verification_required) setUser(userData);
+
+    return userData;
+  }, []);
+
+  const verifyPhoneRegistration = useCallback(async (credentials) => {
+    const userData = await verifyRegistrationOtp(credentials);
+    setUser(userData);
+    return userData;
+  }, []);
+
+  // Logout
+  const logout = useCallback(async () => {
+    try {
+      await logoutUser();
+    } finally {
+      clearAuthData();
+    }
+  }, [clearAuthData]);
+
+  // Update user locally
+  const updateProfile = useCallback((updatedUser) => {
+    setUser((currentUser) => {
+      if (!currentUser) return updatedUser;
+
+      return {
+        ...currentUser,
+        ...updatedUser,
+      };
+    });
+  }, []);
+
+  // Check session when application starts
+  useEffect(() => {
+    let active = true;
+
+    const initializeAuth = async () => {
+      try {
+        const currentUser = await getProfile();
+
+        if (active) {
+          setUser(currentUser);
+        }
+      } catch {
+        if (active) {
+          setUser(null);
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+
+    initializeAuth();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Clear user when API reports unauthorized
+  useEffect(() => {
+    const clearSession = () => {
+      clearAuthData();
+    };
+
+    window.addEventListener("sna:unauthorized", clearSession);
+
+    return () => {
+      window.removeEventListener("sna:unauthorized", clearSession);
+    };
+  }, [clearAuthData]);
+
+  const value = useMemo(
+    () => ({
+      user,
+      loading,
+      isAuthenticated: Boolean(user),
+
+      login,
+      sendLoginOtp,
+      sendPhoneVerificationOtp,
+      loginWithOtp,
+      register,
+      verifyPhoneRegistration,
+      logout,
+
+      refreshUser,
+      updateProfile,
+    }),
+    [
+      user,
+      loading,
+      login,
+      sendLoginOtp,
+      sendPhoneVerificationOtp,
+      loginWithOtp,
+      register,
+      verifyPhoneRegistration,
+      logout,
+      refreshUser,
+      updateProfile,
+    ],
+  );
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+
+  if (!context) {
+    throw new Error("useAuth must be used inside AuthProvider");
+  }
+
+  return context;
+};
+
+export default AuthProvider;

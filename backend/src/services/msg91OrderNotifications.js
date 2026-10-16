@@ -1,0 +1,93 @@
+import { pool as defaultPool } from "../config/db.js";
+import { sendMsg91OrderSms } from "../integrations/notifications/msg91.provider.js";
+
+export async function notifyMsg91OrderEvent({
+  event,
+  orderId,
+  refundAmount = null,
+  database = defaultPool,
+}) {
+  const [[order]] = await database.query(
+    `SELECT o.order_code,o.customer,o.phone,o.amount,u.first_name,u.last_name,u.phone AS user_phone,
+            s.courier_name,s.awb_code
+       FROM orders o
+       LEFT JOIN users u ON u.id=o.user_id
+       LEFT JOIN shipments s ON s.order_id=o.id
+      WHERE o.id=? LIMIT 1`,
+    [orderId],
+  );
+  if (!order) return { skipped: true, reason: "ORDER_NOT_FOUND" };
+
+  const name = [order.first_name, order.last_name].filter(Boolean).join(" ") || order.customer || "Customer";
+  const common = { name, order_number: order.order_code };
+  let variables;
+  if (event === "order_confirmed") {
+    variables = {
+      ...common,
+      amount: Number(order.amount || 0).toFixed(2),
+    };
+  } else if (event === "order_shipped") {
+    if (!order.awb_code) return { skipped: true, reason: "AWB_MISSING" };
+    variables = {
+      ...common,
+      courier: order.courier_name || "Delivery partner",
+      tracking_id: String(order.awb_code),
+    };
+  } else if (event === "refund_completed") {
+    const paise = Math.round(Number(refundAmount || 0) * 100);
+    variables = {
+      name,
+      rupees: String(Math.floor(paise / 100)),
+      paise: String(Math.abs(paise % 100)).padStart(2, "0"),
+      order_number: order.order_code,
+    };
+  } else {
+    variables = common;
+  }
+  const recipient = order.user_phone || order.phone;
+  try {
+    const result = await sendMsg91OrderSms({ event, mobile: recipient, variables });
+    const status = result?.skipped ? "skipped" : "sent";
+    await database.query(
+      `INSERT INTO notification_deliveries
+         (user_id,channel,event,recipient,template_name,entity_type,entity_id,status,attempt_count,last_error_code,sent_at)
+       VALUES (?,?,?,?,?,'order',?,?,1,?,IF(?='sent',CURRENT_TIMESTAMP,NULL))`,
+      [
+        null,
+        "sms",
+        event,
+        String(recipient || ""),
+        "MSG91",
+        String(orderId),
+        status,
+        result?.reason || null,
+        status,
+      ],
+    );
+    return result;
+  } catch (error) {
+    // Keep a failed SMS visible to the CRM without making the order update fail.
+    await database.query(
+      `INSERT INTO notification_deliveries
+         (user_id,channel,event,recipient,template_name,entity_type,entity_id,status,attempt_count,last_error_code)
+       VALUES (?,?,?,?,?,'order',?,'failed',1,?)`,
+      [
+        null,
+        "sms",
+        event,
+        String(recipient || ""),
+        "MSG91",
+        String(orderId),
+        String(error.code || "MSG91_SEND_FAILED").slice(0, 120),
+      ],
+    ).catch(() => {});
+    throw error;
+  }
+}
+
+export function safelyNotifyMsg91Order(input) {
+  return notifyMsg91OrderEvent(input).catch((error) => {
+    console.error("MSG91 order SMS failed:", error.code || error.message);
+    return { skipped: true, reason: error.code || "SEND_FAILED" };
+  });
+}

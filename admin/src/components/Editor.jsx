@@ -1,0 +1,413 @@
+import { useEffect, useState } from "react";
+import { upload } from "@vercel/blob/client";
+import { api, apiEndpoint } from "../api";
+import BannerFields from "./BannerFields";
+import ProductFields from "./ProductFields";
+import CustomSelect from "./CustomSelect";
+import { compressFormDataImages } from "../utils/compressImage";
+
+export default function Editor({
+  type,
+  item,
+  products,
+  categories,
+  onClose,
+  onSave,
+  onBannerSaved,
+  onProductSaved,
+  onError,
+  onNotice,
+}) {
+  const [form, setForm] = useState(item || {});
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    function handleEscape(event) {
+      if (event.key === "Escape" && !saving) onClose();
+    }
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [onClose, saving]);
+
+  function field(key, label, inputType = "text", inputProps = {}) {
+    const { required = true, ...restInputProps } = inputProps;
+
+    return (
+      <label>
+        {label}
+        <input
+          type={inputType}
+          value={form[key] ?? ""}
+          onChange={(event) =>
+            setForm({
+              ...form,
+              [key]:
+                inputType === "number"
+                  ? event.target.value === ""
+                    ? ""
+                    : Number(event.target.value)
+                  : event.target.value,
+            })
+          }
+          required={required}
+          {...restInputProps}
+        />
+      </label>
+    );
+  }
+
+  async function submit(event) {
+    event.preventDefault();
+    if (saving) return;
+
+    const formElement = event.currentTarget;
+    setSaving(true);
+
+    try {
+      if (type === "product") {
+        const productFormData = new FormData(formElement);
+        // Use the controlled React value explicitly during edits. This avoids
+        // an older/stale DOM value being submitted when the modal is reused.
+        if (item) {
+          productFormData.set("option_label", String(form.option_label || "").trim());
+        }
+        const requestedName = normalizeProductName(
+          productFormData.get("name"),
+        );
+        const duplicateProduct = (products || []).some(
+          (product) =>
+            String(product.id) !== String(item?.id) &&
+            normalizeProductName(product.name) === requestedName,
+        );
+
+        if (duplicateProduct) {
+          throw new Error(
+            "Product name already exists. Please use a different name.",
+          );
+        }
+
+        const videoFile = productFormData.get("video");
+        if (videoFile instanceof File && videoFile.size > 0) {
+          onNotice?.("Uploading product video...");
+          const tokenResponse = await api(
+            "/v1/admin/uploads/product-video-token",
+            { method: "POST" },
+          );
+          const safeName = videoFile.name
+            .replace(/[^a-z0-9._-]+/gi, "-")
+            .replace(/^-+|-+$/g, "") || "product-video";
+          const blob = await upload(
+            `products/videos/${Date.now()}-${safeName}`,
+            videoFile,
+            {
+              access: "public",
+              contentType: videoFile.type,
+              handleUploadUrl: apiEndpoint(
+                "/api/v1/webhooks/blob-product-video",
+              ),
+              headers: {
+                Authorization: `Bearer ${tokenResponse.data.token}`,
+              },
+              multipart: true,
+            },
+          );
+          productFormData.delete("video");
+          productFormData.set("video_blob_url", blob.url);
+          onNotice?.("Product video uploaded.");
+        } else {
+          productFormData.delete("video");
+        }
+
+        await api(`/products${item ? `/${item.id}` : ""}`, {
+          method: item ? "PUT" : "POST",
+          body: productFormData,
+        });
+
+        await onProductSaved();
+        return;
+      }
+
+      if (type === "banner") {
+        const bannerFormData = new FormData(formElement);
+        const compressedFields = await compressFormDataImages(
+          bannerFormData,
+          ["image", "mobile_image"],
+        );
+
+        if (compressedFields.length) {
+          onNotice?.("Banner images were optimized for upload.");
+        }
+
+        await api(`/banners${item ? `/${item.id}` : ""}`, {
+          method: item ? "PUT" : "POST",
+          body: bannerFormData,
+        });
+
+        await onBannerSaved();
+        return;
+      }
+
+      await onSave(type, form);
+    } catch (error) {
+      onError(
+        error instanceof Error ? error.message : "Unable to save changes",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const defaultStatus =
+    type === "faq" || type === "cmsPage" ? "Published" : "Active";
+  const secondStatus = type === "user" ? "Disabled" : "Draft";
+
+  return (
+    <div className="overlay" role="presentation">
+      <form
+        className="modal"
+        noValidate
+        onInvalidCapture={(event) => event.preventDefault()}
+        onSubmit={submit}
+        aria-busy={saving}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="editor-title"
+      >
+        <header>
+          <h2 id="editor-title">
+            {item ? "Edit" : "Add"} {type}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            aria-label="Close editor"
+          >
+            ×
+          </button>
+        </header>
+
+        {type === "product" && (
+          <ProductFields
+            form={form}
+            setForm={setForm}
+            item={item}
+            field={field}
+            onNotice={onNotice}
+            categories={categories}
+          />
+        )}
+
+        {type === "category" && (
+          <>
+            {field("name", "Category name")}
+            {field("slug", "Slug (leave empty to generate)", "text", {
+              required: false,
+            })}
+            <label>
+              Parent category
+              <CustomSelect
+                value={form.parent_id || ""}
+                onChange={(event) =>
+                  setForm({
+                    ...form,
+                    parent_id: event.target.value
+                      ? Number(event.target.value)
+                      : "",
+                  })
+                }
+              >
+                <option value="">Top level category</option>
+                {(categories || [])
+                  .filter(
+                    (category) =>
+                      String(category.id) !== String(item?.id),
+                  )
+                  .map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+              </CustomSelect>
+            </label>
+            <label>
+              Description
+              <textarea
+                value={form.description || ""}
+                onChange={(event) =>
+                  setForm({ ...form, description: event.target.value })
+                }
+              />
+            </label>
+            {field("sort_order", "Sort order", "number", {
+              min: "0",
+              step: "1",
+              required: false,
+            })}
+          </>
+        )}
+
+        {type === "variant" && (
+          <>
+            <label>
+              Product
+              <CustomSelect
+                value={form.product_id || ""}
+                onChange={(event) =>
+                  setForm({ ...form, product_id: Number(event.target.value) })
+                }
+                required
+              >
+                <option value="">Select</option>
+                {products.map((product) => (
+                  <option key={product.id} value={product.id}>
+                    {product.name}
+                  </option>
+                ))}
+              </CustomSelect>
+            </label>
+            <div className="row">
+              {field("brand", "Brand")}
+              {field("sku", "SKU")}
+            </div>
+            <div className="row">
+              {field("color", "Colour")}
+              {field("size", "Size")}
+            </div>
+            <div className="row">
+              {field("price", "Price", "number", {
+                min: "0",
+                step: "0.01",
+              })}
+              {field("stock", "Stock", "number", {
+                min: "0",
+                step: "1",
+              })}
+            </div>
+          </>
+        )}
+
+        {type === "banner" && (
+          <BannerFields
+            form={form}
+            setForm={setForm}
+            item={item}
+            products={products}
+            categories={categories}
+          />
+        )}
+
+        {type === "faq" && (
+          <>
+            {field("question", "Question")}
+            <label>
+              Answer
+              <textarea
+                value={form.answer || ""}
+                onChange={(event) =>
+                  setForm({ ...form, answer: event.target.value })
+                }
+                required
+              />
+            </label>
+          </>
+        )}
+
+        {type === "cmsPage" && (
+          <>
+            {field("title", "Page title")}
+            <label>
+              Page slug
+              <input value={form.slug || ""} readOnly />
+            </label>
+            <label>
+              Page content
+              <textarea
+                className="cms-content-editor"
+                value={form.content || ""}
+                onChange={(event) =>
+                  setForm({ ...form, content: event.target.value })
+                }
+                required
+              />
+            </label>
+          </>
+        )}
+
+        {type === "user" && (
+          <>
+            {field("name", "Full name")}
+            {field("email", "Email", "email")}
+            <label>
+              Role
+              <CustomSelect
+                value={form.role || "Product Manager"}
+                onChange={(event) =>
+                  setForm({ ...form, role: event.target.value })
+                }
+              >
+                <option>Super Admin</option>
+                <option>Product Manager</option>
+                <option>Order Manager</option>
+              </CustomSelect>
+            </label>
+            <label>
+              {item
+                ? "New password (leave empty to keep current)"
+                : "Password"}
+              <input
+                type="password"
+                value={form.password || ""}
+                onChange={(event) =>
+                  setForm({ ...form, password: event.target.value })
+                }
+                required={!item}
+                minLength="12"
+                maxLength="72"
+                autoComplete="new-password"
+              />
+              <small>
+                12–72 UTF-8 bytes with uppercase, lowercase, number and
+                special character.
+              </small>
+            </label>
+          </>
+        )}
+
+        <label>
+          Status
+          <CustomSelect
+            value={form.status || defaultStatus}
+            onChange={(event) =>
+              setForm({ ...form, status: event.target.value })
+            }
+          >
+            <option>{defaultStatus}</option>
+            <option>{secondStatus}</option>
+          </CustomSelect>
+        </label>
+        <footer>
+          <button type="button" onClick={onClose} disabled={saving}>
+            Cancel
+          </button>
+          <button type="submit" disabled={saving}>
+            {saving
+              ? item
+                ? "Updating…"
+                : "Saving…"
+              : item
+                ? "Update"
+                : "Save"}
+          </button>
+        </footer>
+      </form>
+    </div>
+  );
+}
+function normalizeProductName(value) {
+  return String(value ?? "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase();
+}

@@ -1,0 +1,462 @@
+import { useCallback, useRef, useEffect, useState, useMemo } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Link } from "react-router-dom";
+import defaultBannerImage from "../../assets/images/bannerImage1.png";
+import { useBanners } from "@hooks/useBanners";
+import { assetUrl } from "@utils/helpers";
+import Spinner from "@components/ui/Spinner/Spinner";
+
+const AUTOPLAY_DURATION = 5000;
+
+const defaultHeroSlides = [
+  {
+    id: 1,
+    image: defaultBannerImage,
+    mobileImage: defaultBannerImage,
+    eyebrow: "",
+    title: (
+      <>
+        <strong>Pure Goodness,</strong> Crafted the
+        <br className="hidden sm:block" />
+        Traditional Way
+      </>
+    ),
+    description:
+      "Bring home the authentic taste of homemade organic foods made with carefully selected ingredients and time-honored recipes.",
+    productUrl: "/products/product-3",
+    productButton: "View Product",
+    whatsappText: "Order on Whatsapp",
+    whatsappUrl:
+      "https://wa.me/918438660669?text=Hi%20SNA%20Sundaram%2C%20I%20would%20like%20to%20order%20Garlic%20with%20Honey.",
+  },
+  {
+    id: 2,
+    image: defaultBannerImage,
+    mobileImage: defaultBannerImage,
+    eyebrow: "",
+    title: (
+      <>
+        <strong>Traditional Taste,</strong> Made
+        <br className="hidden sm:block" />
+        With Pure Ingredients
+      </>
+    ),
+    description:
+      "Enjoy the rich traditional taste of homemade black sesame laddu prepared with carefully selected ingredients.",
+    productUrl: "/products/product-3",
+    productButton: "View Product",
+    whatsappText: "Order on Whatsapp",
+    whatsappUrl:
+      "https://wa.me/918438660669?text=Hi%20SNA%20Sundaram%2C%20I%20would%20like%20to%20order%20Black%20Sesame%20Laddu.",
+  },
+  {
+    id: 3,
+    image: defaultBannerImage,
+    mobileImage: defaultBannerImage,
+    eyebrow: "",
+    title: (
+      <>
+        <strong>Homemade Goodness,</strong>
+        <br className="hidden sm:block" />
+        Just Like Tradition
+      </>
+    ),
+    description:
+      "Wholesome homemade treats prepared with traditional recipes and quality ingredients for your family.",
+    productUrl: "/products/product-3",
+    productButton: "View Product",
+    whatsappText: "Order on Whatsapp",
+    whatsappUrl:
+      "https://wa.me/918438660669?text=Hi%20SNA%20Sundaram%2C%20I%20would%20like%20to%20order%20Karuppu%20Ulundhu%20Laddu.",
+  },
+];
+
+function extractBannerSlug(banner) {
+  if (!banner) return null;
+
+  const directSlug =
+    banner.slug ||
+    banner.product_slug ||
+    banner.product?.slug ||
+    banner.target_slug ||
+    banner.redirect_slug ||
+    banner.product_id_slug ||
+    banner.item_slug ||
+    banner.product_identifier ||
+    banner.identifier;
+
+  if (directSlug) return String(directSlug).trim();
+
+  if (typeof banner.button_link === "string" && banner.button_link.trim()) {
+    const link = banner.button_link.trim();
+    const match = link.match(/(?:\/products\/|\/product\/|^products\/|^product\/)([^/?#]+)/i);
+    if (match && match[1]) {
+      return match[1];
+    }
+    if (!link.startsWith("http") && !link.startsWith("/") && !link.includes(".")) {
+      return link;
+    }
+  }
+
+  if (typeof banner.redirect_url === "string" && banner.redirect_url.trim()) {
+    const link = banner.redirect_url.trim();
+    const match = link.match(/(?:\/products\/|\/product\/)([^/?#]+)/i);
+    if (match && match[1]) {
+      return match[1];
+    }
+  }
+
+  return null;
+}
+
+function resolveBannerLink(banner) {
+  const slug = extractBannerSlug(banner);
+  if (slug) {
+    return `/products/${slug}`;
+  }
+
+  if (banner.redirect_type === "product" && (banner.product_id || banner.target_id || banner.id)) {
+    const fallbackId = banner.product_id || banner.target_id || banner.id;
+    return `/products/${fallbackId}`;
+  }
+  if (banner.redirect_type === "category" && (banner.category_slug || banner.category_id)) {
+    return `/products?category=${banner.category_slug || banner.category_id}`;
+  }
+  if (banner.redirect_type === "custom_url" && banner.redirect_url) {
+    return banner.redirect_url;
+  }
+  if (banner.button_link) {
+    return banner.button_link;
+  }
+  return "/products";
+}
+
+const HeroCarousel = () => {
+  const { data: bannersData, isLoading } = useBanners({ position: "home_hero" });
+   
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState(0);
+
+  const touchStartX = useRef(0);
+  const touchCurrentX = useRef(0);
+
+  const heroSlides = useMemo(() => {
+    if (!bannersData || !Array.isArray(bannersData) || bannersData.length === 0) {
+      return defaultHeroSlides;
+    }
+
+    return bannersData.map((banner, index) => {
+      const bannerImg = assetUrl(
+        banner.image ||
+          banner.image_url ||
+          banner.banner_image ||
+          banner.desktop_image ||
+          banner.url,
+        defaultBannerImage,
+      );
+
+      const mobileImg = assetUrl(
+        banner.mobile_image ||
+          banner.mobile_image_url ||
+          banner.mobile_banner ||
+          banner.image ||
+          banner.image_url ||
+          banner.url,
+        bannerImg,
+      );
+
+      const bannerSlug = extractBannerSlug(banner);
+      const productUrl = bannerSlug ? `/products/${bannerSlug}` : resolveBannerLink(banner);
+
+      const whatsappText =
+        banner.whatsapp_button || banner.whatsapp_text || "Order on Whatsapp";
+      const whatsappUrl =
+        banner.whatsapp_url ||
+        `https://wa.me/918438660669?text=${encodeURIComponent(
+          `Hi SNA Sundaram, I would like to order ${banner.title || "from your store"}.`,
+        )}`;
+
+      return {
+        id: banner.id || `api-banner-${index}`,
+        image: bannerImg,
+        mobileImage: mobileImg,
+        eyebrow: banner.eyebrow || "",
+        title: banner.title || defaultHeroSlides[index % defaultHeroSlides.length].title,
+        description:
+          banner.description ||
+          banner.subtitle ||
+          defaultHeroSlides[index % defaultHeroSlides.length].description,
+        productUrl,
+        productButton:
+          banner.button_text || banner.product_button || "View Product",
+        whatsappText,
+        whatsappUrl,
+      };
+    });
+  }, [bannersData]);
+
+  const totalSlides = heroSlides.length;
+
+  useEffect(() => {
+    if (currentSlide >= totalSlides) {
+      setCurrentSlide(0);
+    }
+  }, [totalSlides, currentSlide]);
+
+  const nextSlide = useCallback(() => {
+    setCurrentSlide((prev) => (prev + 1) % totalSlides);
+  }, [totalSlides]);
+
+  const previousSlide = useCallback(() => {
+    setCurrentSlide((prev) => (prev - 1 + totalSlides) % totalSlides);
+  }, [totalSlides]);
+
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchCurrentX.current = e.touches[0].clientX;
+    setIsDragging(true);
+  };
+
+  const handleTouchMove = (e) => {
+    if (!isDragging) return;
+    touchCurrentX.current = e.touches[0].clientX;
+    const diff = touchCurrentX.current - touchStartX.current;
+    setDragOffset(diff);
+  };
+
+  const handleTouchEnd = () => {
+    if (!isDragging) return;
+    const diff = touchCurrentX.current - touchStartX.current;
+    const swipeThreshold = 50;
+    if (Math.abs(diff) > swipeThreshold) {
+      if (diff < 0) {
+        nextSlide();
+      } else {
+        previousSlide();
+      }
+    }
+    setIsDragging(false);
+    setDragOffset(0);
+  };
+
+  useEffect(() => {
+    if (isPaused || totalSlides <= 1) {
+      return;
+    }
+    const timer = setInterval(() => {
+      nextSlide();
+    }, AUTOPLAY_DURATION);
+    return () => clearInterval(timer);
+  }, [isPaused, nextSlide, totalSlides]);
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === "ArrowLeft") {
+        previousSlide();
+      }
+      if (event.key === "ArrowRight") {
+        nextSlide();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [nextSlide, previousSlide]);
+
+  if (isLoading) {
+    return (
+      <section
+        className="relative w-full overflow-hidden"
+        aria-label="Loading featured content"
+      >
+        <div className="relative h-[85vh] min-h-[500px] w-full flex items-center justify-center bg-[linear-gradient(110deg,#f0f4f1_0%,#f8faf9_50%,#f0f4f1_100%)] animate-pulse md:h-auto md:min-h-0 md:aspect-[2/1]">
+          <div className="flex flex-col items-center gap-3">
+            <Spinner className="h-9 w-9 text-[#079447]" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Loading featured content...
+            </span>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section
+      className="relative w-full overflow-hidden"
+      aria-label="Featured products"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+    >
+      <div
+        className="relative h-[85vh] min-h-[520px] max-h-[850px] w-full overflow-hidden touch-pan-y select-none md:h-auto md:min-h-0 md:max-h-none md:aspect-[2/1]"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {heroSlides.map((item, index) => (
+          <div
+            key={item.id ? `hero-${item.id}-${index}` : `hero-${index}`}
+            className={`
+              absolute
+              inset-0
+              ${
+                isDragging
+                  ? "transition-none"
+                  : "transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
+              }
+            `}
+            style={{
+              transform: `translateX(calc(${(index - currentSlide) * 100}% + ${dragOffset}px))`,
+            }}
+            aria-hidden={index !== currentSlide}
+          >
+            {/* Background Image with Responsive Mobile Picture Source */}
+            <picture className="absolute inset-0 h-full w-full">
+              <source
+                media="(max-width: 767px)"
+                srcSet={item.mobileImage || item.image}
+              />
+              <img
+                src={item.image}
+                alt=""
+                className="h-full w-full object-cover object-center md:object-center"
+              />
+            </picture>
+
+            {/* Gradient Overlay for Mobile Legibility */}
+            <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/85 via-black/40 to-black/10 md:bg-none" />
+
+            {/* Content overlay */}
+            <div className="absolute inset-0 z-20">
+              <div className="relative mx-auto h-full w-full max-w-[1500px]">
+                <div
+                  className="
+                    absolute
+                    bottom-12 left-[6%] right-[6%]
+                    md:bottom-auto md:right-auto
+                    md:left-[5%] md:top-1/3 md:w-[43%] md:max-w-[600px] md:-translate-y-1/2
+                    text-white
+                  "
+                >
+                  {/* TITLE */}
+                  <h1
+                    className="
+                      text-2xl font-bold leading-[1.2] tracking-[-0.02em]
+                      sm:text-3xl
+                      md:text-[clamp(20px,3vw,50px)] md:font-normal md:leading-[1.15]
+                    "
+                  >
+                    {item.title}
+                  </h1>
+
+                  {/* DESCRIPTION */}
+                  <p
+                    className="
+                      hidden
+                      mt-2.5 max-w-[550px]
+                      text-sm leading-relaxed text-white/90
+                      sm:text-base
+                      md:block md:mt-[clamp(8px,1vw,18px)] md:text-[clamp(10px,1.05vw,17px)] md:leading-[1.5] md:text-white/95
+                    "
+                  >
+                    {item.description}
+                  </p>
+
+                  {/* BUTTONS */}
+                  <div
+                    className="
+                      mt-5 flex flex-wrap items-center gap-3
+                      sm:gap-4
+                      md:mt-[clamp(12px,1.5vw,24px)] md:gap-[clamp(7px,1vw,16px)]
+                    "
+                  >
+                    {/* VIEW PRODUCT */}
+                    <Link
+                      to={item.productUrl}
+                      className="
+                        inline-flex items-center justify-center
+                        rounded-full border border-white
+                        px-5 py-2.5 text-xs font-semibold whitespace-nowrap text-white
+                        shadow-md backdrop-blur-xs transition-all duration-300
+                        hover:bg-white hover:text-[#222]
+                        sm:px-6 sm:py-3 sm:text-sm
+                        md:px-[clamp(14px,1.8vw,30px)] md:py-[clamp(6px,0.55vw,10px)] md:text-[clamp(9px,0.85vw,14px)] md:font-medium md:shadow-none
+                      "
+                    >
+                      {item.productButton}
+                    </Link>
+
+                    {/* WHATSAPP */}
+                    {/* <a
+                      href={item.whatsappUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="
+                        inline-flex items-center justify-center
+                        rounded-full bg-white
+                        px-5 py-2.5 text-xs font-semibold whitespace-nowrap text-[#333]
+                        shadow-md transition-all duration-300
+                        hover:bg-[#079447] hover:text-white
+                        sm:px-6 sm:py-3 sm:text-sm
+                        md:px-[clamp(14px,1.8vw,30px)] md:py-[clamp(6px,0.55vw,10px)] md:text-[clamp(9px,0.85vw,14px)] md:font-medium md:shadow-none
+                      "
+                    >
+                      {item.whatsappText}
+                    </a> */}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {/* Slide Indicators for Mobile & Desktop */}
+        {totalSlides > 1 && (
+          <div className="absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2">
+            {heroSlides.map((_, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => setCurrentSlide(idx)}
+                aria-label={`Go to slide ${idx + 1}`}
+                className={`h-2.5 rounded-full transition-all duration-300 ${
+                  idx === currentSlide
+                    ? "w-7 bg-[#079447] shadow-sm"
+                    : "w-2.5 bg-white/60 hover:bg-white"
+                }`}
+              />
+            ))}
+          </div>
+        )}
+
+        {totalSlides > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={previousSlide}
+              aria-label="Previous slide"
+              className="absolute left-5 top-1/2 z-30 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-black/20 text-white backdrop-blur-sm transition hover:bg-white hover:text-[#222222] lg:flex"
+            >
+              <ChevronLeft size={22} />
+            </button>
+
+            <button
+              type="button"
+              onClick={nextSlide}
+              aria-label="Next slide"
+              className="absolute right-5 top-1/2 z-30 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-black/20 text-white backdrop-blur-sm transition hover:bg-white hover:text-[#222222] lg:flex"
+            >
+              <ChevronRight size={22} />
+            </button>
+          </>
+        )}
+      </div>
+    </section>
+  );
+};
+
+export default HeroCarousel;

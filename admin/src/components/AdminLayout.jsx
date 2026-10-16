@@ -1,0 +1,305 @@
+import { useEffect, useMemo, useState } from "react";
+import {
+  Bell,
+  Boxes,
+  ChevronDown,
+  CircleHelp,
+  Image,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  MessageSquareText,
+  Moon,
+  Package,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Plus,
+  ReceiptIndianRupee,
+  RotateCcw,
+  Settings,
+  ShieldCheck,
+  ShoppingBag,
+  SlidersHorizontal,
+  Star,
+  Sun,
+  Tags,
+  TicketPercent,
+  Truck,
+  Users,
+  Warehouse,
+  X,
+} from "lucide-react";
+import {
+  addButtonLabels,
+  getGroupForView,
+  getMenusForRole,
+  menuGroups,
+} from "../constants/navigation";
+import myLogo from "../assets/SNA Logo.svg";
+
+const icons = {
+  Dashboard: LayoutDashboard,
+  Products: Package,
+  Categories: Tags,
+  Inventory: Warehouse,
+  Attributes: SlidersHorizontal,
+  Banners: Image,
+  Reviews: Star,
+  Coupons: TicketPercent,
+  Orders: ShoppingBag,
+  Dispatch: Truck,
+  "Order Status Labels": MessageSquareText,
+  Returns: RotateCcw,
+  "Refund Records": ReceiptIndianRupee,
+  Customers: Users,
+  "Support Tickets": MessageSquareText,
+  Notifications: Bell,
+  FAQ: CircleHelp,
+  "Shipping Settings": Settings,
+  Users: ShieldCheck,
+};
+
+export default function AdminLayout({
+  admin,
+  view,
+  onViewChange,
+  onLogout,
+  onAdd,
+  notifications = [],
+  notificationCount = 0,
+  onNotificationSelect,
+  children,
+}) {
+  const menus = getMenusForRole(admin?.role);
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(
+    () => localStorage.getItem("sna_sidebar_collapsed") === "true",
+  );
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem("sna_admin_theme");
+    if (saved === "dark" || saved === "light") return saved;
+    return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  });
+  const visibleGroups = useMemo(
+    () =>
+      menuGroups
+        .map((group) => ({
+          ...group,
+          items: group.items.filter((item) => menus.includes(item)),
+        }))
+        .filter((group) => group.items.length),
+    [menus],
+  );
+
+  useEffect(() => {
+    localStorage.setItem("sna_sidebar_collapsed", String(collapsed));
+  }, [collapsed]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
+    localStorage.setItem("sna_admin_theme", theme);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute(
+      "content",
+      theme === "dark" ? "#101713" : "#ffffff",
+    );
+  }, [theme]);
+
+  useEffect(() => {
+    function onKeyDown(event) {
+      if (event.key !== "Escape") return;
+      setMobileOpen(false);
+      setShowAccountMenu(false);
+      setShowNotifications(false);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  function selectView(menu) {
+    setMobileOpen(false);
+    onViewChange(menu);
+  }
+
+  function openNotification(notification) {
+    setShowNotifications(false);
+    onNotificationSelect?.(notification);
+  }
+
+  return (
+    <div className={`shell${collapsed ? " shell--collapsed" : ""}`}>
+      {mobileOpen && (
+        <button
+          className="sidebar-scrim"
+          type="button"
+          aria-label="Close navigation"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+      <aside className={mobileOpen ? "sidebar--open" : ""}>
+        <div className="brand">
+          <img className="brand-logo" src={myLogo} alt="SNA Sundaram" />
+          <button
+            className="sidebar-mobile-close"
+            type="button"
+            onClick={() => setMobileOpen(false)}
+            aria-label="Close navigation"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <nav aria-label="Administration sections">
+          {visibleGroups.map((group) => (
+            <div className="nav-group" key={group.label}>
+              <span className="nav-group-label">{group.label}</span>
+              {group.items.map((menu) => {
+                const Icon = icons[menu] || Boxes;
+                return (
+                  <button
+                    type="button"
+                    className={view === menu ? "active" : ""}
+                    onClick={() => selectView(menu)}
+                    key={menu}
+                    aria-current={view === menu ? "page" : undefined}
+                    title={collapsed ? menu : undefined}
+                  >
+                    <Icon size={19} aria-hidden="true" />
+                    <span>{menu}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </nav>
+
+        <div className="account">
+          {showAccountMenu && (
+            <div className="account-dropdown" role="menu">
+              <button type="button" onClick={onLogout} role="menuitem">
+                <LogOut size={17} aria-hidden="true" />
+                <span>Sign out</span>
+              </button>
+            </div>
+          )}
+
+          <button
+            type="button"
+            className="account-profile"
+            onClick={() => setShowAccountMenu((current) => !current)}
+            aria-haspopup="menu"
+            aria-expanded={showAccountMenu}
+          >
+            <span className="account-avatar" aria-hidden="true">
+              {admin?.name?.[0]?.toUpperCase() || "A"}
+            </span>
+            <span className="account-details">
+              <b>{admin?.name || "Admin"}</b>
+              <small>{admin?.role || "Administrator"}</small>
+            </span>
+            <ChevronDown
+              size={17}
+              aria-hidden="true"
+              className={showAccountMenu ? "account-arrow-open" : ""}
+            />
+          </button>
+        </div>
+      </aside>
+
+      <main>
+        <header className="app-header">
+          <div className="header-title-row">
+            <button
+              className="mobile-menu-button"
+              type="button"
+              onClick={() => setMobileOpen(true)}
+              aria-label="Open navigation"
+            >
+              <Menu size={22} />
+            </button>
+            <button
+              className="sidebar-collapse-button"
+              type="button"
+              onClick={() => setCollapsed((current) => !current)}
+              aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
+            >
+              {collapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
+            </button>
+            <div>
+              <div className="breadcrumbs" aria-label="Breadcrumb">
+                <span>SNA Admin</span>
+                <span aria-hidden="true">/</span>
+                <span>{getGroupForView(view)}</span>
+              </div>
+              <h1>{view}</h1>
+            </div>
+          </div>
+          <div className="header-actions">
+            <div className="notification-menu">
+              <button
+                className="notification-bell"
+                type="button"
+                onClick={() => setShowNotifications((current) => !current)}
+                aria-label={`Notifications${notificationCount ? `, ${notificationCount} pending` : ""}`}
+                aria-expanded={showNotifications}
+                aria-haspopup="menu"
+              >
+                <Bell size={19} />
+                {notificationCount > 0 && (
+                  <span className="notification-count">{notificationCount > 99 ? "99+" : notificationCount}</span>
+                )}
+              </button>
+              {showNotifications && (
+                <div className="notification-dropdown" role="menu">
+                  <header>
+                    <div><b>Notifications</b><small>Operational alerts</small></div>
+                    {notificationCount > 0 && <span>{notificationCount}</span>}
+                  </header>
+                  {notifications.length ? (
+                    <div className="notification-list">
+                      {notifications.map((notification) => (
+                        <button
+                          type="button"
+                          key={notification.id}
+                          className={`notification-item notification-item--${notification.kind}`}
+                          onClick={() => openNotification(notification)}
+                          role="menuitem"
+                        >
+                          <span className="notification-item-count">{notification.count}</span>
+                          <span><b>{notification.title}</b><small>{notification.description}</small></span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="notification-empty">No new operational alerts.</p>
+                  )}
+                </div>
+              )}
+            </div>
+            <button
+              className="theme-toggle"
+              type="button"
+              onClick={() => setTheme((current) => current === "dark" ? "light" : "dark")}
+              aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+              title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+            >
+              {theme === "dark" ? <Sun size={19} /> : <Moon size={19} />}
+            </button>
+            <span className="header-role">{admin?.role}</span>
+            {addButtonLabels[view] && (
+              <button className="primary-button" type="button" onClick={onAdd}>
+                <Plus size={18} aria-hidden="true" />
+                <span>{addButtonLabels[view]}</span>
+              </button>
+            )}
+          </div>
+        </header>
+        <section className="content" aria-label={`${view} content`}>
+          {children}
+        </section>
+      </main>
+    </div>
+  );
+}

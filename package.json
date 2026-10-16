@@ -1,0 +1,24 @@
+{
+  "name": "sna-ecommerce",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "install:all": "npm ci --prefix backend && npm ci --prefix frontend && npm ci --prefix admin",
+    "dev": "concurrently -n backend,frontend,admin -c cyan,green,magenta \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\" \"npm run dev --prefix admin\"",
+    "dev:backend": "npm run dev --prefix backend",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "dev:admin": "npm run dev --prefix admin",
+    "build": "npm run build:frontend && npm run build:admin",
+    "build:frontend": "npm run build --prefix frontend",
+    "build:admin": "npm run build --prefix admin",
+    "lint": "npm run lint --prefix backend && npm run lint --prefix frontend && npm run lint --prefix admin",
+    "test": "npm test --prefix backend",
+    "verify": "npm run lint && npm run test && npm run build",
+    "db:migrate": "npm run db:migrate --prefix backend",
+    "db:verify": "npm run db:verify --prefix backend",
+    "create-admin": "npm run create-admin --prefix backend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
