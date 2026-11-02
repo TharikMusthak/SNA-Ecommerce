@@ -680,81 +680,81 @@ router.post(
            WHERE phone = ? LIMIT 1 FOR UPDATE`,
           [destination],
         );
-        const candidateHash = hashToken(otp);
-        const valid =
-          pending &&
-          pending.otp_attempts < 5 &&
-          new Date(pending.otp_expires_at) > new Date() &&
-          safeHashEqual(candidateHash, pending.otp_hash);
-        if (!valid) {
-          if (pending)
+        if (pending) {
+          const candidateHash = hashToken(otp);
+          const valid =
+            pending.otp_attempts < 5 &&
+            new Date(pending.otp_expires_at) > new Date() &&
+            safeHashEqual(candidateHash, pending.otp_hash);
+          if (!valid) {
             await connection.query(
               "UPDATE pending_customer_registrations SET otp_attempts = otp_attempts + 1 WHERE id = ?",
               [pending.id],
             );
+            await connection.commit();
+            return fail(res, 400, "OTP is invalid or expired");
+          }
+          const [[existingUser]] = await connection.query(
+            "SELECT id FROM users WHERE email = ? OR phone = ? LIMIT 1 FOR UPDATE",
+            [pending.email, pending.phone],
+          );
+          if (existingUser) {
+            await connection.rollback();
+            return fail(res, 409, "Email or phone is already registered");
+          }
+          const [result] = await connection.query(
+            `INSERT INTO users
+             (first_name,last_name,email,phone,password_hash,status,email_verified_at,phone_verified_at,referral_code,referred_by,terms_accepted_at)
+             VALUES (?,?,?,?,?,'active',NULL,CURRENT_TIMESTAMP,?,?,?)`,
+            [
+              pending.first_name,
+              pending.last_name,
+              pending.email,
+              pending.phone,
+              pending.password_hash,
+              pending.referral_code,
+              pending.referred_by,
+              pending.terms_accepted_at,
+            ],
+          );
+          const [[createdUser]] = await connection.query(
+            "SELECT * FROM users WHERE id = ? FOR UPDATE",
+            [result.insertId],
+          );
+          const refreshToken = await createCustomerRefreshToken(
+            connection,
+            createdUser.id,
+            createdUser.session_version,
+            metadata(req),
+          );
+          await connection.query(
+            "UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?",
+            [createdUser.id],
+          );
+          await connection.query(
+            "DELETE FROM pending_customer_registrations WHERE id = ?",
+            [pending.id],
+          );
           await connection.commit();
-          return fail(res, 400, "OTP is invalid or expired");
+          res.cookie(
+            env.customerAccessCookie,
+            createCustomerAccessToken(createdUser),
+            customerAccessCookieOptions(),
+          );
+          res.cookie(
+            env.customerRefreshCookie,
+            refreshToken,
+            customerRefreshCookieOptions(),
+          );
+          await queueUserEvent({
+            userId: result.insertId,
+            event: "customer_registered",
+            entityType: "user",
+            entityId: result.insertId,
+            payload: { firstName: pending.first_name },
+          }).catch(() => []);
+          return ok(res, publicUser(createdUser), "Account created successfully");
         }
-        const [[existingUser]] = await connection.query(
-          "SELECT id FROM users WHERE email = ? OR phone = ? LIMIT 1 FOR UPDATE",
-          [pending.email, pending.phone],
-        );
-        if (existingUser) {
-          await connection.rollback();
-          return fail(res, 409, "Email or phone is already registered");
-        }
-        const [result] = await connection.query(
-          `INSERT INTO users
-           (first_name,last_name,email,phone,password_hash,status,email_verified_at,phone_verified_at,referral_code,referred_by,terms_accepted_at)
-           VALUES (?,?,?,?,?,'active',NULL,CURRENT_TIMESTAMP,?,?,?)`,
-          [
-            pending.first_name,
-            pending.last_name,
-            pending.email,
-            pending.phone,
-            pending.password_hash,
-            pending.referral_code,
-            pending.referred_by,
-            pending.terms_accepted_at,
-          ],
-        );
-        const [[createdUser]] = await connection.query(
-          "SELECT * FROM users WHERE id = ? FOR UPDATE",
-          [result.insertId],
-        );
-        const refreshToken = await createCustomerRefreshToken(
-          connection,
-          createdUser.id,
-          createdUser.session_version,
-          metadata(req),
-        );
-        await connection.query(
-          "UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?",
-          [createdUser.id],
-        );
-        await connection.query(
-          "DELETE FROM pending_customer_registrations WHERE id = ?",
-          [pending.id],
-        );
-        await connection.commit();
-        res.cookie(
-          env.customerAccessCookie,
-          createCustomerAccessToken(createdUser),
-          customerAccessCookieOptions(),
-        );
-        res.cookie(
-          env.customerRefreshCookie,
-          refreshToken,
-          customerRefreshCookieOptions(),
-        );
-        await queueUserEvent({
-          userId: result.insertId,
-          event: "customer_registered",
-          entityType: "user",
-          entityId: result.insertId,
-          payload: { firstName: pending.first_name },
-        }).catch(() => []);
-        return ok(res, publicUser(createdUser), "Account created successfully");
       }
       const [[record]] = await connection.query(
         `SELECT * FROM user_otps WHERE destination = ? AND purpose = ? AND used_at IS NULL AND expires_at > CURRENT_TIMESTAMP ORDER BY id DESC LIMIT 1 FOR UPDATE`,
