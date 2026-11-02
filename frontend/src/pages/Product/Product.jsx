@@ -582,6 +582,19 @@ console.log("product", product);
     setReviewMedia([]);
     setReviewErrors({});
     setReviewTouched({});
+
+    requestAnimationFrame(() => {
+      if (reviewFormRef.current) {
+        const navbar = document.querySelector("header");
+        const navbarHeight = navbar ? navbar.getBoundingClientRect().height : 100;
+        const top =
+          window.scrollY +
+          reviewFormRef.current.getBoundingClientRect().top -
+          navbarHeight -
+          16;
+        window.scrollTo({ top: Math.max(top, 0), behavior: "smooth" });
+      }
+    });
   };
 
   const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB limit
