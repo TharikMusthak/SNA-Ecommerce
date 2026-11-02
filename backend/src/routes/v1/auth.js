@@ -558,11 +558,37 @@ router.post(
           [hashToken(otp), pending.id],
         );
         providerResponse = await sendMsg91Otp({ mobile, otp });
+      } else {
+        // Accounts created before phone verification was introduced are kept
+        // directly in users with pending_verification status. They must be
+        // able to complete verification without an administrator override.
+        const [[legacyUser]] = await pool.query(
+          `SELECT id FROM users
+           WHERE phone IN (?, ?, ?)
+             AND status = 'pending_verification' AND deleted_at IS NULL
+           LIMIT 1`,
+          [mobile, `+91${mobile}`, `91${mobile}`],
+        );
+        if (legacyUser) {
+          await pool.query(
+            `UPDATE user_otps SET used_at=CURRENT_TIMESTAMP
+             WHERE user_id=? AND purpose='verify_phone' AND used_at IS NULL`,
+            [legacyUser.id],
+          );
+          await pool.query(
+            `INSERT INTO user_otps (user_id,destination,purpose,otp_hash,expires_at)
+             VALUES (?,?,'verify_phone',?,DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 10 MINUTE))`,
+            [legacyUser.id, mobile, hashToken(otp)],
+          );
+          providerResponse = await sendMsg91Otp({ mobile, otp });
+        }
       }
       return ok(
         res,
-        pending ? { provider: "MSG91", provider_response: providerResponse } : null,
-        pending
+        pending || providerResponse
+          ? { provider: "MSG91", provider_response: providerResponse }
+          : null,
+        pending || providerResponse
           ? "OTP request accepted by MSG91"
           : "If the destination is eligible, an OTP has been generated",
       );
@@ -582,6 +608,14 @@ router.post(
       (purpose === "login"
         ? user.status === "active"
         : true);
+    if (purpose === "login" && user?.status === "pending_verification") {
+      return fail(
+        res,
+        403,
+        "Your registration is not complete. Verify your mobile number to activate your account.",
+        { code: "PENDING_PHONE_VERIFICATION", data: { phone: mobile } },
+      );
+    }
     if (purpose === "login" && !eligible) {
       return fail(
         res,
@@ -749,9 +783,17 @@ router.post(
           "UPDATE users SET email_verified_at = CURRENT_TIMESTAMP, status = 'active' WHERE id = ?",
           [record.user_id],
         );
+      if (purpose === "verify_phone" && record.user_id)
+        await connection.query(
+          `UPDATE users
+              SET phone_verified_at=CURRENT_TIMESTAMP,status='active',
+                  failed_login_attempts=0,locked_until=NULL,last_login_at=CURRENT_TIMESTAMP
+            WHERE id=? AND status='pending_verification'`,
+          [record.user_id],
+        );
       let loginUser = null;
       let refreshToken = null;
-      if (purpose === "login") {
+      if (purpose === "login" || purpose === "verify_phone") {
         [[loginUser]] = await connection.query(
           "SELECT * FROM users WHERE id = ? AND deleted_at IS NULL FOR UPDATE",
           [record.user_id],

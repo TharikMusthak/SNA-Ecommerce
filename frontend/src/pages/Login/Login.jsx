@@ -249,6 +249,12 @@ const AuthModal = ({ onClose }) => {
     } catch (err) {
       const response = err?.response?.data;
       if (response?.code === "PENDING_PHONE_VERIFICATION" && response?.data?.phone) {
+        try {
+          await sendPhoneVerificationOtp(response.data.phone);
+        } catch (otpError) {
+          setError(otpError?.response?.data?.message || "Unable to send a verification OTP. Please try again.");
+          return;
+        }
         setMode("register");
         setRegistrationOtpSent(true);
         setFormData((current) => ({
@@ -259,7 +265,7 @@ const AuthModal = ({ onClose }) => {
         }));
         setTouched({ otp: true });
         setFieldErrors({});
-        setError("Your registration is waiting for mobile verification. Click Resend OTP, then enter the OTP to activate your account.");
+        setError("Your registration is waiting for mobile verification. An OTP has been sent to your mobile number.");
         return;
       }
       setError(
