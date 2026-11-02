@@ -51,13 +51,9 @@ const AuthModal = ({ onClose }) => {
   const validateSingleField = (name, value, allData, isLoginMode) => {
     if (isLoginMode) {
       if (name === "phone") {
-        if (loginMethod === "password") {
-          if (!String(value || "").trim()) return "Please enter your email or mobile number.";
-        } else {
-          const digits = String(value || "").replace(/\D/g, "").replace(/^91(?=[6-9]\d{9}$)/, "");
-          if (!digits) return "Please enter your mobile number.";
-          if (!/^[6-9]\d{9}$/.test(digits)) return "Enter a valid 10-digit Indian mobile number.";
-        }
+        const digits = String(value || "").replace(/\D/g, "").replace(/^91(?=[6-9]\d{9}$)/, "");
+        if (!digits) return "Please enter your mobile number.";
+        if (!/^[6-9]\d{9}$/.test(digits)) return "Enter a valid 10-digit Indian mobile number.";
       }
       if (name === "password" && loginMethod === "password" && !value)
         return "Please enter your password.";
@@ -755,15 +751,15 @@ const AuthModal = ({ onClose }) => {
                 {!registrationOtpSent && <div>
                   <input
                     id={isLogin ? "phone" : "email"}
-                    type={isLogin && loginMethod === "otp" ? "tel" : isLogin ? "text" : "email"}
+                    type={isLogin ? "tel" : "email"}
                     name={isLogin ? "phone" : "email"}
                     value={isLogin ? formData.phone : formData.email}
                     onChange={handleChange}
                     onBlur={handleBlur}
-                    placeholder={isLogin ? (loginMethod === "otp" ? "Enter your mobile number" : "Email or mobile number") : "Enter your email (optional)"}
-                    maxLength={isLogin && loginMethod === "otp" ? 13 : isLogin ? 190 : 100}
-                    autoComplete={isLogin ? (loginMethod === "otp" ? "tel" : "username") : "email"}
-                    inputMode={isLogin && loginMethod === "otp" ? "tel" : undefined}
+                    placeholder={isLogin ? "Enter your mobile number" : "Enter your email (optional)"}
+                    maxLength={isLogin ? 13 : 100}
+                    autoComplete={isLogin ? "tel" : "email"}
+                    inputMode={isLogin ? "tel" : undefined}
                     disabled={isLogin && otpSent}
                     aria-invalid={Boolean(isLogin ? fieldErrors.phone : fieldErrors.email)}
                     className={`
