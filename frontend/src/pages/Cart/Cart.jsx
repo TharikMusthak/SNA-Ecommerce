@@ -199,6 +199,7 @@ const Cart = () => {
 
   useEffect(() => {
     if (
+      cart.invalid_coupon ||
       cart.coupon_invalid ||
       cart.is_coupon_valid === false ||
       cart.summary?.is_coupon_valid === false
@@ -210,7 +211,7 @@ const Cart = () => {
         .catch(() => {});
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cart.coupon_invalid, cart.is_coupon_valid, cart.summary?.is_coupon_valid]);
+  }, [cart.invalid_coupon, cart.coupon_invalid, cart.is_coupon_valid, cart.summary?.is_coupon_valid]);
 
   // ─── Stable callbacks ──────────────────────────────────────────────────────
   const run = useCallback(async (operation, successMessage) => {
