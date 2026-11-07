@@ -12,6 +12,10 @@ const requiredTables = [
   "orders",
   "order_items",
   "payments",
+  "shipments",
+  "shipment_events",
+  "shipping_settings",
+  "shipping_rate_quotes",
   "returns",
   "reviews",
   "support_tickets",
@@ -67,6 +71,7 @@ try {
     "007_admin_auth_compatibility",
     "008_customer_identity_integrity",
     "019_contact_form_tickets",
+    "022_shipping_schema_compatibility",
   ]) {
     if (!migrationNames.has(version))
       throw new Error(`Migration not applied: ${version}`);
