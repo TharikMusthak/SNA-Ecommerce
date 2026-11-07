@@ -72,6 +72,7 @@ try {
     "008_customer_identity_integrity",
     "019_contact_form_tickets",
     "022_shipping_schema_compatibility",
+    "023_banner_review_schema_compatibility",
   ]) {
     if (!migrationNames.has(version))
       throw new Error(`Migration not applied: ${version}`);
@@ -86,6 +87,9 @@ try {
     "admins.session_version",
     "admin_refresh_tokens.token_hash",
     "admin_refresh_tokens.session_version",
+    "banners.mobile_image",
+    "banners.display_position",
+    "reviews.edited_at",
   ]) {
     if (!columnNames.has(name))
       throw new Error(`Required column missing: ${name}`);
