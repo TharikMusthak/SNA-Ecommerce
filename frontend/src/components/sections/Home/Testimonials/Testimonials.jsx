@@ -1,68 +1,32 @@
-import { useState, useRef ,useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
+import api from "@api/axios";
 import PalmImage from "@assets/images/palm.png";
  import cardleaf from "@assets/images/cardleaf.png";
 
 import reviewLeft from "@assets/images/reviewLeft.png";
 import reviewRight from "@assets/images/reviewRight.png";
 
-const testimonials = [
-  {
-    id: 1,
-    name: "Arun K., Chennai",
-    image:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80",
-    rating: 5,
-    review:
-      "The traditional flavors are exceptional, and you can immediately tell the ingredients are fresh and of high quality. It's rare to find products this authentic these days.",
-    time: "1 day ago..",
-  },
+function relativeTime(value) {
+  const date = new Date(value);
+  const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+  if (seconds < 60) return "Just now";
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} hour${Math.floor(seconds / 3600) === 1 ? "" : "s"} ago`;
+  return `${Math.floor(seconds / 86400)} day${Math.floor(seconds / 86400) === 1 ? "" : "s"} ago`;
+}
 
-  {
-    id: 2,
-    name: "Aishwarya.B",
-    image:
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80",
-    rating: 5,
-    review:
-      "The freshness and taste truly remind us of homemade food. Every bite feels natural, delicious, and made with genuine care. It's now a regular part of our family's pantry.",
-    time: "20 hours ago..",
-  },
-
-  {
-    id: 3,
-    name: "Meena R., Coimbatore",
-    image:
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
-    rating: 5,
-    review:
-      "Healthy, delicious, and beautifully packed! I especially loved the Garlic with Honey—it tastes amazing and gives me confidence knowing it's made without artificial preservatives.",
-    time: "1 day ago..",
-  },
-
-  {
-    id: 4,
-    name: "Priya S., Madurai",
-    image:
-      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80",
-    rating: 5,
-    review:
-      "Everything tastes fresh and homemade. The quality of the ingredients is noticeable from the first bite. I will definitely order again.",
-    time: "2 days ago..",
-  },
-
-  {
-    id: 5,
-    name: "Karthik R., Tirunelveli",
-    image:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80",
-    rating: 5,
-    review:
-      "The taste reminds me of food made at home. The packaging was neat and the product felt fresh when it arrived.",
-    time: "3 days ago..",
-  },
-];
+function initials(name) {
+  return String(name || "Customer")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
 
 const Testimonials = () => {
+  const [testimonials, setTestimonials] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(1);
   const touchStartX = useRef(null);
   const touchEndX = useRef(null);
@@ -78,6 +42,27 @@ const Testimonials = () => {
   const totalSlides = testimonials.length;
 
   useEffect(() => {
+    let active = true;
+    api.get("/reviews/home", { params: { limit: 12 } })
+      .then((response) => {
+        if (!active) return;
+        const rows = response.data?.data ?? response.data ?? [];
+        setTestimonials(Array.isArray(rows) ? rows.map((review) => ({
+          id: review.id,
+          name: review.reviewer || "Customer",
+          rating: Math.min(5, Math.max(1, Number(review.rating) || 5)),
+          review: review.review_text || review.title,
+          time: relativeTime(review.created_at),
+        })) : []);
+      })
+      .catch(() => {
+        if (active) setTestimonials([]);
+      });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (totalSlides < 2) return undefined;
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % totalSlides);
     }, 4000);
@@ -86,10 +71,12 @@ const Testimonials = () => {
   }, [totalSlides]);
 
   const nextSlide = () => {
+    if (!totalSlides) return;
     setCurrentIndex((prev) => (prev + 1) % totalSlides);
   };
 
   const previousSlide = () => {
+    if (!totalSlides) return;
     setCurrentIndex((prev) => (prev - 1 + totalSlides) % totalSlides);
   };
 
@@ -419,19 +406,12 @@ const Testimonials = () => {
                   <div className="flex items-center gap-3">
                     {/* Customer image */}
 
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="
-                        h-11
-                        w-11
-                        shrink-0
-                        rounded-full
-                        border-2
-                        border-[#079447]
-                        object-cover
-                      "
-                    />
+                    <div
+                      aria-hidden="true"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-[#079447] bg-emerald-50 text-xs font-bold text-[#079447]"
+                    >
+                      {initials(item.name)}
+                    </div>
 
                     <div className="min-w-0">
                       <h3
@@ -571,19 +551,12 @@ const Testimonials = () => {
                       =========================================== */}
 
                       <div className="flex items-center gap-3">
-                        <img
-                          src={item.image}
-                          alt={item.name}
-                          className="
-                            h-12
-                            w-12
-                            shrink-0
-                            rounded-full
-                            border-2
-                            border-[#079447]
-                            object-cover
-                          "
-                        />
+                        <div
+                          aria-hidden="true"
+                          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 border-[#079447] bg-emerald-50 text-sm font-bold text-[#079447]"
+                        >
+                          {initials(item.name)}
+                        </div>
 
                         <div className="min-w-0">
                           <h3

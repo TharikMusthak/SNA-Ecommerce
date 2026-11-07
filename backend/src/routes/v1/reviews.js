@@ -12,6 +12,25 @@ import { fail, ok, paginated } from "../../utils/apiResponse.js";
 
 const router = Router();
 
+// Homepage testimonials must come from actual approved customer reviews, not
+// seeded marketing copy. Only expose the customer's first name and last-name
+// initial, matching the product review privacy format.
+router.get("/home", asyncHandler(async (req, res) => {
+  const limit = Math.min(Math.max(Number(req.query.limit) || 12, 1), 30);
+  const [rows] = await pool.query(
+    `SELECT r.id,r.rating,r.title,r.review_text,r.created_at,
+            CONCAT(u.first_name,' ',LEFT(u.last_name,1),'.') AS reviewer
+     FROM reviews r
+     JOIN users u ON u.id=r.user_id
+     WHERE r.status='approved'
+       AND COALESCE(NULLIF(TRIM(r.review_text), ''), NULLIF(TRIM(r.title), '')) IS NOT NULL
+     ORDER BY r.created_at DESC,r.id DESC
+     LIMIT ?`,
+    [limit],
+  );
+  return ok(res, rows);
+}));
+
 router.post("/media-upload-token", requireCustomer, asyncHandler(async (req, res) => {
   const token = jwt.sign(
     { scope: "review-media-upload" },
